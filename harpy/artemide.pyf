@@ -1,0 +1,110 @@
+!    -*- f90 -*-
+! Note: the context of this file is case sensitive.
+
+python module artemide
+interface
+
+
+module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90
+    use tmds_inkt
+    use tmds
+    use tmdx_dy
+    subroutine initialize(ordermain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        character*(*) :: ordermain
+    end subroutine initialize
+    subroutine setlambda_byreplica(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer :: num
+    end subroutine setlambda_byreplica
+    subroutine setlambda(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 dimension(:),intent(in) :: lambdain
+    end subroutine setlambda
+    subroutine setscalevariation(c1_in,c2_in,c3_in,c4_in) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: c1_in
+        real*8 :: c2_in
+        real*8 :: c3_in
+        real*8 :: c4_in
+    end subroutine setscalevariation
+    function utmdpdf_5_evolved(x,bt,muf,zetaf,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        real*8 :: muf
+        real*8 :: zetaf
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_5_evolved
+    end function utmdpdf_5_evolved
+    function utmdpdf_50_evolved(x,bt,muf,zetaf,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        real*8 :: muf
+        real*8 :: zetaf
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_50_evolved
+    end function utmdpdf_50_evolved
+    function utmdpdf_5_optimal(x,bt,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_5_optimal
+    end function utmdpdf_5_optimal
+    function utmdpdf_50_optimal(x,bt,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_50_optimal
+    end function utmdpdf_50_optimal
+    function utmdpdf_kt_5_evolved(x,bt,muf,zetaf,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        real*8 :: muf
+        real*8 :: zetaf
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_kt_5_evolved
+    end function utmdpdf_kt_5_evolved
+    function utmdpdf_kt_50_evolved(x,bt,muf,zetaf,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        real*8 :: muf
+        real*8 :: zetaf
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_kt_50_evolved
+    end function utmdpdf_kt_50_evolved
+    function utmdpdf_kt_5_optimal(x,bt,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_kt_5_optimal
+    end function utmdpdf_kt_5_optimal
+    function utmdpdf_kt_50_optimal(x,bt,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: bt
+        integer :: hadron
+        real*8 dimension(11) :: utmdpdf_kt_50_optimal
+    end function utmdpdf_kt_50_optimal
+    function dy_xsec_single(process,s,qt,q,y,includecuts,cutparameters,num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(3),intent(in) :: process
+        real*8 intent(in) :: s
+        real*8 dimension(2),intent(in) :: qt
+        real*8 dimension(2),intent(in) :: q
+        real*8 dimension(2),intent(in) :: y
+        logical intent(in) :: includecuts
+        real*8 dimension(4),intent(in) :: cutparameters
+        integer intent(in) :: num
+        real*8 :: dy_xsec_single
+    end function dy_xsec_single
+    function dy_xsec_list(process,s,qt,q,y,includecuts,cutparameters,listlength) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(:,:),intent(in) :: process
+        real*8 dimension(:),intent(in) :: s
+        real*8 dimension(:,:),intent(in) :: qt
+        real*8 dimension(:,:),intent(in) :: q
+        real*8 dimension(:,:),intent(in) :: y
+        logical dimension(:),intent(in) :: includecuts
+        real*8 dimension(:,:),intent(in) :: cutparameters
+        integer intent(in) :: listlength
+        real*8 dimension(listlength) :: dy_xsec_list
+    end function dy_xsec_list
+end module harpy
+
+! This file was auto-generated with f2py (version:2).
+! See http://cens.ioc.ee/projects/f2py2e/
+end interface
+end python module artemide

@@ -1,0 +1,162 @@
+# input file for arTeMiDe ver. 1.2
+# preserve the line numbering relative to *A,B,...-lines!
+#
+*0 :------------global setup
+*A :detalization of output
+# 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
+2
+
+
+
+*1 :------------physic parameters---------
+*A :threashold quark masses
+# mCHARM       
+1.400
+# mBOTTOM      
+4.750
+*B :weak bosons parameters
+# Gamma mass (GeV)
+91.1876
+# Gamma width (GeV)
+2.4952
+# sin^2(theta_W)
+0.23122
+*C :Unit transformation constants
+# (hc)^2   GeV->mbarn
+0.389379338
+*D :QED correction
+# value of (alpha)^{-1} at MZ 
+127.955
+
+*2 :--------numerical parameters------------
+*A : TMDX constants
+# tolerance (i.e. relative integration tolerance -- in kinematic integrals;)
+0.001
+# default number of sections for pt-bin integration
+4
+*AA: TMDF constants
+# Ogata integration step 
+0.001
+# tolerance (i.e. relative integration tolerance)
+0.0001
+
+*B : TMDs constants
+*BB: TMDs-inKT constants
+# Ogata integration step 
+0.001
+# tolerance (i.e. relative integration tolerance)
+0.0001
+
+*C : TMDR constants
+# tolerance (tolerance of searching for saddle point, numerical integration etc.)
+0.0001
+*D : uTMDPDF constants
+# tolerance (i.e. relative integration tolerance -- in convolution integrals)
+0.0001
+# maxIteration for adaptive integration
+10000
+*E : uTMDFF constants
+# tolerance (i.e. relative integration tolerance -- in convolution integrals)
+0.0001
+# maxIteration for adaptive integration
+10000
+
+
+# the griding swithes on/off in the TMDs, or manually
+*3 :--------grid parameters------------
+*B : TMDs constants
+# MakeGrid (to prepare TMD grids, T=true, F=false)
+T
+# includeGluon (to include gluon TMD in the grid, significantly slows down the calculation; note, gluon is always included in the mixture)
+F
+
+*C : TMDR griding
+#  muGrid_Max the maximal value of mu in grid for largeer mu extrapolation is done
+300
+# bGrid_Max the maximum bT in grid (min=0) for larger b extrapolation is done
+100
+# GridSizeMU 
+250
+# GridSizeB 
+750
+# slope scale of griding at smaller b (better not to change it :) )
+10
+
+*D : uTMDPDF griding
+#  xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough 
+0.00001
+# bGrid_Max the maximum bT in grid (min=0) for larger b extrapolation is done
+100
+# GridSizeX (250 is enough for 10^-8 presicion, for grid up to 10^-5)
+250
+# GridSizeB (750 is enough for ~10^-6 presicion, 500 for 10^-5 presicion)
+750
+# slope scale of griding at smaller b (better not to change it :) )
+10
+# asymptoticBehavior expected behavior of UTMDPDF at large b for better extrapolation (1=exp, 2=gauss)
+1
+# list of hadrons to grid SEPARATED BY COMMA(the hadrons that are not listed here will be evaluated regulary), if no hadrons to grid =0
+1
+
+*E : uTMDFF griding
+#  xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough
+0.05
+# bGrid_Max the maximum bT in grid (min=0) for larger b extrapolation is done
+50
+# GridSizeX (250 is enough for 10^-8 presicion, for grid up to 10^-5)
+200
+# GridSizeB (750 is enough for ~10^-6 presicion, 500 for 10^-5 presicion)
+400
+# slope scale of griding at smaller b (better not to change it :) )
+10
+# asymptoticBehavior expected behavior of UTMDPDF at large b for better extrapolation (1=exp, 2=gauss)
+1
+# list of hadrons to grid SEPARATED BY COMMA(the hadrons that are not listed here will be evaluated regulary), if no hadrons to grid =0
+1
+
+
+*4 :------------parameters of non-perturbative input---------------------
+*A : number of non-pertrubative parameters
+# Here we set the number of non-pertrubative parameters, in the parameterization of every TMD
+# This is needed to interface the TMDs.f90 module to the TMD-evaluating modules.
+# Each module receive n_i number of non-PT parameters, via MODULENAME_SetLambdaNP(lambda), where lambdaNP has lengh n_i
+# In TMDs_SetNPParameters(bMax,gK,lambdaNP) the array lambdaNP has a length \sum_i n_i, which is split into parts and transfer to individual modules
+# If number of parameters is 0, then corresponding module would not be initialized (so, this parameter is used as a trigger for initialisation).
+# The parameters in array are send accorgin to the order thay are given here, i.e. (n_1,n_2,...), with n_1->uTMDPDF, n_2->uTMDFF,....
+*0):-------------DNP--------------------
+2
+*1):-------------uTMDPDF----------------
+7
+*2):-------------uTMDFF-----------------
+0
+
+*B : type of evolution to used
+# The TMD evolution is solution depedent as discribed in 1803.11089
+# In the original version of arTeMiDe the solution 1 (improved D) has been used
+# Here is is possible to switch between evolutions 
+# 1 = improved D solution
+# 2 = improved gamma solution, 
+# 3 = fixed mu
+*1):-----------which evolution is used -------
+3
+
+*5 :------------parameters of cross-section evaluation-------------------
+# Here is put various triggers for the cross-section expression
+*A : Exact TMD-variables x1,x2,z for cross-section
+*1): ------ x1,x2 for DY
+T
+*2): ------ x1,z2 for SIDIS
+F
+*B : Hadron mass and transverse momentum corrections in SIDIS
+*1): ------ Account target mass in kinematics
+T
+*2): ------ Account produced mass in kinematics
+T
+*3): ------ Account transverse momentum in kinematics
+T
+
+*6 :-----------parameters for parrallel evaluation------------------------
+*A : Number of allowed parralel threads used in cross-section evauation midule by module
+*1): --------- TMDX_DY
+8
+
