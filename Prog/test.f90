@@ -62,11 +62,11 @@ implicit none
    !$ write(*,*) "It must be faster since you use OPENMP"
    do j=1,3
     qtList(j,:)=(/ptMin(j),ptmax(j)/)
-    Qlist(j,:)=(/66d0,126d0/)
-    yList(j,:)=(/-0.5d0,3.5d0/)
+    Qlist(j,:)=(/66d0,116d0/)
+    yList(j,:)=(/-2.4d0,2.4d0/)
     inCutList(j)=.true.
     cutList(j,:)=(/20d0,20d0,-2.4d0,2.4d0/)
-    pList(j,:)=(/1,1,6/)
+    pList(j,:)=(/1,1,5/)
     nnList(j)=4
     sList(j)=(8000d0)**2
    end do
