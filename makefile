@@ -67,8 +67,11 @@ $(OBJ)/TMDF.o \
 $(OBJ)/TMDX_DY.o\
 $(OBJ)/TMDX_SIDIS.o
 
+
 ################################################################### COMPILATION OF ARTEMIDE ####################################
 FC=$(FComplator)$(Fflags)
+
+.PHONY: clean default obj program test harpy harpy-signature
 
 default: obj
 
@@ -90,7 +93,8 @@ $(OBJ)/uTMDFF-MODELinterface.o: $(SOURCEDIR)/uTMDFF-MODELinterface.f90 $(SOURCED
 	
 	
 $(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90
-#	mkdir -p obj
+	mkdir -p obj
+	mkdir -p mod
 	$(FC) -c $(SOURCEDIR)/LeptonCutsDY.f90
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
@@ -166,6 +170,8 @@ clean:
 	$(RM) count *.o *.mod
 	$(RM) count $(OBJ)/*.o
 	$(RM) count $(MOD)/*.mod
+	$(RM) $(HDIR)/*.pyc
+	$(RM) $(HDIR)/artemide.so
 	
 program: 
 	echo $(TARGET)
@@ -177,7 +183,7 @@ test:
 	
 ################################################  HARPY PART  #######################################
 
-harpy-signature:
+harpy-signature: 
 	f2py -h $(HDIR)/artemide.pyf --overwrite-signature $(HDIR)/harpy.f90
 	sed -i '3i\\' $(HDIR)/artemide.pyf	
 	sed -i '3i interface' $(HDIR)/artemide.pyf
@@ -185,7 +191,7 @@ harpy-signature:
 	sed -i '3i\\' $(HDIR)/artemide.pyf
 	echo 'end interface' >> $(HDIR)/artemide.pyf
 	echo 'end python module artemide' >> $(HDIR)/artemide.pyf
-	
-harpy: harpy-signature
+
+harpy: 
 	f2py -c --f90exec=$(Fpath) --f90flags=$(Fflags) $(FOPT) -lgomp -I$(MOD) $(aTMDeFILES) $(HDIR)/harpy.f90 $(HDIR)/artemide.pyf
 	mv artemide.so $(HDIR)
