@@ -10,14 +10,22 @@ module harpy
 use TMDs
 use TMDs_inKT
 use TMDX_DY
-  
+
+!!! this flag is requared to guaranty that artemide is not started twice (it lead to the crush)
+logical::started=.false.
+
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GENERAL
   subroutine Initialize(orderMain)
-    character(len=*)::orderMain    
-    call TMDX_DY_Initialize(orderMain)
-    call TMDs_inKT_Initialize(orderMain)
+    character(len=*)::orderMain 
+    if(started) then
+      write(*,*) 'artemide already runs'
+    else
+      call TMDX_DY_Initialize(orderMain)
+      call TMDs_inKT_Initialize(orderMain)
+      started=.true.
+    end if
   end subroutine Initialize
   
     !! call for parameters from the model
@@ -44,6 +52,12 @@ contains
     call TMDX_DY_SetScaleVariations(c1_in,c2_in,c3_in,c4_in)
     
   end subroutine SetScaleVariation
+  
+  !! reset the number for PDF replica for uTMDPDF
+  subroutine SetPDFreplica(rep)
+    integer::rep
+    call TMDs_SetPDFreplica(rep)
+  end subroutine SetPDFreplica
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!uTMD
   !!!!!!!! upolarized TMDPDF
@@ -134,7 +148,7 @@ contains
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DY CROSS-SECTION
   
-    function DY_xSec_Single(process,s,qT,Q,y,includeCuts,CutParameters,Num)
+    function DY_xSec_SingleN(process,s,qT,Q,y,includeCuts,CutParameters,Num)
     integer,intent(in),dimension(1:3)::process		!the number of process
     real*8,intent(in)::s				!Mandelshtam s
     real*8,intent(in),dimension(1:2)::qT		!(qtMin,qtMax)
@@ -147,6 +161,22 @@ contains
     real*8::X
     
     call xSec_DY(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
+    DY_xSec_SingleN=X
+  
+  end function DY_xSec_SingleN
+  
+  function DY_xSec_Single(process,s,qT,Q,y,includeCuts,CutParameters)
+    integer,intent(in),dimension(1:3)::process		!the number of process
+    real*8,intent(in)::s				!Mandelshtam s
+    real*8,intent(in),dimension(1:2)::qT		!(qtMin,qtMax)
+    real*8,intent(in),dimension(1:2)::Q			!(Qmin,Qmax)
+    real*8,intent(in),dimension(1:2)::y			!(ymin,ymax)
+    logical,intent(in)::includeCuts			!include cuts
+    real*8,intent(in),dimension(1:4)::CutParameters	!(p1,p2,eta1,eta2)
+    real*8::DY_xSec_Single
+    real*8::X
+    
+    call xSec_DY(X,process,s,qT,Q,y,includeCuts,CutParameters)
     DY_xSec_Single=X
   
   end function DY_xSec_Single

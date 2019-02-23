@@ -9,6 +9,7 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
     use tmds_inkt
     use tmds
     use tmdx_dy
+    logical, optional :: started=.false.
     subroutine initialize(ordermain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         character*(*) :: ordermain
     end subroutine initialize
@@ -24,6 +25,9 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
         real*8 :: c3_in
         real*8 :: c4_in
     end subroutine setscalevariation
+    subroutine setpdfreplica(rep) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer :: rep
+    end subroutine setpdfreplica
     function utmdpdf_5_evolved(x,bt,muf,zetaf,hadron) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         real*8 :: x
         real*8 :: bt
@@ -80,7 +84,7 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
         integer :: hadron
         real*8 dimension(11) :: utmdpdf_kt_50_optimal
     end function utmdpdf_kt_50_optimal
-    function dy_xsec_single(process,s,qt,q,y,includecuts,cutparameters,num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    function dy_xsec_singlen(process,s,qt,q,y,includecuts,cutparameters,num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         integer dimension(3),intent(in) :: process
         real*8 intent(in) :: s
         real*8 dimension(2),intent(in) :: qt
@@ -89,6 +93,16 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
         logical intent(in) :: includecuts
         real*8 dimension(4),intent(in) :: cutparameters
         integer intent(in) :: num
+        real :: dy_xsec_singlen
+    end function dy_xsec_singlen
+    function dy_xsec_single(process,s,qt,q,y,includecuts,cutparameters) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(3),intent(in) :: process
+        real*8 intent(in) :: s
+        real*8 dimension(2),intent(in) :: qt
+        real*8 dimension(2),intent(in) :: q
+        real*8 dimension(2),intent(in) :: y
+        logical intent(in) :: includecuts
+        real*8 dimension(4),intent(in) :: cutparameters
         real*8 :: dy_xsec_single
     end function dy_xsec_single
     function dy_xsec_list(process,s,qt,q,y,includecuts,cutparameters,listlength) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy

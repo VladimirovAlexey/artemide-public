@@ -22,7 +22,7 @@ implicit none
   private
   
    !Current version of module
- character (len=5),parameter :: version="v1.31"
+ character (len=5),parameter :: version="v1.4"
   
   real*8 :: tolerance=0.0005d0
   
@@ -41,7 +41,6 @@ implicit none
   integer,dimension(1:3)::process_global
   !!other global parameters see SetXParameters  
   integer:: orderH_global
-  logical:: IsySymmetric !! indicates that process y-symmetric
   logical:: includeCuts_global
   integer:: exactX1X2    !!!=1 if exact x's=true, =0 otherwise
   
@@ -456,20 +455,20 @@ contains
 	uniPart=1.3962634015954636d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9!from GeV to pb
-	IsySymmetric=.true.
+	!!! IsySymmetric=.true.  !!! state is IsySymmetric-function
     CASE(2)
 	!4 pi aEm^2/3 /Nc/Q^2/s
 	uniPart=1.3962634015954636d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9!from GeV to pb
-	IsySymmetric=.false.
+	!!!IsySymmetric=.false.	!!! state is IsySymmetric-function
     CASE (3) !Zboson in the narrow-width approximation
 	!4 pi^2 aem/Ns/s Br(z->ee+mumu)
 	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
 	    0.03645d0!Br from PDG, ee+mumu 
-	IsySymmetric=.true.
+	!!!IsySymmetric=.true.	!!! state is IsySymmetric-function
     CASE DEFAULT 
       write(*,*) 'ERROR: arTeMiDe.TMDX_DY: unknown process p2=',process(2),' .Evaluation stop.'
       stop
@@ -528,7 +527,16 @@ contains
     end if
   end function HardCoefficientDY
   
-    
+  !!! check is the process y-symmetric
+  function IsySymmetric(p2)
+  logical::IsySymmetric
+  integer::p2
+  if(p2==1 .or. p2==3 ) then 
+    IsySymmetric=.true.
+  else
+    IsySymmetric=.false.
+  end if
+  end function IsySymmetric
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -619,7 +627,7 @@ contains
     ymin_Check=log(var(5))+0.000000001d0
     ymax_Check=-log(var(5))-0.000000001d0
     
-    if(IsySymmetric .and. (ABS(ymax+ymin)<tolerance)) then!!! symetric integral
+    if(IsySymmetric(process(2)) .and. (ABS(ymax+ymin)<tolerance)) then!!! symetric integral
     if(ymax > ymax_check) then
         ymax=ymax_Check
     end if!!!!! else case: automatically taken into account
@@ -1463,8 +1471,8 @@ contains
             nn=NumPT_auto(real(qT(i,2)-qT(i,1)),real((Q(i,2)+Q(i,1))/2.))
         end do
     end if
-    
     !$OMP PARALLEL DO DEFAULT(SHARED)
+    
      do i=1,length
        X(i)=PreFactor1(process(i,1))*Xsec_PTint_Qint_Yint(process(i,1:3),includeCuts(i),CutParameters(i,1:4),&
 				s(i),qT(i,1),qT(i,2),Q(i,1),Q(i,2),y(i,1),y(i,2),nn(i))

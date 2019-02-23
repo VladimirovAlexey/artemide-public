@@ -18,6 +18,7 @@ logical:: started
 
 public::QCDinput_Initialize,As,QCDinput_IsInitialized
 public::xPDF,xFF
+public:: QCDinput_SetPDFreplica
 
  contains 
  
@@ -81,6 +82,11 @@ public::xPDF,xFF
  
  end subroutine QCDinput_Initialize
  
+ !!! set a different replica number for PDF.
+ subroutine QCDinput_SetPDFreplica(rep)
+ integer:: rep
+  call InitPDF(rep)
+ end subroutine QCDinput_SetPDFreplica
  
  !!!!alphas(Q)/4pi
  !!! NOT FORGET 4 PI !!!

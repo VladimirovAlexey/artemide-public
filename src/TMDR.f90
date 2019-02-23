@@ -145,7 +145,7 @@ implicit none
   public::TMDR_R,TMDR_Rzeta
   public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ
   
-!    public::DNP,GammaCusp,gammaV
+    public::DNP!,GammaCusp,gammaV
   interface TMDR_setNPparameters
    module procedure TMDR_setNPparameters, TMDR_SetReplica
   end interface 

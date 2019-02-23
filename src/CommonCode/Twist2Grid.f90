@@ -266,24 +266,24 @@ function ExtractFromGrid(x,bT,hadron)
     end if
   end do
   if(h==0) then
-    write(*,*) 'arTeMiDe.',moduleName,': CRITICAL MISTAKE:: the hadron ',hadron,' is not found in the grid'
+    write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: the hadron ',hadron,' is not found in the grid'
     write(*,*) 'arTeMiDe: evaluation STOP'
     stop
   end if
   
   if(x<xGrid_Min) then
-   write(*,*) 'arTeMiDe',moduleName,': CRITICAL MISTAKE:: The TMD with x =',x,'is called. Current grid size is up to '&
+   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with x =',x,'is called. Current grid size is up to '&
    ,xGrid_Min,'. Enlarge boundaries.'
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if
   if(x>1d0) then
-   write(*,*) 'arTeMiDe',moduleName,': CRITICAL MISTAKE:: The TMD with x >1 (',x,') is called.' 
+   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with x >1 (',x,') is called.' 
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if
   if(bT<0d0) then
-   write(*,*) 'arTeMiDe',moduleName,': CRITICAL MISTAKE:: The TMD with bT <0 (',bT,') is called.' 
+   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with bT <0 (',bT,') is called.' 
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if

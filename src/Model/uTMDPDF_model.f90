@@ -5,7 +5,7 @@
 !			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
 !			muOPE=C0/b+2
 !
-!			Model for unpolarized TMD evolution for BSV19_EXP
+!			Model for unpolarized TMD evolution for BSV19.bFIT
 !
 !			corresponds to bb* model
 !
@@ -22,9 +22,9 @@
   
   !!!!!! Write nessecery model intitialization.
   subroutine ModelInitialization()  
-    name="BSV19_EXP"
+    name="BSV19.bFIT"
     
-    write(*,*) 'Model BSV19_EXP is used. Please, cite ????.????'
+    write(*,*) 'Model BSV19.bFIT is used. Please, cite ????.????'
     
   end subroutine ModelInitialization
   

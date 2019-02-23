@@ -90,7 +90,7 @@ implicit none
 
 !!-----------------------------------------------Public interface---------------------------------------------------
     
-  public::uTMDPDF_Initialize,uTMDPDF_SetLambdaNP,uTMDPDF_SetScaleVariation,uTMDPDF_resetGrid
+  public::uTMDPDF_Initialize,uTMDPDF_SetLambdaNP,uTMDPDF_SetScaleVariation,uTMDPDF_resetGrid,uTMDPDF_SetPDFreplica
   public::uTMDPDF_lowScale5,uTMDPDF_lowScale50	
 !   public::CheckCoefficient  
 !   public::mu_OPE
@@ -340,6 +340,16 @@ implicit none
   
   end subroutine uTMDPDF_SetReplica_optional
   
+  !! call QCDinput to change the PDF replica number
+  !! unset the grid, since it should be recalculated fro different PDF replica.
+  subroutine uTMDPDF_SetPDFreplica(rep)
+  integer:: rep
+  
+  call QCDinput_SetPDFreplica(rep)
+  gridReady=.false.  
+  
+  end subroutine uTMDPDF_SetPDFreplica
+  
   !!!Sets the non-pertrubative parameters lambda
   subroutine uTMDPDF_SetLambdaNP_usual(lambdaIN)
     real*8,dimension(1:lambdaNPlength)::lambdaIN  
@@ -444,6 +454,7 @@ implicit none
       end if
 !     write(*,*) 'CHECK'
   end subroutine uTMDPDF_resetGrid
+  
   
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors

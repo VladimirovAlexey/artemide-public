@@ -60,7 +60,7 @@ module TMDs
   logical:: convergenceLost=.false.
   
 !-----------------------------------------Public interface--------------------------------------------------------------
-  public::TMDs_SetNPParameters,TMDs_SetScaleVariations,TMDs_Initialize
+  public::TMDs_SetNPParameters,TMDs_SetScaleVariations,TMDs_Initialize,TMDs_SetPDFreplica
   real*8,dimension(-5:5),public:: uTMDPDF_5,uTMDPDF_50
   real*8,dimension(-5:5),public:: uTMDFF_5,uTMDFF_50
   
@@ -282,7 +282,7 @@ module TMDs
   
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors
-subroutine TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
+  subroutine TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
     real*8::c1_in,c3_in,c4_in,c4_old
     
     If(EvolutionType==1) then
@@ -334,7 +334,15 @@ subroutine TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
      call uTMDFF_resetGrid(MakeGrid,includeGluon)
      end if
     end if
-end subroutine TMDs_SetScaleVariations
+  end subroutine TMDs_SetScaleVariations
+  
+  !!!Pass variable to SetPDFreplica, reset grid
+  subroutine TMDs_SetPDFreplica(rep)
+  integer::rep
+    convergenceLost=.false.
+    call uTMDPDF_SetPDFreplica(rep)  
+    call uTMDPDF_resetGrid(MakeGrid,includeGluon)
+  end subroutine TMDs_SetPDFreplica
   
   !!!!!!!!!!!!!!!!!!!uTMDPDF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   

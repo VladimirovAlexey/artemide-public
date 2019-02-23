@@ -14,16 +14,25 @@
 1.400
 # mBOTTOM      
 4.750
-*B :weak bosons parameters
-# Gamma mass (GeV)
-91.1876
-# Gamma width (GeV)
-2.4952
+*B :electro-weak theory parameters
+*1) ----general ----
 # sin^2(theta_W)
 0.23122
+*2) ----Z-boson ----
+# Z-boson mass (GeV)
+91.1876
+# Z-boson width (GeV)
+2.4952
+*3) ----W-boson ----
+# W-boson mass (GeV)
+80.379
+# W-boson width (GeV)
+2.085
+
 *C :Unit transformation constants
 # (hc)^2   GeV->mbarn
 0.389379338
+
 *D :QED correction
 # value of (alpha)^{-1} at MZ 
 127.955

@@ -5,8 +5,8 @@ The public repository of artemide package for TMD-physics (transverse momentum d
     CHECK:
     In makefile set (in the begining of file)
     FCompiler        <= your prefered fortran compiler (f95 at least, gfortran also works)
-    Fflags        <= if you use openmp
-    FOPT        <= For extra options, links,etc. see LHAPDF
+    Fflags           <= if you use openmp
+    FOPT             <= For extra options, links,etc. see LHAPDF
     
     the harpy compiles with the help of f2py package from numpy (python2)
     
@@ -31,18 +31,24 @@ Commands in make
 make
 => Compiles the artemide package (necessary for all others)
 
-make harpy
-=> Compiles the harpy from artemide
-
 make test
 => Compiles and execute test.f90. It initializes artemide and calculates some cross-section. Also tests parallel computation (if it is)
 
 make program TARGET=abc.f90
 => Compiles a program abc.f90 in the /Prog with artemide
 
+make harpy
+=> Compiles the harpy from artemide
+
+make harpy-signature
+=> Compiles the signature file for f2py for harpy (does not work on Mac)
 
 -------------------------------------------------------------------------------------------------------
 See manual for details on artemide  in /doc
+
+See example of elementary fortran code for calculation of cross-section in Prog/DY_example.f90
+
+
 If you have questions, suggestions => E-mail: vladimirov.aleksey@gmail.com
 
 

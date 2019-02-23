@@ -6,6 +6,7 @@
 ######################################################################
 
 import artemide
+import numpy
 
 def initialize(order):
     """Initialization of artemide
@@ -13,7 +14,10 @@ def initialize(order):
         Argument: order = LO, NLO, NNLO
     """
     artemide.harpy.initialize(order)
-    print "Welcome to harpy -- the python interface for artemide"
+    if artemide.harpy.started:
+        pass
+    else:
+        print "Welcome to harpy -- the python interface for artemide"
 
 def setNPparameters(l):
     """Setting NP parameters for the model
@@ -33,6 +37,89 @@ def varyScales(c1,c2,c3,c4):
                 Arguments: (c1,c2,c3,c4)
         """
         artemide.harpy.setscalevariation(c1,c2,c3,c4)
+
+def _IsKinematicProper(s,qT,Q,y):
+    """ Checks the point for the proper kinematics
+    Especially for the correct domain of X.
+    """
+    gridX=0.00001
+    if qT[0]>qT[1]:
+        print 'Wrong order of qT'
+        return False
+    if Q[0]>Q[1]:
+        print 'Wrong order of Q'
+        return False
+    if y[0]>y[1]:
+        print 'Wrong order of y'
+        return False
+    if qT[1]>Q[0]:
+        print 'qT (',qT[1],') > Q(', Q[0],')'
+        return False
+    if Q[1]>s:
+        print 'Q (',Q[1],') > s(', s,')'
+        return False
+    
+    x1x2=(Q[1]**2+qT[1]**2)/s
+    ymax=-numpy.log(numpy.sqrt(x1x2))
+    ymin=-ymax
+    
+    if y[1]<ymin or y[0]>ymax:
+        print 'y ',y, 'is outside physical region ',[ymin,ymax]
+        return False
+    
+    if y[1]>ymax:
+        if x1x2<gridX:
+            print 'x outside of the grid'
+            return False
+    else:
+        if numpy.sqrt(x1x2)*numpy.exp(-y[1])<gridX:
+            print 'x outside of the grid'
+            return False
+    
+    if y[0]<ymin:
+        if x1x2<gridX:
+            print 'x outside of the grid'
+            return False
+    else:
+        if numpy.sqrt(x1x2)*numpy.exp(y[0])<gridX:
+            print 'x outside of the grid'
+            return False
+     
+    x1x2=(Q[0]**2+qT[0]**2)/s
+    ymax=-numpy.log(numpy.sqrt(x1x2))
+    ymin=-ymax
+    
+    if y[1]<ymin or y[0]>ymax:
+        print 'y ',y, 'is outside physical region ',[ymin,ymax]
+        return False
+    
+    if y[1]>ymax:
+        if x1x2<gridX:
+            print 'x outside of the grid'
+            return False
+    else:
+        if numpy.sqrt(x1x2)*numpy.exp(-y[1])<gridX:
+            print 'x outside of the grid'
+            return False
+    
+    if y[0]<ymin:
+        if x1x2<gridX:
+            print 'x outside of the grid'
+            return False
+    else:
+        if numpy.sqrt(x1x2)*numpy.exp(y[0])<gridX:
+            print 'x outside of the grid'
+            return False
+    
+    return True
+
+def setPDFreplica(n):
+    """Changes the replica for PDF input.
+    
+        This is a temporary function will be changed in future versions
+    """
+    artemide.harpy.setpdfreplica(n)
+    
 
 ###############################################################################
 class TMD5:
@@ -176,7 +263,7 @@ class DY:
         """
 
         @staticmethod
-        def xSec(process,s,qT,Q,y,includeCuts,CutParameters=None,Num=4):
+        def xSec(process,s,qT,Q,y,includeCuts,CutParameters=None,Num=None):
                 """Cross-section for DY integrated over bin
                       
                 Arguments: (process,s,qT,Q,y,includeCuts,CutParameters=None,Num=4)
@@ -190,39 +277,64 @@ class DY:
                 Num             = even integer, number of section of qt-integration (defaul=4)
                 """
 
-                if includeCuts and CutParameters==None:
-                    print "ERROR 1: specify the cut parameters"
-                    return 0
-                
-                if includeCuts and (len(CutParameters) is not 4):
-                        print "ERROR 2: legnth of CutParameters must 4"
-                        return 0
-                
-                if len(process) is not 3:
-                        print "ERROR 3: legnth of process must 3"
-                        return 0
-                
-                if len(qT) is not 2:
-                        print "ERROR 4: legnth of qT must 2"
-                        return 0
-                
-                if len(Q) is not 2:
-                        print "ERROR 5: legnth of Q must 2"
-                        return 0
-                        
-                if len(y) is not 2:
-                        print "ERROR 6: legnth of y must 2"
-                        return 0
+#                if includeCuts and CutParameters==None:
+#                    print "ERROR 1: specify the cut parameters"
+#                    return 0
+#                
+#                if includeCuts and (len(CutParameters) != 4):
+#                        print "ERROR 2: legnth of CutParameters must 4"
+#                        return 0
+#                
+#                if len(process) != 3:
+#                        print "ERROR 3: legnth of process must 3"
+#                        return 0
+#                
+#                if len(qT) != 2:
+#                        print "ERROR 4: legnth of qT must 2"
+#                        return 0
+#                
+#                if len(Q) != 2:
+#                        print "ERROR 5: legnth of Q must 2"
+#                        return 0
+#                        
+#                if len(y) != 2:
+#                        print "ERROR 6: legnth of y must 2"
+#                        return 0
                 
                 if not includeCuts:
                         cc=[0,0,0,0]
                 else:
                         cc=CutParameters
                 
-                return artemide.harpy.dy_xsec_single(process,s,qT,Q,y,includeCuts,cc,Num)
-        
+                if Num==None:
+                    return artemide.harpy.dy_xsec_single(\
+                        numpy.asfortranarray(process),\
+                        s,\
+                        numpy.asfortranarray(qT),\
+                        numpy.asfortranarray(Q),
+                        numpy.asfortranarray(y),
+                        includeCuts,\
+                        numpy.asfortranarray(cc))
+                else:
+                    return artemide.harpy.dy_xsec_single(\
+                        numpy.asfortranarray(process),\
+                        s,\
+                        numpy.asfortranarray(qT),\
+                        numpy.asfortranarray(Q),
+                        numpy.asfortranarray(y),
+                        includeCuts,\
+                        numpy.asfortranarray(cc),\
+                        Num)
+                    
             
         @staticmethod
         def xSecList(process,s,qT,Q,y,includeCuts,CutParameters):
-                return artemide.harpy.dy_xsec_list(process,s,qT,Q,y,includeCuts,CutParameters,len(s))
+            return artemide.harpy.dy_xsec_list(numpy.asfortranarray(process),\
+                                               numpy.asfortranarray(s),\
+                                               numpy.asfortranarray(qT),\
+                                               numpy.asfortranarray(Q),\
+                                               numpy.asfortranarray(y),\
+                                               numpy.asfortranarray(includeCuts),\
+                                               numpy.asfortranarray(CutParameters),\
+                                               len(s))
                                 
