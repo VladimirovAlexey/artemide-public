@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			Model for unpolarized TMD evolution for BSV19_EXP
+!			Model for unpolarized TMD evolution for BSV19.bFIT [1902.08474]
 !
 !			corresponds to bb* model
 !			DNP=Dpert(b*)+g bb*

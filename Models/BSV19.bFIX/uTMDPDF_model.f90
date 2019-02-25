@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			Model for unpolarized TMD PDF  (without LHC data points)
+!			Model for unpolarized TMD PDF  (without LHC data points) [1902.08474]
 !
 !			corresponds to model 1
 !			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
@@ -24,7 +24,7 @@
   subroutine ModelInitialization()  
     name="BSV19.bFIX"
     
-    write(*,*) 'Model BSV19.bFIX is used. Please, cite ????.????'
+    write(*,*) 'Model BSV19.bFIX is used. Please, cite 1902.08474'
     
   end subroutine ModelInitialization
   

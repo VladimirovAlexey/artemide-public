@@ -5,7 +5,7 @@
 !			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
 !			muOPE=C0/b+2
 !
-!			Model for unpolarized TMD evolution for BSV19.bFIT.noLHC
+!			Model for unpolarized TMD evolution for BSV19.bFIT.noLHC [1902.08474]
 !
 !			corresponds to bb* model
 !
@@ -24,7 +24,7 @@
   subroutine ModelInitialization()  
     name="BSV19.bFIT.noLHC"
     
-    write(*,*) 'Model BSV19.bFIT.noLHC is used. Please, cite ????.????'
+    write(*,*) 'Model BSV19.bFIT.noLHC is used. Please, cite 1902.08474'
     
   end subroutine ModelInitialization
   
