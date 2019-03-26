@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.31
+!			arTeMiDe 1.4
 !
 !	Evaluation of the TMD cross-section for DY-like cross-sections
 !	
@@ -39,6 +39,10 @@ implicit none
   !! Set of process definition, for Prefactor 1, Prefactor 2, structure function, etc
   !! = (/p1,p2,p3/)
   integer,dimension(1:3)::process_global
+  !!cut parameters
+  !!!!! this variable = (pT1,pT2,etaMIN,etaMAX)
+  real*8,dimension(1:4)::CutParameters_global
+  
   !!other global parameters see SetXParameters  
   integer:: orderH_global
   logical:: includeCuts_global
@@ -49,9 +53,7 @@ implicit none
   
   real*8::c2_global!,muHard_global
   
-  !!cut parameters
-  !!!!! this variable = (pT1,pT2,etaMIN,etaMAX)
-  real*8,dimension(1:4)::CutParameters_global
+
   
   integer::GlobalCounter,CallCounter
   
@@ -165,7 +167,7 @@ contains
     read(51,'(A)') line
     read(51,*) hc2    !!!!!!!!!!!GeV->mbarn
 
-    
+    !!! parameters of numerical evaluation
     do
     read(51,'(A)') line    
     if(line(1:3)=='*2 ') exit
@@ -180,6 +182,8 @@ contains
     read(51,'(A)') line
     read(51,*) NumPTdefault
     
+    
+    !! inclusion of power corrections
     do
     read(51,'(A)') line
     if(line(1:3)=='*5 ') exit
@@ -383,6 +387,16 @@ contains
     
   end subroutine TMDX_DY_XSetup
   
+  !!! function makes kinematic array from the given set of qT,s,Q,y
+  !!! array has 7 often appearing entries
+  function kinematicArray(qT,s,Q,y)
+  real*8,dimension(1:7)::kinematicArray
+  real*8::qT,s,Q,y
+  
+  kinematicArray=(/qT,s,Q,Q**2,sqrt((Q**2+exactX1X2*qT**2)/s),y,exp(y)/)
+  
+  end function kinematicArray
+  
   !!!intrinsic change the value of Q within kinematic array var
   subroutine SetQ(Q,var)
     real*8,dimension(1:7)::var
@@ -413,15 +427,7 @@ contains
     var(5)=sqrt((var(4)+exactX1X2*var(1)**2)/var(2))
     
   end subroutine SetQT
-  
-  !!! function makes kinematic array from the given set of qT,s,Q,y
-  function kinematicArray(qT,s,Q,y)
-  real*8,dimension(1:7)::kinematicArray
-  real*8::qT,s,Q,y
-  
-  kinematicArray=(/qT,s,Q,Q**2,sqrt((Q**2+exactX1X2*qT**2)/s),y,exp(y)/)
-  
-  end function kinematicArray
+
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -467,8 +473,13 @@ contains
 	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
-	    0.03645d0!Br from PDG, ee+mumu 
-	!!!IsySymmetric=.true.	!!! state is IsySymmetric-function
+	    0.03645d0!Br from PDG, ee+mumu
+    CASE (4) !Wboson in the narrow-width approximation
+	!4 pi^2 aem/Ns/s Br(z->ee+mumu)
+	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
+	    HardCoefficientDY(kin(3))*&
+	    hc2*1d9*&!from GeV to pb
+	    0.1086d0!Br from PDG, ee+mumu 
     CASE DEFAULT 
       write(*,*) 'ERROR: arTeMiDe.TMDX_DY: unknown process p2=',process(2),' .Evaluation stop.'
       stop
@@ -486,6 +497,7 @@ contains
   
   
   !!!! Set Prefactor1
+  !!!! it multiplies the cross-section as a whole, does not participate in the integration
   function PreFactor1(p1)
   real*8::Prefactor1
   integer::p1
@@ -544,14 +556,6 @@ contains
   
   !---------------------------------INTEGRATED------------------------------------------------------------------
   
-!    !!! this is help function which evaluate xSec at single qt (without lists) with only prefactor 2
-!   function xSec(var,incCut,CutParam)
-!   real*8:: xSec
-!   real*8,dimension(1:7),intent(in)::var
-!   
-!    xSec=xSec_intrinsic(var,includeCuts_global,CutParameters_global)
-!   end function xSec
-  
   !!! this is help function which evaluate xSec at single qt (without lists) with only prefactor 2
   !!!! this is extended (and default) version of xSec, which include all parameters
   function xSec(var,process,incCut,CutParam)
@@ -566,7 +570,7 @@ contains
     x1=var(5)*var(7)
     x2=var(5)/var(7)
    
-    FF=TMD_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))    
+    FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))    
     xSec=PreFactor2(var,process,incCut,CutParam)*FF  
   end function xSec
   
@@ -1461,11 +1465,75 @@ contains
     integer,allocatable::nn(:)
     
     length=size(s)
+    
+    !!! cheking sizes
+    if(size(X)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of xSec and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of process and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(qT,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of qT and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(y,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of y and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(Q,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of Q and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(includeCuts)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of includeCuts and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(CutParameters,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of CutParameters and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,2)/=3) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: process list must be (:,1:3).'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(qT,2)/=2) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: qt list must be (:,1:3).'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(y,2)/=2) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: y list must be (:,1:3).'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(Q,2)/=2) then
+      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: Q list must be (:,1:3).'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    
+    
     CallCounter=CallCounter+length
     
     allocate(nn(1:length))
     if(present(Num)) then
-        nn=Num 
+        if(size(Num,1)/=length) then
+	  write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of Num and s lists are not equal.'
+	  write(*,*) 'Evaluation stop'
+	  stop
+	end if
+	nn=Num
     else
         do i=1,length
             nn=NumPT_auto(real(qT(i,2)-qT(i,1)),real((Q(i,2)+Q(i,1))/2.))

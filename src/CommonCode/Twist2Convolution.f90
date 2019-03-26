@@ -44,6 +44,10 @@ end function LogMuB
 !!---Gluon contribution is undefined
 !- The order is accumulative pertrubative order of coefficient =0,1,2 (LO,NLO,NNLO)
 !---------------------------------------------------------------------
+!!!---
+!!!	It calculates 1/x int_x^1 dz C[z] f[x/z],
+!!!		where f is given by xf,  C is given by coeff. function.
+!!!---
 !---------------------------------------------------------------------
 function Common_lowScale5(x,bT,hadron)
   real*8,dimension(-5:5)::Common_lowScale5
@@ -138,6 +142,10 @@ function Common_lowScale5(x,bT,hadron)
 !--      = bbar ,cbar sbar,ubar,dbar,g,d,u,s, c ,b
 !- The order is accumulative pertrubative order of coefficient =0,1,2 (LO,NLO,NNLO)
 !---------------------------------------------------------------------
+!!!---
+!!!	It calculates 1/x int_x^1 dz C[z] f[x/z],
+!!!		where f is given by xf,  C is given by coeff. function.
+!!!---
 !---------------------------------------------------------------------
 function Common_lowScale50(x,bT,hadron)
   real*8,dimension(-5:5)::Common_lowScale50
@@ -236,6 +244,10 @@ end function Common_lowScale50
 
   
 !!Gauss-Kronrod adaptive quadrature, with explicit evaluation at the end point (if converge slow)
+!!!---
+!!! It calculates int_x0^x1 dz  C[z] f[x/z],
+!!!		where f[x/z] is given by function xf, C[z] is given by coeff.
+!!!---
 recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
     real*8,dimension(-5:5)::res5,PDFs,value,eps,epspdf,vg7,vk15
     
@@ -417,7 +429,11 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
       end if
   end function MellinConvolutionVectorPart5
   
- !!Gauss-Kronrod adaptive quadrature, with explicit evaluation at the end point (if converge slow)
+!!!Gauss-Kronrod adaptive quadrature, with explicit evaluation at the end point (if converge slow)
+!!!---
+!!! It calculates int_x0^x1 dz  C[z] f[x/z],
+!!!		where f[x/z] is given by function xf, C[z] is given by coeff.
+!!!---
 recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
     real*8,dimension(-5:5)::res5,PDFs,value,vg7,vk15,eps,epspdf,addV
     

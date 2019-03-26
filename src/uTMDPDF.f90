@@ -1009,7 +1009,7 @@ function uTMDPDF_lowScale5(x,bT,hadron)
       if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
       
        if(outputLevel>0 .and. messageTriger<6) then
-	  write(*,*) 'WARNING: arTeMiDe',moduleName,' error in restoration: original value is zero. TMDPDF set to zero. b=',bT
+	  write(*,*) 'WARNING: arTeMiDe.',moduleName,' error in restoration: original value is zero. TMDPDF set to zero. b=',bT
 	  messageTriger=messageTriger+1
 	  if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
        end if

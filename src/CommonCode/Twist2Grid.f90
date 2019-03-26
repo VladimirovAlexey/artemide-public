@@ -265,6 +265,8 @@ function ExtractFromGrid(x,bT,hadron)
       exit
     end if
   end do
+  
+  
   if(h==0) then
     write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: the hadron ',hadron,' is not found in the grid'
     write(*,*) 'arTeMiDe: evaluation STOP'
@@ -300,7 +302,7 @@ function ExtractFromGrid(x,bT,hadron)
     else !! X in the first inteval
       iX=INT(indexX)+1
     end if
-    fX=indexX-iX !!! fraction part (outomatically shifted by +- 1 if needed)
+    fX=indexX-iX !!! fraction part (automatically shifted by +- 1 if needed)
   
    if(bT>bGrid_Max) then
     
@@ -365,7 +367,7 @@ function ExtractFromGrid(x,bT,hadron)
 	      +var3*gridMain(iX+1,iB+1,-5:5,h)+var4*gridMain(iX+1,iB+2,-5:5,h))/6d0
 	interI(3,-5:5)=(var1*gridMain(iX+2,iB-1,-5:5,h)+var2*gridMain(iX+2,iB,-5:5,h)&
 	      +var3*gridMain(iX+2,iB+1,-5:5,h)+var4*gridMain(iX+2,iB+2,-5:5,h))/6d0
-	      
+	
      !!! linear interpolation procedure
 ! 	interI(0,-5:5)=fB*gridMain(iX-1,iB,-5:5,h)+(1d0-fB)*gridMain(iX-1,iB+1,-5:5,h)
 ! 	interI(1,-5:5)=fB*gridMain(iX,iB,-5:5,h)+(1d0-fB)*gridMain(iX,iB+1,-5:5,h)

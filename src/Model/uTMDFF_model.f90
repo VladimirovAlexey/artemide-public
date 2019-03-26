@@ -34,24 +34,15 @@
   real*8::FNP0
   integer::hadron
   real*8,intent(in)::lambdaNP(:)
+  
+  real*8::bb,w1,w2
+  
+  bb=bT**2/x**2
+  
+  w1=lambdaNP(1)*(1d0-x)+lambdaNP(2)*x
+  w2=lambdaNP(3)+lambdaNP(4)*x**2
 
-   real*8:: bb,c1,c0
-   real*8::ZZ,AA
-   bb=bT/lambdaNP(1)
-   AA=(1-x)*lambdaNP(2)+x*lambdaNP(3)
-   c0=(AA-0.5d0)*bb
-   c1=(AA+0.5d0)*bb
-   ZZ=1d0
-   
-   if(AA<0.0001d0) then
-   FNP0=1d6
-   else if(c1>50d0) then
-   FNP0=(1-lambdaNP(4))*Exp(c0-c1)*Abs(ZZ)+lambdaNP(4)*Exp(-bT**2/lambdaNP(5)**2)
-   else
-   FNP0=(1-lambdaNP(4))*Cosh(c0)/Cosh(c1)*Abs(ZZ)+lambdaNP(4)*Exp(-bT**2/lambdaNP(5)**2)
-   end if
-
-
+  FNP0=Exp(-bb*w1/sqrt(1d0+w2*bb))
   
   FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
 !   FNP=(/FNP1,FNP1,FNP1,FNP1,FNP1,FNP0,FNP0,FNP0,FNP1,FNP1,FNP1/)
@@ -62,7 +53,7 @@
   function mu_OPE(x,bt)
   real*8::bt,mu_OPE,x
   !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
-  mu_OPE=C0_const*1d0/bT+2d0
+  mu_OPE=(C0_const*1d0/bT+2d0)/x
   
   if(mu_OPE>1000d0) then
     mu_OPE=1000d0

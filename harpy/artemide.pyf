@@ -9,6 +9,7 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
     use tmds_inkt
     use tmds
     use tmdx_dy
+    use tmdx_sidis
     logical, optional :: started=.false.
     subroutine initialize(ordermain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         character*(*) :: ordermain
@@ -116,6 +117,42 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
         integer intent(in) :: listlength
         real*8 dimension(listlength) :: dy_xsec_list
     end function dy_xsec_list
+    function sidis_xsec_single(process,s,pt,z,x,q,docut,cuts) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(3),intent(in) :: process
+        real*8 intent(in) :: s
+        real*8 dimension(2),intent(in) :: pt
+        real*8 dimension(2),intent(in) :: z
+        real*8 dimension(2),intent(in) :: x
+        real*8 dimension(2),intent(in) :: q
+        logical intent(in) :: docut
+        real*8 dimension(3),intent(in) :: cuts
+        real*8 :: sidis_xsec_single
+    end function sidis_xsec_single
+    function sidis_xsec_single_withmasses(process,s,pt,z,x,q,docut,cuts,masses) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(3),intent(in) :: process
+        real*8 intent(in) :: s
+        real*8 dimension(2),intent(in) :: pt
+        real*8 dimension(2),intent(in) :: z
+        real*8 dimension(2),intent(in) :: x
+        real*8 dimension(2),intent(in) :: q
+        logical intent(in) :: docut
+        real*8 dimension(3),intent(in) :: cuts
+        real*8 dimension(2),intent(in) :: masses
+        real*8 :: sidis_xsec_single_withmasses
+    end function sidis_xsec_single_withmasses
+    function sidis_xsec_list(process,s,pt,z,x,q,docut,cuts,masses,listlength) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer dimension(:,:),intent(in) :: process
+        real*8 dimension(:),intent(in) :: s
+        real*8 dimension(:,:),intent(in) :: pt
+        real*8 dimension(:,:),intent(in) :: z
+        real*8 dimension(:,:),intent(in) :: x
+        real*8 dimension(:,:),intent(in) :: q
+        logical dimension(:),intent(in) :: docut
+        real*8 dimension(:,:),intent(in) :: cuts
+        real*8 dimension(:,:),intent(in) :: masses
+        integer intent(in) :: listlength
+        real*8 dimension(listlength) :: sidis_xsec_list
+    end function sidis_xsec_list
 end module harpy
 
 ! This file was auto-generated with f2py (version:2).

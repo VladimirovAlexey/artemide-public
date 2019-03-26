@@ -311,8 +311,8 @@ class DY:
                         numpy.asfortranarray(process),\
                         s,\
                         numpy.asfortranarray(qT),\
-                        numpy.asfortranarray(Q),
-                        numpy.asfortranarray(y),
+                        numpy.asfortranarray(Q),\
+                        numpy.asfortranarray(y),\
                         includeCuts,\
                         numpy.asfortranarray(cc))
                 else:
@@ -320,8 +320,8 @@ class DY:
                         numpy.asfortranarray(process),\
                         s,\
                         numpy.asfortranarray(qT),\
-                        numpy.asfortranarray(Q),
-                        numpy.asfortranarray(y),
+                        numpy.asfortranarray(Q),\
+                        numpy.asfortranarray(y),\
                         includeCuts,\
                         numpy.asfortranarray(cc),\
                         Num)
@@ -336,5 +336,56 @@ class DY:
                                                numpy.asfortranarray(y),\
                                                numpy.asfortranarray(includeCuts),\
                                                numpy.asfortranarray(CutParameters),\
+                                               len(s))
+                                
+###############################################################################
+class SIDIS:
+        """Static class for evaluation of SIDIS cross-section
+        """
+
+        @staticmethod
+        def xSec(process,s,pT,z,x,Q,includeCuts,CutParameters=None,masses=[0.938,0.130]):
+                """Cross-section for DY integrated over bin
+                      
+                Arguments: (process,s,qT,z,x,Q,includeCuts,CutParameters=None)
+                process         = (int, int, int) (see definition in artemide manual)
+                s               = Mandelshtan variable s
+                pT              = (pT-Min,pT-Max) boundaries of bin in pT
+                z               = (z-Min,z-Max) boundaries of bin in z
+                x               = (x-Min,x-Max) boundaries of bin in x
+                Q               = (Q-Min,Q-Max) boundaries of bin in Q                
+                includeCuts     = True/False to include leptonic cuts
+                CutParameters   = (real,real,real) must be if includeCuts=True (see definition in artemide manual)
+                """
+                
+                if not includeCuts:
+                        cc=[0,0,0]
+                else:
+                        cc=CutParameters
+                
+                
+                return artemide.harpy.sidis_xsec_single_withmasses(\
+                    numpy.asfortranarray(process),\
+                    s,\
+                    numpy.asfortranarray(pT),\
+                    numpy.asfortranarray(z),\
+                    numpy.asfortranarray(x),\
+                    numpy.asfortranarray(Q),\
+                    includeCuts,\
+                    numpy.asfortranarray(cc),
+                    numpy.asfortranarray(masses))
+                    
+            
+        @staticmethod
+        def xSecList(process,s,pT,z,x,Q,includeCuts,CutParameters,masses):  
+            return artemide.harpy.sidis_xsec_list(numpy.asfortranarray(process),\
+                                               numpy.asfortranarray(s),\
+                                               numpy.asfortranarray(pT),\
+                                               numpy.asfortranarray(z),\
+                                               numpy.asfortranarray(x),\
+                                               numpy.asfortranarray(Q),\
+                                               numpy.asfortranarray(includeCuts),\
+                                               numpy.asfortranarray(CutParameters),\
+                                               numpy.asfortranarray(masses),\
                                                len(s))
                                 

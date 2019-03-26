@@ -1,10 +1,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.31
+!			arTeMiDe 1.41
 !
 !	Evaluation of the unpolarized TMD FF at low normalization point in zeta-prescription.
 !	
 !	if you use this module please, quote 1706.01473 (for arTeMiDe), + ????.???? (for UTMDFF)
 !
+!	27.02.2019  changed z^2 prescription, now dd=x^2 xd.
 !
 !				A.Vladimirov (19.04.2018)
 !
@@ -17,8 +18,8 @@ implicit none
 private
 
   !Current version of module
- character (len=5),parameter :: version="v1.40"
- character (len=7),parameter :: moduleName="u6TMDFF"
+ character (len=5),parameter :: version="v1.41"
+ character (len=7),parameter :: moduleName="uTMDFF"
  
   INCLUDE 'Tables/NumConst.f90'  
   INCLUDE 'Tables/G7K15.f90'
@@ -54,7 +55,7 @@ private
   integer :: maxIteration=5000
   
 !------------------------------Variables for coefficient function etc-------------------------------
-    integer,parameter::parametrizationLength=25
+  integer,parameter::parametrizationLength=25
   !!!!!Coefficient lists
   !! { Log[1-z], log[1-z]^2, log[1-z]^3  !exact
   !!   1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -445,12 +446,13 @@ private
     real*8::c4_in
     c4_global=c4_in    
   end subroutine uTMDFF_SetScaleVariation
- 
+  
+  
+  !!! here we add x^2 since it is needed by FF convolution
   function xf(x,Q,hadron)
       real*8 :: x,Q
       integer:: hadron
       real*8, dimension(-5:5):: xf
-      
       xf=xFF(x,Q,hadron)
       
   end function xf
@@ -472,7 +474,7 @@ private
 	z*lx/(1d0-z), z*lx, (z**2)*lx,&
 	z*(lx**2)/(1d0-z), z*lx**2,  z*lx**3, &
 	(lx/(1d0-z)+1d0)*l1x, lx*l1x,  z*lx*l1x,&
-	(1d0-z)/z*l1x, (1d0-z)*l1x, (1d0-z)*l1x**2/)/z**2
+	(1d0-z)/z*l1x, (1d0-z)*l1x, (1d0-z)*l1x**2/)
   
   end function parametrizationString
   
@@ -500,9 +502,11 @@ private
  C_q_q_delta=1d0
  
   if(order_global>=1) then
+      !(checked 27.02.19 AV)
       C_q_q_delta=C_q_q_delta+alpha*(-4d0/3d0*zeta2-4d0*Lmu)
   end if
   if(order_global>=2) then
+    !(checked 27.02.19 AV)
      C_q_q_delta=C_q_q_delta+alpha*alpha*(&
      -2416d0/81d0 + (Lmu**2)*(-14d0 + 4d0*Nf/3d0 - 128d0*zeta2/9d0) - 134d0*zeta2/3d0 + 448d0*zeta3/9d0 &
      + Nf*(352d0/243d0 + 20d0*zeta2/9d0 + 56d0*zeta3/27d0) +  Lmu*(-14d0 - 140d0*zeta2/3d0 + Nf*(4d0/9d0&
@@ -518,10 +522,11 @@ private
   C_g_g_delta=1d0
  
   if(order_global>=1) then
-   
+      !(checked 27.02.19 AV)
       C_g_g_delta=C_g_g_delta+alpha*(-3d0*zeta2+(-11d0+2d0/3d0*Nf)*Lmu)
   end if
   if(order_global>=2) then
+    !(checked 27.02.19 AV)
      C_g_g_delta=C_g_g_delta+alpha*alpha*(&
      -112d0 - 56d0*(Nf**2)/81d0 - 201d0*zeta2/2d0 - 72d0*(Lmu**2)*zeta2 + Lmu*(-96d0 + 32d0*Nf/3d0 &
      - 108d0*zeta3) + Nf*(548d0/27d0 + 5d0*zeta2 - 28d0*zeta3/3d0) + 154d0*zeta3 + 2385d0*zeta4/4d0)
@@ -537,14 +542,14 @@ private
   
 
   if(order_global>=1) then    
-     
+     !(checked 27.02.19 AV)
     s1=s1+alpha*(-16d0/3d0*Lmu)
   end if
   if(order_global>=2) then
+    !(checked 27.02.19 AV)
     s1=s1+alpha*alpha*(&
     -3232d0/27d0 + 448d0*Nf/81d0 + (Lmu**2)*(-8d0 + 16d0*Nf/9d0) + &
     Lmu*(-1072d0/9d0 + 160d0*Nf/27d0 + 352d0*zeta2/9d0) + 112d0*zeta3)
-    
      s2=s2+alpha*alpha*(256d0/9d0*Lmu**2)
   end if
   
@@ -560,10 +565,11 @@ private
   s2=0d0!!!coeff log(1-x)/(1-x)
  
   if(order_global>=1) then  
-   
+   !(checked 27.02.19 AV)
     s1=s1+alpha*(-12d0)*Lmu
   end if
   if(order_global>=2) then
+    !(checked 27.02.19 AV)
     s1=s1+alpha*alpha*(&
     -808d0/3d0 + (Lmu**2)*(66d0 - 4d0*Nf) + 112d0*Nf/9d0 +&
       Lmu*(-268d0 + 40d0*Nf/3d0 + 108d0*zeta2) + 252d0*zeta3)
@@ -591,6 +597,7 @@ private
   0d0,0d0,0d0,&		!(Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  Log[z]Log[1-z],
   0d0,0d0,0d0/)		!(1-z)Log[z]/z, (1-z)Log[1-z], (1-z) Log[1-z]^2
   if(order_global>=1) then
+    !(checked 27.02.19 AV)
     Coeff_q_q=Coeff_q_q+alpha*(/&
       0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -604,6 +611,7 @@ private
 
   !------The kernels are calculated in mathematica
   if(order_global>=2) then
+      !(checked 27.02.19 AV)
      Coeff_q_q=Coeff_q_q+alpha*alpha*(/&
       -200d0/9d0 + 256d0*Lmu/3d0 - 256d0*(Lmu**2)/9d0, 64d0/9d0, 0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -649,6 +657,7 @@ private
   0d0,0d0,0d0,&		!(Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  Log[z]Log[1-z],
   0d0,0d0,0d0/)		!(1-z)Log[z]/z, (1-z)Log[1-z], (1-z) Log[1-z]^2
   if(order_global>=1) then
+    !(checked 27.02.19 AV)
     Coeff_q_g=Coeff_q_g+alpha*(/&
       0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       -16d0/3d0*Lmu,32d0/3d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -709,6 +718,7 @@ private
   0d0,0d0,0d0,&		!(Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  Log[z]Log[1-z],
   0d0,0d0,0d0/)		!(1-z)Log[z]/z, (1-z)Log[1-z], (1-z) Log[1-z]^2
   if(order_global>=1) then
+    !(checked 27.02.19 AV)
     Coeff_g_q=Coeff_g_q+alpha*(/&
       0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -779,6 +789,7 @@ private
   0d0,0d0,0d0,&		!(Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  Log[z]Log[1-z],
   0d0,0d0,0d0/)		!(1-z)Log[z]/z, (1-z)Log[1-z], (1-z) Log[1-z]^2
   if(order_global>=1) then
+    !(checked 27.02.19 AV)
     Coeff_g_g=Coeff_g_g+alpha*(/&
       0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       -12d0*Lmu,24d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
@@ -930,13 +941,12 @@ private
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Functions for calculation of convolution!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!! We evaluate the integral II=\int_z^1 dy/y  c(y) fNP(y) d(z/y)
-!! The coefficient function has 3 parts c(z)=C(z)/z^2=( delta(1-z) Cd+(Cs(z))_++Cr(z) )/z^2,    this last z^2 appears only in FF due to definition of operator
-!! The d(z) is given by tables in combination dd(z)=z*d(z).
-!! Thus the integral reads II=1/z  \int_z^1 dy/y^2  C(y) fNP(y) dd(z/y)
-!! Insrting explicit form we obtain
-!! II=1/z  [ Cd fd(z)+\int_z^1 dy/y^2  Cr(y) fNP(y) dd(z/y)+ \int_z^1 dy  Cs(y) (fNP(y) dd(z/y)/y^2-fd(z))-fd(z)\int_0^z Cs(y) dy ]
-!! where fd(z)=fNP(1)*dd(z)
+!! We evaluate the integral II=\int_z^1 dy/y  C(y)/y^2 fNP(z,y) d(z/y)
+!!
+!! to make sure that its definition is close to PDF definition we change d(x)->dd(x)/ and evaluate
+!! II=1/z**3 \int_z^1 dy  C(y) fNP(z,y) dd(z/y)
+!! where  1/z \int_z^1 dy  C(y) fNP(z,y) dd(z/y) is calculated in the common code.
+!! so we define dd with extra facto x^2, and here devide by extra factor x^2.
 
 !---------------------------------------------------------------------
 !- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu
@@ -952,9 +962,8 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
   
     !!! variables for restoration only
   real*8,dimension(-5:5) :: fNP_grid,fNP_current
-  
   if(gridReady.and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-   uTMDFF_lowScale5=ExtractFromGrid(z,bT,hadron)
+   uTMDFF_lowScale5=ExtractFromGrid(z,bT,hadron)/z**2
    
    !!!!!!!!!!This is procedure of restoration of function from the initial grid
    !!! if fNP is z-independent then the value can be obtained by TMDFF(initial) fNP(current)/fNP(initial)
@@ -966,7 +975,7 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
       if(fNP_grid(j)==0) then
       if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
        if(outputLevel>0 .and. messageTriger<6) then
-	  write(*,*) 'WARNING: arTeMiDe_uTMDPDF error in restoration: original value is zero. TMDFF set to zero. b=',bT
+	  write(*,*) 'WARNING: arTeMiDe.uTMDFF error in restoration: original value is zero. TMDFF set to zero. b=',bT
 	messageTriger=messageTriger+1
 	if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
       end if
@@ -982,7 +991,8 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
   else!!!! calculation
    
   
-  uTMDFF_lowScale5=Common_lowScale5(z,bT,hadron)
+  uTMDFF_lowScale5=Common_lowScale5(z,bT,hadron)/z**2
+  
  end if
  end function uTMDFF_lowScale5
 
@@ -1001,7 +1011,7 @@ real*8,dimension(-5:5)::uTMDFF_lowScale50
   real*8,dimension(-5:5) :: fNP_grid,fNP_current
   
   if(gridReady .and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-  uTMDFF_lowScale50=ExtractFromGrid(z,bT,hadron)
+  uTMDFF_lowScale50=ExtractFromGrid(z,bT,hadron)/z**2
   
   if(.not.IsFnpZdependent) then
     fNP_grid=FNP(z,1d0,bT,hadron,lambdaNP_grid)
@@ -1026,7 +1036,7 @@ real*8,dimension(-5:5)::uTMDFF_lowScale50
    
    
   else
-  uTMDFF_lowScale50=Common_lowScale50(z,bT,hadron)
+  uTMDFF_lowScale50=Common_lowScale50(z,bT,hadron)/z**2
  end if
   end function uTMDFF_lowScale50
 

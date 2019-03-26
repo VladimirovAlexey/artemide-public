@@ -7,6 +7,7 @@
 !
 !	ver 1.0: release (AV, 10.05.2017)
 !	ver 1.4: release (AV, 23.12.2018)
+!	ver 1.41:release (AV, 23.12.2018)
 !
 !				A.Vladimirov (23.12.2018)
 !
@@ -64,7 +65,7 @@ module TMDs
   real*8,dimension(-5:5),public:: uTMDPDF_5,uTMDPDF_50
   real*8,dimension(-5:5),public:: uTMDFF_5,uTMDFF_50
   
-  real*8,dimension(-5:5),public::uPDF_uPDF,uPDF_anti_uPDF
+  public::uPDF_uPDF,uPDF_anti_uPDF
   public::TMDs_convergenceISlost,TMDs_IsconvergenceLost
   
   interface uTMDPDF_5
@@ -250,20 +251,20 @@ module TMDs
     real*8,intent(in):: lambda(:)
     
     if(size(lambda)<totalNumberOfPar) then
-      if(outputLevel>0) write(*,*) 'arTeMiDe.TMDs: WARNING! Number of NP parameters array is less then expected (',&
-		totalNumberOfPar,')'
+      if(outputLevel>0) write(*,*) 'arTeMiDe.TMDs: WARNING! Length of NP parameters array (',size(lambda),&
+	  ') is less then expected (',totalNumberOfPar,')'
       if(outputLevel>0) write(*,*) 'NOTHING IS DONE'
     else
     
     convergenceLost=.false.
     
    call TMDR_setNPparameters(lambda(1:parameterLength(0)))
-   
    if(parameterLength(1)>0)&
 	call uTMDPDF_SetLambdaNP(lambda(parameterLength(0)+1:parameterLength(0)+parameterLength(1)) ,MakeGrid,includeGluon)
    if(parameterLength(2)>0)&
-      call uTMDFF_SetLambdaNP(lambda(parameterLength(1)+1:parameterLength(0)+parameterLength(1)+parameterLength(2)),&
-	      MakeGrid,includeGluon)
+      call uTMDFF_SetLambdaNP(lambda(parameterLength(0)+parameterLength(1)+1:&
+				      parameterLength(0)+parameterLength(1)+parameterLength(2)),&
+				      MakeGrid,includeGluon)
    end if
 
   end subroutine TMDs_SetNPParameters
@@ -445,7 +446,7 @@ module TMDs
     real*8:: x1,x2,bt,muf,zetaf
     real*8:: mui,Rkernel
     integer::hadron1,hadron2
-    real*8,dimension(-5:5)::tmd1,tmd2
+    real*8,dimension(-5:5)::tmd1,tmd2,uPDF_uPDF
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
@@ -480,7 +481,7 @@ module TMDs
     real*8:: x1,x2,bt,muf,zetaf
     real*8:: mui,Rkernel
     integer::hadron1,hadron2
-    real*8,dimension(-5:5)::tmd1,tmd2
+    real*8,dimension(-5:5)::tmd1,tmd2,uPDF_anti_uPDF
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D

@@ -109,11 +109,11 @@ F
 
 *E : uTMDFF griding
 #  xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough
-0.05
+0.001
 # bGrid_Max the maximum bT in grid (min=0) for larger b extrapolation is done
 50
 # GridSizeX (250 is enough for 10^-8 presicion, for grid up to 10^-5)
-200
+250
 # GridSizeB (750 is enough for ~10^-6 presicion, 500 for 10^-5 presicion)
 400
 # slope scale of griding at smaller b (better not to change it :) )
@@ -121,7 +121,7 @@ F
 # asymptoticBehavior expected behavior of UTMDPDF at large b for better extrapolation (1=exp, 2=gauss)
 1
 # list of hadrons to grid SEPARATED BY COMMA(the hadrons that are not listed here will be evaluated regulary), if no hadrons to grid =0
-1
+0
 
 
 *4 :------------parameters of non-perturbative input---------------------
@@ -151,21 +151,24 @@ F
 
 *5 :------------parameters of cross-section evaluation-------------------
 # Here is put various triggers for the cross-section expression
-*A : Exact TMD-variables x1,x2,z for cross-section
-*1): ------ x1,x2 for DY
+*A : Drell-Yan module
+*1): ------ correction qT/Q for x1,x2 
 T
-*2): ------ x1,z2 for SIDIS
-F
-*B : Hadron mass and transverse momentum corrections in SIDIS
-*1): ------ Account target mass in kinematics
+*B : SIDIS module
+*1): ------ Transverse momentum corrections in kinematics
 T
-*2): ------ Account produced mass in kinematics
+*2): ------ Target mass corrections in kinematics
 T
-*3): ------ Account transverse momentum in kinematics
+*3): ------ Produced mass corrections in kinematics
 T
+*B+: Values of masses used for mass correction (so far universal, i.e. independent on the process)
+*1): For target mass correction (GeV)
+0.938
+*2): For produced mass correction (GeV)
+0.200
 
 *6 :-----------parameters for parrallel evaluation------------------------
-*A : Number of allowed parralel threads used in cross-section evauation midule by module
+*A : Number of allowed parralel threads used in cross-section evauation module by module
 *1): --------- TMDX_DY
 8
 

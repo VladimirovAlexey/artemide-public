@@ -10,6 +10,7 @@ module harpy
 use TMDs
 use TMDs_inKT
 use TMDX_DY
+use TMDX_SIDIS
 
 !!! this flag is requared to guaranty that artemide is not started twice (it lead to the crush)
 logical::started=.false.
@@ -23,6 +24,7 @@ contains
       write(*,*) 'artemide already runs'
     else
       call TMDX_DY_Initialize(orderMain)
+      call TMDX_SIDIS_Initialize(orderMain)
       call TMDs_inKT_Initialize(orderMain)
       started=.true.
     end if
@@ -195,5 +197,56 @@ contains
     call xSec_DY_List(DY_xSec_List,process,s,qT,Q,y,includeCuts,CutParameters)
   
   end function DY_xSec_List
+  
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SIDIS CROSS-SECTION
+  
+  function SIDIS_xSec_Single(process,s,pT,z,x,Q,doCut,Cuts)
+    integer,intent(in),dimension(1:3)::process			!the number of process
+    real*8,intent(in)::s					!Mandelshtam s
+    real*8,intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
+    real*8,intent(in),dimension(1:2)::z				!(zmin,zmax)
+    real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
+    real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
+    logical,intent(in)::doCut					!triger cuts
+    real*8,intent(in),dimension(1:3)::Cuts			!(ymin,yMax,W2)
+    real*8::SIDIS_xSec_Single
+    
+    call xSec_SIDIS(SIDIS_xSec_Single,process,s,pT,z,x,Q,doCut,Cuts)
+  
+  end function SIDIS_xSec_Single
+  
+  function SIDIS_xSec_Single_withMasses(process,s,pT,z,x,Q,doCut,Cuts,masses)
+    integer,intent(in),dimension(1:3)::process			!the number of process
+    real*8,intent(in)::s					!Mandelshtam s
+    real*8,intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
+    real*8,intent(in),dimension(1:2)::z				!(zmin,zmax)
+    real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
+    real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
+    logical,intent(in)::doCut					!triger cuts
+    real*8,intent(in),dimension(1:3)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(1:2)::masses			!(mTARGET,mPRODUCT)
+    real*8::SIDIS_xSec_Single_withMasses
+    
+    call xSec_SIDIS(SIDIS_xSec_Single_withMasses,process,s,pT,z,x,Q,doCut,Cuts,masses)
+  
+  end function SIDIS_xSec_Single_withMasses
+  
+  function SIDIS_xSec_List(process,s,pT,z,x,Q,doCut,Cuts,masses,ListLength)
+    integer,intent(in)::ListLength
+    integer,intent(in),dimension(:,:)::process			!the number of process
+    real*8,intent(in),dimension(:)::s				!Mandelshtam s
+    real*8,intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
+    real*8,intent(in),dimension(:,:)::z				!(zmin,zmax)
+    real*8,intent(in),dimension(:,:)::x				!(xmin,xmax)
+    real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
+    logical,intent(in),dimension(:)::doCut			!triger cuts
+    real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(:,:)::masses			!(mTARGET,mPRODUCT)
+    real*8,dimension(1:ListLength)::SIDIS_xSec_List
+    
+    call xSec_SIDIS_List_forharpy(SIDIS_xSec_List,process,s,pT,z,x,Q,doCut,Cuts,masses)
+  
+  end function SIDIS_xSec_List
+  
   
 end module harpy

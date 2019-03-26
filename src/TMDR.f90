@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.4
+!			arTeMiDe 1.41
 !
 !	Evaluation of the TMD evolution kernel
 !	Here we use the improved gamma-solution, and the universal TMD definition.
@@ -9,6 +9,7 @@
 !				A.Vladimirov (17.04.2018)
 !			v1.32   A.Vladimirov (30.08.2018)
 !				b-freeze at 1d-6 A.Vladimirov (16.09.2018)
+!			v1.41   transpose-issue fixed A.Vladimirov (11.03.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDR
 use QCDinput
@@ -19,7 +20,7 @@ implicit none
 !   public
  
  !Current version of module
- character (len=5),parameter :: version="v1.32"
+ character (len=5),parameter :: version="v1.41"
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
 
@@ -84,18 +85,18 @@ implicit none
   !These are gammaV coefficients
   ! gammaV_q(n,Nf) is for as^n, Nf=3,4,5 is number of flavours	
   ! Here for quark (last check, AV 16.04.2018)
-  real*8,parameter, dimension(1:3,3:5) :: gammaV_q= transpose(reshape((/&
+  real*8,parameter, dimension(1:3,3:5) :: gammaV_q= reshape((/&
 	-8.0d0, -8.0d0, -8.0d0, &
 	-29.243530284415503d0, -14.050795508138547d0, 1.1419392681384102d0, &
-	-738.2562930508085d0, -491.96573445169145d0, -249.38756710544408d0 /), shape(gammaV_q)))
+	-738.2562930508085d0, -491.96573445169145d0, -249.38756710544408d0 /), shape(gammaV_q),ORDER=[2,1])
 	
   !These are gammaV coefficients
   ! gammaV_q(n,Nf) is for as^n, Nf=3,4,5 is number of flavours	
   ! Here for gluon (last check, AV 16.04.2018)
-  real*8,parameter, dimension(1:3,3:5) :: gammaV_g= transpose(reshape((/&
+  real*8,parameter, dimension(1:3,3:5) :: gammaV_g= reshape((/&
 	-18.0d0, -16.666666666666668d0, -15.333333333333334d0, &
 	-227.8995118764504d0, -200.7014703660655d0, -173.50342885568062d0, &
-	-3957.378545284555d0, -3206.1850399832547d0, -2485.5387880396356d0 /), shape(gammaV_g)))
+	-3957.378545284555d0, -3206.1850399832547d0, -2485.5387880396356d0 /), shape(gammaV_g),ORDER=[2,1])
 
   !These are gammaCUSP coefficients
   ! gammaCUSP_q(n,Nf) is for as^n, Nf=3,4,5 is number of flavours	

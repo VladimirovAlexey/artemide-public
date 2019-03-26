@@ -5,7 +5,7 @@
 !			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
 !			muOPE=C0/b+2
 !
-!			Model for unpolarized TMD evolution for BSV19.bFIT  [1902.08474]
+!			Model for unpolarized TMD evolution for BSV19.bFIT [1902.08474]
 !
 !			corresponds to bb* model
 !
