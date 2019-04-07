@@ -8,6 +8,8 @@
 !	Be AWARE of possible clash of variable names.
 !
 !	This part is devoted to the calculation of Mellin convolution
+!	
+!	v.2.00 Added b* AV (27.03.2019)
 !
 !				A.Vladimirov (08.10.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -28,9 +30,10 @@ function activeNf(mu)
 end function activeNf
 
 !!Evaluate Log[mu^2 bT^2/4/Exp(-2Gamma_E)]
+!! the b here is b*, this funciton is used only in Coefficeint functions
 function LogMuB(mu,bT)
   real*8::bT,mu,LogMuB
-  LogMuB=2d0*Log(bT*mu*C0_inv_const)
+  LogMuB=2d0*Log(bSTAR(bT,lambdaNP)*mu*C0_inv_const)
 end function LogMuB  
 
 
@@ -336,16 +339,17 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
       
       if(MAXVAL(eps)>tolerance) then !!!integral not yet convergent
        if(counter>maxIteration) then !!!out of counting limit
-       if(outputLevel>0 .and. messageTriger<6) then
-        write(*,*) 'WARNING: arTeMiDe.uTMDPDF: Mellin convolution does not converge. Integral evaluation stop after ',&
+       if(outputLevel>0 .and. messageCounter<messageTrigger) then
+        write(*,*) 'WARNING: arTeMiDe.',moduleName,': Mellin convolution does not converge. Integral evaluation stop after ',&
 	  maxIteration,' iterations.'
 	  if(outputLevel>2) then
 	  write(*,*) 'x=',xCurrent,'b=',bTcurrent,'mu=',muCurrent
 	  write(*,*) 'iteration=',counter, 'eps=',eps
 	  write(*,*) 'weight=',integralWeight
 	  end if
-	  messageTriger=messageTriger+1
-	  if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe_uTMDPDF number of WARNINGS more then 5. Futher WARNING suppresed'
+	  messageCounter=messageCounter+1
+	  if(messageCounter>messageTrigger) &
+		write(*,*) 'WARNING: arTeMiDe.',moduleName,': number of WARNINGS more then 5. Futher WARNING suppresed'
 	end if
 	  !stop
 	res5=xr*vk15
@@ -522,16 +526,17 @@ recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
     
       if(MAXVAL(eps)>tolerance) then
        if(counter>maxIteration) then
-        if(outputLevel>0 .and. messageTriger<6) then
-        write(*,*) 'WARNING: arTeMiDe.uTMDPDF: Mellin convolution does not converge. Integral evaluation stop after ',&
+        if(outputLevel>0 .and. messageCounter<messageTrigger) then
+        write(*,*) 'WARNING: arTeMiDe.',moduleName,': Mellin convolution does not converge. Integral evaluation stop after ',&
 	  maxIteration,' iterations.'
 	  if(outputLevel>1) then
 	  write(*,*) 'x=',xCurrent,'b=',bTcurrent,'mu=',muCurrent
 	  write(*,*) 'iteration=',counter, 'eps=',eps
 	  write(*,*) 'weight=',integralWeight
 	  end if
-	  messageTriger=messageTriger+1
-	  if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe_uTMDPDF number of WARNINGS more then 5. Futher WARNING suppresed'
+	  messageCounter=messageCounter+1
+	  if(messageCounter>messageTrigger) &
+		  write(*,*) 'WARNING: arTeMiDe.',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
 	 end if
 	res5=xr*vk15
 	else 

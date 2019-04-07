@@ -6,20 +6,37 @@ interface
 
 
 module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90
-    use tmds_inkt
-    use tmds
     use tmdx_dy
+    use atmde_control
+    use tmds
     use tmdx_sidis
+    use tmds_inkt
+    use utmdpdf
     logical, optional :: started=.false.
-    subroutine initialize(ordermain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
-        character*(*) :: ordermain
+    subroutine initialize(file) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        character*(*) :: file
     end subroutine initialize
-    subroutine setlambda_byreplica(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    subroutine setreplica_tmdr(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         integer :: num
-    end subroutine setlambda_byreplica
-    subroutine setlambda(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    end subroutine setreplica_tmdr
+    subroutine setreplica_utmdpdf(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer :: num
+    end subroutine setreplica_utmdpdf
+    subroutine setreplica_utmdff(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        integer :: num
+    end subroutine setreplica_utmdff
+    subroutine setlambda_main(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         real*8 dimension(:),intent(in) :: lambdain
-    end subroutine setlambda
+    end subroutine setlambda_main
+    subroutine setlambda_tmdr(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 dimension(:),intent(in) :: lambdain
+    end subroutine setlambda_tmdr
+    subroutine setlambda_utmdpdf(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 dimension(:),intent(in) :: lambdain
+    end subroutine setlambda_utmdpdf
+    subroutine setlambda_utmdff(lambdain) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 dimension(:),intent(in) :: lambdain
+    end subroutine setlambda_utmdff
     subroutine setscalevariation(c1_in,c2_in,c3_in,c4_in) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         real*8 :: c1_in
         real*8 :: c2_in

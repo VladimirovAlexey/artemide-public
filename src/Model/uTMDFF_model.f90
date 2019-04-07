@@ -49,15 +49,30 @@
 !   FNP=(/FNP2,FNP2,FNP2,FNP2,FNP2,FNP2,FNP0,FNP1,FNP2,FNP2,FNP2/)
   end function FNP
   
-    !!!!This function is the mu(x,b), which is used inside the OPE
-  function mu_OPE(x,bt)
-  real*8::bt,mu_OPE,x
-  !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
-  mu_OPE=(C0_const*1d0/bT+2d0)/x
+  !!!! This is the function b* that enter the logarithms of coefficient function
+  !!!! at small-b it should be ~b to match the collinear regime
+  !!!! at large-b it is a part of model
+  !!!! NOTE: if it is lambda-dependent, the grid will be recalculate each reset of lambdaNP
+  function bSTAR(bT,lambdaNP)
+    real*8,intent(in)::bT
+    real*8,intent(in)::lambdaNP(:)
+    real*8::bSTAR
+    
+    bSTAR=bT/sqrt(1d0+(bT/50d0)**2)
+    
+  end function bSTAR
   
-  if(mu_OPE>1000d0) then
-    mu_OPE=1000d0
-  end if
+  !!!!This function is the mu(x,b), which is used inside the OPE
+  function mu_OPE(x,bT)
+    real*8,intent(in)::bT,x
+    real*8::mu_OPE
+    
+    !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
+    mu_OPE=C0_const*1d0/bT+2d0
+    
+    if(mu_OPE>1000d0) then
+      mu_OPE=1000d0
+    end if
   end function mu_OPE
   
  function ReplicaParameters(rep)

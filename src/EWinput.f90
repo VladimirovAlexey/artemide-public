@@ -15,12 +15,13 @@ implicit none
 
 private
 
-logical:: started
+logical:: started=.false.
+integer::outputLevel
 
 real*8::Zmass,Wmass,alphaZ,sW2,cW2
 real*8::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 
-public::alphaEM,EWinput_Initialize
+public::alphaEM,EWinput_Initialize,EWinput_IsInitialized
 
 !!-Z-gamma DY
 real*8,public::paramU,paramD,paramS,paramC,paramB,paramL
@@ -33,6 +34,7 @@ real*8,public::GammaZ2,MZ2
 real*8,public::GammaW2,MW2
 
 
+
 contains
 
  function EWinput_IsInitialized()
@@ -41,87 +43,87 @@ contains
   EWinput_IsInitialized=started 
  end function EWinput_IsInitialized
  
+  !!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
  
- subroutine EWinput_Initialize(order)
-  character(len=*)::order
-  character(256)::line
+ subroutine EWinput_Initialize(file,prefix)
+  character(len=*)::file
+  character(len=*),optional::prefix
+  character(len=300)::path
+  logical::initRequared
   real*8::dummy
   
-  if(started)  return
+  if(started) return
   
-    !---------------------------------------------------------------------------!
-    !--------------- Eat the numerical values from constants--------------------!
-    !---------------------------------------------------------------------------!
-  OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-    !!!! Physical constants
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*B ') exit
-    end do
+  if(present(prefix)) then
+    path=trim(adjustl(prefix))//trim(adjustr(file))
+  else
+    path=trim(adjustr(file))
+  end if
+  
+  OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.EWinput: initialization started ... '
+  
+    !!! check do we need initialisation?
+    call MoveTO(51,'*2   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.EWinput: initialization is not requared. '
+      started=.false.
+      return
+    end if
     
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) dummy	!!!!!!!!!!sin^2 theta_W
-    sW2=dummy
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) dummy
+    alphaZ=1d0/dummy
+    
+    call MoveTO(51,'*p2   ')
+    read(51,*) sW2	!!!!!!!!!!sin^2 theta_W
     cw2=1d0-sw2		!!!!!!!!!!cos^2 theta_W
     
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*2)') exit
-    end do
-    read(51,'(A)') line
+    call MoveTO(51,'*p3   ')
+    read(51,*) Vckm_UD,Vckm_US,Vckm_UB
+    read(51,*) Vckm_CD,Vckm_CS,Vckm_CB
+    
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
     read(51,*) Zmass     !!!!!!!!!!Z mass
     MZ2=Zmass**2
-    read(51,'(A)') line
+    call MoveTO(51,'*p2  ')
     read(51,*) dummy
     GammaZ2=dummy**2     !!!!!!!!!!Z width
     
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*3)') exit
-    end do
-    read(51,'(A)') line
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
     read(51,*) Wmass     !!!!!!!!!!W mass
     MW2=Wmass**2
-    read(51,'(A)') line
+    call MoveTO(51,'*p2  ')
     read(51,*) dummy
     GammaW2=dummy**2     !!!!!!!!!!W width
     
     
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*D ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) dummy
-    alphaZ=1d0/dummy
-    
     
     CLOSE (51, STATUS='KEEP')
   
-    !---------------------------------------------------------------------------!
-    !--------------- write the initialization code here ------------------------!
-    !---------------------------------------------------------------------------!
-    
-    SELECT CASE(order)
-     CASE ("LO")
-      CASE ("LO+")
-      CASE ("NLO")
-      CASE ("NLO+")
-      CASE ("NNLO")
-      CASE ("NNLO+")
-      CASE DEFAULT
-     END SELECT
     
   call Set_EWconstants()
-  
+  if(outputLevel>2)	write(*,*)'EWinput succesfully initialized.'
   started=.true.
  
  end subroutine EWinput_Initialize
@@ -185,13 +187,6 @@ contains
  
  !-------------------------------------------------------
  !---  W-boson interaction
- !----elements of CKM matrix from PDG2018
- Vckm_UD=0.97420d0
- Vckm_US=0.2243d0
- Vckm_CD=0.218d0
- Vckm_CS=0.997d0
- Vckm_CB=0.0422d0
- Vckm_UB=0.0394d0
  
  paramW_UD=abs(Vckm_UD)**2/(4d0*sW2)
  paramW_US=abs(Vckm_US)**2/(4d0*sW2)

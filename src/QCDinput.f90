@@ -1,10 +1,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.2
+!			arTeMiDe 2.0
 !
 ! Interface module to the user defined alpha-s, PDF, FF, etc.
 ! Could be interfaced to LHAPDF
 !
-!
+!	ver.2.0: 28.03.2019 AV
+!				A.Vladimirov
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -14,11 +15,27 @@ implicit none
 
 private
 
-logical:: started
+
 
 public::QCDinput_Initialize,As,QCDinput_IsInitialized
 public::xPDF,xFF
 public:: QCDinput_SetPDFreplica
+
+!Current version of module
+ character (len=5),parameter :: version="v2.00"
+!--- general
+logical:: started=.false.
+integer::outputLevel
+
+real*8,public::mCHARM,mBOTTOM
+
+!---uPDFs
+integer::num_of_uPDFs,startPDFindex
+integer,allocatable::enumeration_of_uPDFs(:)
+
+!---uFFs
+integer::num_of_uFFs,startFFindex
+integer,allocatable::enumeration_of_uFFs(:)
 
  contains 
  
@@ -28,126 +45,173 @@ public:: QCDinput_SetPDFreplica
   QCDinput_IsInitialized=started 
  end function QCDinput_IsInitialized
  
+ !!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
+ 
  !------------------------------Functions below are to be changed by user (if needed)
- 
- !!Initialization with order
- !! order 	='LO'
- !!		='LO+'
- !!		='NLO'
- !!		='NLO+'
- !!		='NNLO'
- !!		='NNLO+'
- !! see details in manual
- subroutine QCDinput_Initialize(order,uPDF,uFF)
-  character*64:: name,namePIp,namePIm,namePI,nameKAp,nameKAm,nameKA
-  character(len=*)::order
-  character(len=*),optional::uPDF,uFF
-  character*64:: uPDF_order,uFF_order
+ subroutine QCDinput_Initialize(file,prefix)
+  character(len=*)::file
+  character(len=*),optional::prefix
+  character(len=300)::path,line
+  character(len=64),allocatable::names(:)
+  integer::i
+  integer,allocatable::replicas(:)
   
-  if(started) then
-    return
+  if(started) return
+  
+  if(present(prefix)) then
+    path=trim(adjustl(prefix))//trim(adjustr(file))
   else
-    
-    !!! wrap the input
-    if(present(uPDF)) then
-      uPDF_order=uPDF
-    else
-      uPDF_order=order
-    end if
-    
-    if(present(uFF)) then
-      uFF_order=uFF
-    else
-      uFF_order=order
-    end if
-    
-    !---------------------------------------------------------------------------!
-    !--------------- write the initialization code here ------------------------!
-    !---------------------------------------------------------------------------!
-    
-    !-----------------------uPDF set------------------------------------
-    if(uPDF_order == "NONE") then
-      write(*,*) 'uPDF initialisation skiped.'
-    else
-    SELECT CASE(uPDF_order)
-     CASE ("LO")
-! 	name='MMHT2014lo68cl'
-	name='NNPDF31_lo_as_0118'
-      CASE ("LO+")
-! 	name='MMHT2014lo68cl'
-	name='NNPDF31_lo_as_0118'
-      CASE ("NLO")
-! 	name='MMHT2014nlo68cl'
-	name='NNPDF31_nlo_as_0118'
-      CASE ("NLO+")
-! 	name='MMHT2014nlo68cl'
-        name='NNPDF31_nlo_as_0118'
-      CASE ("NNLO")
-! 	name='MMHT2014nnlo68cl'
-	name='NNPDF31_nnlo_as_0118'!_1000'
-      CASE ("NNLO+")
-! 	name='MMHT2014nnlo68cl'
-	name='NNPDF31_nnlo_as_0118'
-      CASE DEFAULT
-	name='MMHT2014nlo68cl'
-     END SELECT
-    
-    call InitPDFsetByNameM(1,name)
-    call InitPDFM(1,0)!central
-    end if
-    
-    
-    !-----------------------uFF set------------------------------------    
-!     if(uFF_order == "NONE") then
-!       write(*,*) 'uFF initialisation skiped.'
-!     else
-!     SELECT CASE(uFF_order)
-!      CASE ("LO","LO+","NLO","NLO+","NNLO","NNLO+")
-!      !!! NNFF
-! ! 	namePIp='NNFF10_PIp_nnlo'
-! ! 	namePIm='NNFF10_PIm_nnlo'
-! ! 	namePI='NNFF10_PIsum_nnlo'
-! ! 	nameKAp='NNFF10_KAp_nnlo'
-! ! 	nameKAm='NNFF10_KAm_nnlo'
-! ! 	nameKA='NNFF10_KAsum_nnlo'
-!     !!! DSS NLO
-!      	namePIp='dsspipNLO'
-!  	namePIm='dsspimNLO'
-!  	namePI='dsspipNLO'
-!  	nameKAp='dssKpNLO'
-!  	nameKAm='dssKmNLO'
-!  	nameKA='dssKpNLO'
-!       CASE DEFAULT
-! 	name='MMHT2014nlo68cl'
-!      END SELECT
-!     
-!     !pi+
-!     call InitPDFsetByNameM(2,namePIp)
-!     call InitPDFM(2,0)!central
-!     !pi-
-!     call InitPDFsetByNameM(3,namePIm)
-!     call InitPDFM(3,0)!central
-!     !pi+ + pi-
-!     call InitPDFsetByNameM(4,namePIp)
-!     call InitPDFM(4,0)!central
-!     !K+
-!     call InitPDFsetByNameM(5,nameKAp)
-!     call InitPDFM(5,0)!central
-!     !K-
-!     call InitPDFsetByNameM(6,nameKAm)
-!     call InitPDFM(6,0)!central
-!     !K+ + K-
-!     call InitPDFsetByNameM(7,nameKA)
-!     call InitPDFM(7,0)!central
-!     
-!     end if
-!     
-!     
-   end if
+    path=trim(adjustr(file))
+  end if
   
-  started=.true.
+  OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.QCDinput: initialization started ... '
+    
+    !!! Search for QCDinput initialization options
+    call MoveTO(51,'*1   ')
+    !!! Search for parameters
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) mCHARM
+    call MoveTO(51,'*p2  ')
+    read(51,*) mBOTTOM
+    
+    if(outputLevel>2) write(*,*) '    mass of charm:  ',mCHARM
+    if(outputLevel>2) write(*,*) '    mass of bottom: ',mBOTTOM
+    
+    
+    !!! Search for uPDF initialization options
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) num_of_uPDFs
+    if(num_of_uPDFs>0) then
+      !! initialization of LHAPDF grids
+      allocate(enumeration_of_uPDFs(1:num_of_uPDFs))
+      allocate(names(1:num_of_uPDFs))
+      allocate(replicas(1:num_of_uPDFs))
+      call MoveTO(51,'*p2  ')
+      read(51,*) enumeration_of_uPDFs
+      call MoveTO(51,'*p3  ')
+      do i=1,num_of_uPDFs
+       read(51,*) names(i)
+      end do
+      call MoveTO(51,'*p4  ')
+      read(51,*) replicas
+      
+      !!! actually initialization
+      startPDFindex=0
+      do i=1,num_of_uPDFs
+	call InitPDFsetByNameM(i+startPDFindex,names(i))
+	call InitPDFM(i+startPDFindex,replicas(i))
+	if(outputLevel>2) write(*,"('     uPDF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
+		    enumeration_of_uPDFs(i),trim(names(i)),replicas(i)
+      end do
+      
+      deallocate(names,replicas)
+    else
+      !!! initialization is not needed
+      if(outputLevel>2)	write(*,*)'    no uPDFs to initialize...'
+    end if
+    
+    !!! Search for uFF initialization options
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) num_of_uFFs
+    if(num_of_uFFs>0) then
+      allocate(enumeration_of_uFFs(1:num_of_uFFs))
+      allocate(names(1:num_of_uFFs))
+      allocate(replicas(1:num_of_uFFs))
+      call MoveTO(51,'*p2  ')
+      read(51,*) enumeration_of_uFFs
+      call MoveTO(51,'*p3  ')
+      do i=1,num_of_uFFs
+       read(51,*) names(i)
+      end do
+      call MoveTO(51,'*p4  ')
+      read(51,*) replicas
+      
+      !!! actually initialization
+      startFFindex=num_of_uPDFs+startPDFindex
+      do i=1,num_of_uFFs
+	call InitPDFsetByNameM(startFFindex+i,names(i))
+	call InitPDFM(startFFindex+i,replicas(i))
+	if(outputLevel>2) write(*,"('      uFF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
+		    enumeration_of_uFFs(i),trim(names(i)),replicas(i)
+      end do
+      
+      deallocate(names,replicas)
+      
+    else
+      !!! initialization is not needed
+      if(outputLevel>2)	write(*,*)'    no uFFs to initialize...'
+    end if
  
+  CLOSE (51, STATUS='KEEP') 
+  
+  if(outputLevel>2)	write(*,*)'QCDinput succesfully initialized.'
+  started=.true.
  end subroutine QCDinput_Initialize
+ 
+ !!! provide the index of grid associated with uPDF(hadron)
+ function index_of_uPDF(hadron)
+  integer,intent(in)::hadron
+  integer::index_of_uPDF
+  integer::i
+  
+  if(num_of_uPDFs==0) then
+    write(*,*) 'artemide.QCDinput: CRITICAL ERROR: no uPDFs are initialized'
+    stop
+  else
+    do i=1,num_of_uPDFs
+      if(enumeration_of_uPDFs(i)==hadron) then
+	index_of_uPDF=i+startPDFindex
+	return
+      end if
+    end do
+    !!! if we exit from the loop it means index is not found
+      write(*,"('artemide.QCDinput: ERROR: no uPDF for hadron ',I3,'is initialized. Set PDF for hadron (',I3,')')") &
+		  hadron,enumeration_of_uPDFs(1)
+      index_of_uPDF=1+startPDFindex
+  end if
+ end function index_of_uPDF
+ 
+  !!! provide the index of grid associated with uFF(hadron)
+ function index_of_uFF(hadron)
+  integer,intent(in)::hadron
+  integer::index_of_uFF
+  integer::i
+  
+  if(num_of_uFFs==0) then
+    write(*,*) 'artemide.QCDinput: CRITICAL ERROR: no uFFs are initialized'
+    stop
+   else
+    do i=1,num_of_uFFs
+      if(enumeration_of_uFFs(i)==hadron) then
+	index_of_uFF=i+startFFindex
+	return
+      end if
+    end do
+    !!! if we exit from the loop it means index is not found
+      write(*,"('artemide.QCDinput: ERROR: no uFF for hadron ',I3,'is initialized. Set FF for hadron (',I3,')')") &
+		  hadron,enumeration_of_uPDFs(1)
+      index_of_uFF=1+startFFindex
+  end if
+ end function index_of_uFF
  
  !!! set a different replica number for PDF.
  subroutine QCDinput_SetPDFreplica(rep)
@@ -168,12 +232,12 @@ public:: QCDinput_SetPDFreplica
  !!!!array of x times PDF(x,Q) for hadron 'hadron'
  !!!! array is (-5:5) (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
  function xPDF(x,Q,hadron)
-      real*8 :: x,Q
-      integer:: hadron
+      real*8,intent(in) :: x,Q
+      integer,intent(in):: hadron
       real*8, dimension(-5:5):: xPDF
       real*8, dimension (-6:6)::inputPDF
       
-      call evolvePDFM(1,x,Q,inputPDF)
+      call evolvePDFM(index_of_uPDF(hadron),x,Q,inputPDF)
       
       xPDF=inputPDF(-5:5)
       
@@ -185,37 +249,15 @@ public:: QCDinput_SetPDFreplica
   !!!!  f = -5,-4, -3,  -2,  -1,0,1,2,3,5,4
   !!!!    = bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b
   !!!! enumeration of hadrons 
-  !!!! 1=pion_+, 2=pion_0, 3=pion_-
-  !!!! 4=kaon_+, 5=kaon_0, 6=kaon_-
   function xFF(x,Q,hadron)
-      integer :: hadron
-      real*8 :: x,Q
+      integer,intent(in) :: hadron
+      real*8,intent(in) :: x,Q
       real*8,dimension(-5:5):: xFF
       real*8, dimension (-6:6)::inputFF
       
-      call evolvePDFM(hadron+1,x,Q,inputFF)
+      call evolvePDFM(index_of_uFF(hadron),x,Q,inputFF)
       
       xFF=inputFF(-5:5)
-!       real*8::U, UB, D, DB, S, SB,C,B,GL
-!       SELECT CASE(hadron)
-! 	CASE (1)!pi+
-! 	  call fDSS(2,1,1, 1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE (2)!pi-
-! 	  call fDSS(2,1,-1, 1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE (3)!pi0
-! 	  call fDSS(2,1,0,1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE (4)!K+
-! 	  call fDSS(2,2,1, 1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE (5)!K-
-! 	  call fDSS(2,2,-1, 1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE (6)!K0
-! 	  call fDSS(2,2,0,1, x, Q**2, U, UB, D, DB, S, SB,C,B,GL)
-! 	CASE DEFAULT
-! 	  write(*,*) 'WARNING: arTeMiDe.uTFF_xFF: unknown hadron (=',hadron,'). Evaluation stop'
-! 	  stop
-! 	END SELECT
-! 	
-!      xFF=(/B,C,SB,UB,DB,GL,D,U,S,C,B/)
   end function xFF
  
 end module QCDinput

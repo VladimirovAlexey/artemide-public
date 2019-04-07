@@ -22,11 +22,13 @@ implicit none
   private
   
    !Current version of module
- character (len=5),parameter :: version="v1.4"
+ character (len=7),parameter :: moduleName="TMDX-DY"
+ character (len=5),parameter :: version="v2.00"
   
   real*8 :: tolerance=0.0005d0
   
   integer::outputlevel
+  integer::messageTrigger
   
   !!!!
   !!!! in the module the kinematic is stored in the varibles "kinematic" real*8,dimension(1:6)
@@ -55,22 +57,19 @@ implicit none
   
 
   
-  integer::GlobalCounter,CallCounter
+  integer::GlobalCounter
+  integer::CallCounter
   
   real*8::hc2
   
   logical::started=.false.
   
-  public::TMDX_DY_XSetup,TMDX_DY_SetNPParameters,TMDX_DY_Initialize,SetCuts,TMDX_DY_SetScaleVariations,&
-    TMDX_DY_setProcess,TMDX_DY_ShowStatistic
+  public::TMDX_DY_XSetup,TMDX_DY_Initialize,TMDX_DY_SetCuts,TMDX_DY_SetScaleVariation,&
+    TMDX_DY_setProcess,TMDX_DY_ShowStatistic,TMDX_DY_ResetCounters,TMDX_DY_IsInitialized
   public::  CalcXsec_DY,CalcXsec_DY_Yint,CalcXsec_DY_Qint_Yint,CalcXsec_DY_PTint_Qint_Yint,CalcXsec_DY_Qint,xSec_DY,xSec_DY_List
   
- interface SetCuts
+ interface TMDX_DY_SetCuts
     module procedure SetCuts_sym,SetCuts_asym
- end interface
- 
- interface TMDX_DY_SetNPParameters
-  module procedure TMDX_DY_SetNPParameters,TMDX_DY_SetNPParameters_rep
  end interface
   
  interface CalcXsec_DY
@@ -111,33 +110,68 @@ implicit none
  
 contains
   
-  !!Just passes the initialization to subpackages
-  !! This also set orders. Orders cannot be changes afterwards
-  subroutine TMDX_DY_Initialize(orderMain)
-  character(len=*)::orderMain
-  character(256)::line
-  real*8::dummy
-  logical::dummyLogical
-  integer::i
-!$ integer:: omp_get_thread_num
-  
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-    !!! Search for output level
+  function TMDX_DY_IsInitialized()
+  logical::TMDX_DY_IsInitialized
+  TMDX_DY_IsInitialized=started
+ end function TMDX_DY_IsInitialized
+
+!!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
     do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
     end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine TMDX_DY_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared,dummyLogical
+    character(len=8)::orderMain
+    integer::i
+    !$ integer:: omp_get_thread_num
+    
+    if(started) return
+    
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
   
-  process_global=(/-1,-1,-1/)
-  
-  if(outputLevel>1) write(*,*) '----- arTeMiDe.TMD_DY ',version,': .... initialization'
-     SELECT CASE(orderMain)
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
+    
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) hc2
+    
+    call MoveTO(51,'*9   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
+    
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) orderMain
+    SELECT CASE(orderMain)
       CASE ("LO")
 	orderH_global=0
       CASE ("LO+")
@@ -154,98 +188,72 @@ contains
 	if(outputLevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_DY:try to set unknown order. Switch to NLO.'
 	orderH_global=1
      END SELECT
+     if(outputLevel>2) write(*,*) '	artemide.TMDX_DY: the used order is ',trim(orderMain)
      
-    !!!! Physical constants
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*C ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) hc2    !!!!!!!!!!!GeV->mbarn
-
-    !!! parameters of numerical evaluation
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) tolerance
-    read(51,'(A)') line
-    read(51,*) NumPTdefault
-    
-    
-    !! inclusion of power corrections
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*5 ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,*) dummyLogical
-    
-    if(dummyLogical) then 
+     !!exact values of x1x2
+     call MoveTO(51,'*p2   ')
+     read(51,*) dummyLogical
+     if(dummyLogical) then 
       exactX1X2=1
-    else
+     else
       exactX1X2=0
-    end if
-
-!$    if(outputLevel>1) write(*,*) '	... parallel evaluation of cross-sections is to be used'
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*6 ') exit
-!$    end do
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*A ') exit
-!$    end do
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*1)') exit
-!$    end do
+     end if
+     if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_DY: qT/Q correction for x1 and x2 variables are included.'
+     
+     call MoveTO(51,'*B   ')
+     call MoveTO(51,'*p1  ')
+     read(51,*) tolerance
+     call MoveTO(51,'*p2  ')
+     read(51,*) NumPTdefault
+     
+!$    if(outputLevel>1) write(*,*) '	artemide.TMDX_DY: parallel evaluation of cross-sections is to be used'
+!$    call MoveTO(51,'*C   ')
+!$    call MoveTO(51,'*p1  ')
 !$    read(51,*) i
 !$    call OMP_set_num_threads(i)
-!$    if(outputLevel>1) write(*,*) '	... number of threads for parallel evaluation is set to ', i	
+!$    if(outputLevel>1) write(*,*) '	artemide.TMDX_DY: number of threads for parallel evaluation is set to ', i	
 
+!$     if(outputLevel>2) write(*,*) '------TEST OF PARALLEL PROCESSING ----------'
 !$OMP PARALLEL
-!$     if(outputLevel>2) write(*,*) '         thread num ',  omp_get_thread_num(), ' ready.'
+!$     if(outputLevel>2) write(*,*) '   artemide.TMDX_DY:thread num ',  omp_get_thread_num(), ' ready.'
 !$OMP END PARALLEL
-    
-    
     CLOSE (51, STATUS='KEEP')
     
-     call EWinput_Initialize(orderMain)
-     call TMDF_Initialize(orderMain)
-     
+     if(.not.EWinput_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
+	if(present(prefix)) then
+	  call EWinput_Initialize(file,prefix)
+	else
+	  call EWinput_Initialize(file)
+	end if
+      end if
+      
+      if(.not.TMDF_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing TMDF (from ',moduleName,')'
+	if(present(prefix)) then
+	  call TMDF_Initialize(file,prefix)
+	else
+	  call TMDF_Initialize(file)
+	end if
+      end if
+    
      includeCuts_global=.false.
      c2_global=1d0
      
      GlobalCounter=0
      CallCounter=0
      
-   
-     
      started=.true.
     write(*,*)  '----- arTeMiDe.TMD_DY ',version,'.... initialized'
   end subroutine TMDX_DY_Initialize
-  
+
+  subroutine TMDX_DY_ResetCounters()
+  if(outputlevel>2) call TMDX_DY_ShowStatistic
+  GlobalCounter=0
+  CallCounter=0
+  end subroutine TMDX_DY_ResetCounters
   
   subroutine TMDX_DY_ShowStatistic()
-      call TMDF_ShowStatistic()
   
       write(*,'(A,ES12.3)') 'TMDX DY statistics      total calls of point xSec  :  ',Real(GlobalCounter)
       write(*,'(A,ES12.3)') '                              total calls of xSecF :  ',Real(CallCounter)
@@ -255,12 +263,10 @@ contains
   
   
   !!!!Call this after TMD initializetion but before NP, and X parameters
-  subroutine TMDX_DY_SetScaleVariations(c1_in,c2_in,c3_in,c4_in)
+  subroutine TMDX_DY_SetScaleVariation(c2_in)
     real*8::c1_in,c2_in,c3_in,c4_in
     
-    if(outputLevel>1) write(*,*) 'TMDX_DY: scales reset:',c1_in,c2_in,c3_in,c4_in
-    
-    call TMDF_SetScaleVariations(c1_in,c3_in,c4_in)
+    if(outputLevel>1) write(*,*) 'TMDX_DY: c2 scale reset:',c2_in
     
     if(c2_in<0.1d0 .or. c2_in>10.d0) then
     if(outputLevel>0) write(*,*) 'TMDX_DY WARNING: variation in c2 is enourmous. c2 is set to 2'
@@ -269,24 +275,8 @@ contains
     c2_global=c2_in
     end if
     
-  end subroutine TMDX_DY_SetScaleVariations
-  
-  !!Just passes settting of NP parameters to subpackage
-  subroutine TMDX_DY_SetNPParameters(lambda)
-    real*8::lambda(:)
-    GlobalCounter=0
-    CallCounter=0
-    call TMDF_SetNPParameters(lambda)
-  end subroutine TMDX_DY_SetNPParameters
-  
-    !!Just passes settting of NP parameters to subpackage
-  subroutine TMDX_DY_SetNPParameters_rep(num)
-    integer::num
-    GlobalCounter=0
-    CallCounter=0
-    call TMDF_SetNPParameters(num)
-  end subroutine TMDX_DY_SetNPParameters_rep
-  
+  end subroutine TMDX_DY_SetScaleVariation
+
   !!sets the cuts
   !! argument includeCuts_global_in=logical, if .true. will add to calculation the evaluation of cut leptonic tensor
   !! call BEFORE SetXParameters
@@ -479,7 +469,7 @@ contains
 	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
-	    0.1086d0!Br from PDG, ee+mumu 
+	    0.1086d0!Br from PDG, ee+mumu
     CASE DEFAULT 
       write(*,*) 'ERROR: arTeMiDe.TMDX_DY: unknown process p2=',process(2),' .Evaluation stop.'
       stop
@@ -570,8 +560,9 @@ contains
     x1=var(5)*var(7)
     x2=var(5)/var(7)
    
-    FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))    
-    xSec=PreFactor2(var,process,incCut,CutParam)*FF  
+    FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))
+    xSec=PreFactor2(var,process,incCut,CutParam)*FF
+    
   end function xSec
   
   !---------------------------------INTEGRATED over Y---------------------------------------------------------------
@@ -617,6 +608,7 @@ contains
     real*8 :: ymin, ymax,ymin_in,ymax_in
     real*8 :: ymin_Check,ymax_Check
     integer,dimension(1:3),intent(in)::process
+  
     
     !!! evaluate correspnding y's
     !!! in the case process=2 the integral is over xF
@@ -647,6 +639,8 @@ contains
       end if!!!!! else case: automatically taken into account
     Xsec_Yint=integralOverYpoint_S(var,process,incCut,CutParam,ymin,ymax)
   end if
+  
+  
   end function Xsec_Yint
   !--------------Simpsons--------------------
   !!!! parameter valueMax remembers the approximate value of integral to weight the tolerance.
@@ -668,7 +662,7 @@ contains
    y2=yMin_in+deltay/4d0
    y3=yMin_in+deltay/2d0
    y4=yMax_in-deltay/4d0
-   
+      
    call SetY(yMin_in,var)
    X1= xSec(var,process,incCut,CutParam)   
    call SetY(y2,var)
@@ -696,14 +690,13 @@ contains
    real*8 :: interX,X1,X2,X3,X4,X5
    real*8 :: value,valueAB,valueACB
    real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8::valueMax,valueMaxNew,vv
+   real*8,intent(in)::valueMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
    y3=yMin_in+deltay/2d0
    y4=yMax_in-deltay/4d0
    
-   valueMaxNew=valueMax
    
    call SetY(y2,var)
    X2= xSec(var,process,incCut,CutParam)
@@ -714,9 +707,13 @@ contains
    valueAB=deltay*(X1+4d0*X3+X5)/6d0
    valueACB=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
+   !write(*,*) yMin_in,yMax_in,(valueACB-valueAB)/valueMax,ABS((valueACB-valueAB)/valueMax)>tolerance
+   !if(GlobalCounter>200) stop
+!    if(abs(valueMax)<1d-10) write(*,*) valueMax
+   
    If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
-    interX=integralOverYpoint_S_Rec(var,process,incCut,CutParam,yMin_in,y3,X1,X2,X3,valueMaxNew)&
-	  +integralOverYpoint_S_Rec(var,process,incCut,CutParam,y3,yMax_in,X3,X4,X5,valueMaxNew)
+    interX=integralOverYpoint_S_Rec(var,process,incCut,CutParam,yMin_in,y3,X1,X2,X3,valueMax)&
+	  +integralOverYpoint_S_Rec(var,process,incCut,CutParam,y3,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -786,14 +783,12 @@ contains
    real*8 :: interX,X1,X2,X3,X4,X5
    real*8 :: valueAB,valueACB
    real*8 :: QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
-   real*8::valueMax,valueMaxNew
+   real*8,intent(in)::valueMax
    
    deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
    Q3=QMin_in+deltaQ/2d0
    Q4=QMax_in-deltaQ/4d0
-   
-   valueMaxNew=valueMax
    
    call SetQ(Q2,var)
    X2=2*Q2*xSec(var,process,incCut,CutParam)
@@ -804,9 +799,9 @@ contains
    valueAB=deltaQ*(X1+4d0*X3+X5)/6d0
    valueACB=deltaQ*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   If(ABS((valueACB-valueAB)/valueMaxNew)>tolerance) then
-    interX=integralOverQpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,X1,X2,X3,valueMaxNew)&
-	  +integralOverQpoint_S_Rec(var,process,incCut,CutParam,Q3,Qmax_in,X3,X4,X5,valueMaxNew)
+   If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
+    interX=integralOverQpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,X1,X2,X3,valueMax)&
+	  +integralOverQpoint_S_Rec(var,process,incCut,CutParam,Q3,Qmax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -867,14 +862,12 @@ contains
    real*8 :: interX,X1,X2,X3,X4,X5
    real*8 :: valueAB,valueACB
    real*8 :: yMin_in,yMax_in,QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
-   real*8::valueMax,valueMaxNew
+   real*8,intent(in)::valueMax
    
    deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
    Q3=QMin_in+deltaQ/2d0
    Q4=QMax_in-deltaQ/4d0
-   
-   valueMaxNew=valueMax
    
    call SetQ(Q2,var)
    X2=2*Q2*Xsec_Yint(var,process,incCut,CutParam,yMin_in,yMax_in)
@@ -885,9 +878,9 @@ contains
    valueAB=deltaQ*(X1+4d0*X3+X5)/6d0
    valueACB=deltaQ*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   If(ABS((valueACB-valueAB)/valueMaxNew)>tolerance) then
-    interX=integralOverQYpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,yMin_in,yMax_in,X1,X2,X3,valueMaxNew)&
-	  +integralOverQYpoint_S_Rec(var,process,incCut,CutParam,Q3,Qmax_in,yMin_in,yMax_in,X3,X4,X5,valueMaxNew)
+   If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
+    interX=integralOverQYpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,yMin_in,yMax_in,X1,X2,X3,valueMax)&
+	  +integralOverQYpoint_S_Rec(var,process,incCut,CutParam,Q3,Qmax_in,yMin_in,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -905,9 +898,14 @@ contains
     real*8:: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
     integer :: Num
     
-    var=kinematicArray(qt_min,s_in,(Q_min+Q_max)/2d0,(ymin_in+ymax_in)/2d0)
+    if(qt_min<1d-3) then
+      var=kinematicArray(1d-3,s_in,(Q_min+Q_max)/2d0,(ymin_in+ymax_in)/2d0)
+    else
+      var=kinematicArray(qt_min,s_in,(Q_min+Q_max)/2d0,(ymin_in+ymax_in)/2d0)
+    end if
     
     X0=2d0*qt_min*Xsec_Qint_Yint(var,process,incCut,CutParam,Q_min,Q_max,ymin_in,ymax_in)
+    
     call Xsec_PTint_Qint_Yint_0(process,incCut,CutParam,s_in,qt_min,qt_max,Q_min,Q_max,ymin_in,ymax_in,Num,Xfin,X0)
     Xsec_PTint_Qint_Yint=Xfin
     
@@ -1377,7 +1375,7 @@ contains
   real*8,dimension(1:4)::CutParam
   integer,dimension(1:3)::ppp
   
-  !!! determine umber of sections
+  !!! determine number of sections
   if(present(Num)) then
     nn=Num
   else
@@ -1424,7 +1422,7 @@ contains
   real*8,dimension(1:4)::CutParam
   
   
-  !! determine umber of sections
+  !! determine number of sections
   if(present(Num)) then
     nn=Num
   else

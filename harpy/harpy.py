@@ -8,12 +8,12 @@
 import artemide
 import numpy
 
-def initialize(order):
+def initialize(fileName):
     """Initialization of artemide
     
         Argument: order = LO, NLO, NNLO
     """
-    artemide.harpy.initialize(order)
+    artemide.harpy.initialize(fileName)
     if artemide.harpy.started:
         pass
     else:
@@ -27,9 +27,47 @@ def setNPparameters(l):
                 (array)          = set array on NP parameters
     """
     if isinstance(l,list):
-        artemide.harpy.setlambda(l)
+        artemide.harpy.setlambda_main(numpy.asfortranarray(l))
     else:
-        artemide.harpy.setlambda_byreplica(int(l))
+        print 'ERROR: argument must be list'
+        
+def setNPparameters_TMDR(l):
+    """Setting NP parameters for the model of TMDR
+                Arguments: (l)
+                Argument overloading:
+                (integer)        = loads replica
+                (array)          = set array on NP parameters
+    """
+    if isinstance(l,list):
+        artemide.harpy.setlambda_tmdr(numpy.asfortranarray(l))
+    else:
+        artemide.harpy.setreplica_tmdr(int(l))
+
+def setNPparameters_uTMDPDF(l):
+    """Setting NP parameters for the model of uTMDPDF
+                Arguments: (l)
+                Argument overloading:
+                (integer)        = loads replica
+                (array)          = set array on NP parameters
+    """
+    if isinstance(l,list):
+        artemide.harpy.setlambda_utmdpdf(numpy.asfortranarray(l))
+    else:
+        artemide.harpy.setreplica_utmdpdf(int(l))
+        
+        
+def setNPparameters_uTMDFF(l):
+    """Setting NP parameters for the model of uTMDFF
+                Arguments: (l)
+                Argument overloading:
+                (integer)        = loads replica
+                (array)          = set array on NP parameters
+    """
+    if isinstance(l,list):
+        artemide.harpy.setlambda_utmdff(numpy.asfortranarray(l))
+    else:
+        artemide.harpy.setreplica_utmdff(int(l))
+
 
 def varyScales(c1,c2,c3,c4):
         """Set new scale variation parameters

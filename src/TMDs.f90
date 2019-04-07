@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.4
+!			arTeMiDe 2.0
 !
 !	Evaluation of the TMDs
 !	
@@ -8,11 +8,13 @@
 !	ver 1.0: release (AV, 10.05.2017)
 !	ver 1.4: release (AV, 23.12.2018)
 !	ver 1.41:release (AV, 23.12.2018)
+!	ver 2.00:release (AV, 29.03.2019)
 !
 !				A.Vladimirov (23.12.2018)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDs
+  use QCDinput
   use TMDR
   use uTMDPDF
   use uTMDFF
@@ -21,52 +23,31 @@ module TMDs
   private
 !   public
  
- !Current version of module
- character (len=5),parameter :: version="v1.40"
+ character (len=7),parameter :: moduleName="TMDs"
+ character (len=5),parameter :: version="v2.00"
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
-
-!!!Threashold parameters
-! Set in the constants file
-  real*8 :: mCHARM=1.4d0
-  real*8 :: mBOTTOM=4.75d0
-  
 !------------------------------------------Working variables------------------------------------------------------------
   
   logical::started=.false.
+  integer::outputLevel=2
+  integer::messageTrigger=5
   
   !!!! The TMD evolution can be tritted differently
-  !!!! Originally we considered evolution along the path 1  (=1)
-  !!!! Currently we adapt the solution independent evolution (=2)
-  !!!! The universal TMD definition also requares extra constant (=3)
   integer::EvolutionType
-  !! Level of output
-  !! 0=only critical
-  !! 1=initialization details
-  !! 2=WARNINGS
-  integer::outputLevel=2
+  logical::include_uTMDPDF
+  logical::include_uTMDFF
+  
   
   !!!parameters for the uncertanty estimation
-  real*8::c1_global,c3_global,c4_global
-  
-  logical::MakeGrid,includeGluon!!! These parameters are for the grid precalculation
-  
-  !!! this is lenght of array of non-pertrubative parameters
-  !!! its length is the number of TMDs modules
-  !!! if entry=0 this module is not called
-  integer,dimension(0:2)::parameterLength
-  !!! total number of NP parameters, to check the input
-  integer::totalNumberOfPar=0
-  
-  logical:: convergenceLost=.false.
+  real*8::c1_global,c3_global
   
 !-----------------------------------------Public interface--------------------------------------------------------------
-  public::TMDs_SetNPParameters,TMDs_SetScaleVariations,TMDs_Initialize,TMDs_SetPDFreplica
+  public::TMDs_SetScaleVariations,TMDs_Initialize,TMDs_IsInitialized
   real*8,dimension(-5:5),public:: uTMDPDF_5,uTMDPDF_50
   real*8,dimension(-5:5),public:: uTMDFF_5,uTMDFF_50
   
   public::uPDF_uPDF,uPDF_anti_uPDF
-  public::TMDs_convergenceISlost,TMDs_IsconvergenceLost
   
   interface uTMDPDF_5
     module procedure uTMDPDF_5_Ev,uTMDPDF_5_optimal
@@ -84,207 +65,136 @@ module TMDs
     module procedure uTMDFF_50_Ev,uTMDFF_50_optimal
   end interface
   
-  interface TMDs_SetNPParameters
-    module procedure TMDs_SetNPParameters,TMDs_SetNPParameters_rep
-  end interface
-  
   contains 
   
    INCLUDE 'Model/TMDs_model.f90'
+   
+  function TMDs_IsInitialized()
+  logical::TMDs_IsInitialized
+  TMDs_IsInitialized=started
+  end function TMDs_IsInitialized
   
-     !!! This subroutine can be called only ones per programm run in the very beginning
-  !!! It initializes TMDRm abd TMDconvolution subpackages
-  !!! It set the pertrubative orders(!), so pertrubative orders cannot be changed afterwards.
-  !!! It also set the paths forPDF and As greeds according to orderPDF (NLO or NNLO).
-  subroutine TMDs_Initialize(orderMain)
-    character(len=*)::orderMain
-    character(256)::line
-    integer:: j
+   !!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
+   
+!!! Initializing routing
+!!! Filles the prebuiled arrays
+!!! orderAD, is order of anomalous dimension for evolution
+!!!! order zeta is the order of pertrubative zeta expression, used only in the "universal TMD"
+ subroutine TMDs_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
     
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
+    if(started) return
+    
+  
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     !!! Search for output level
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
-    if(outputLevel>1) write(*,*) '----- arTeMiDe.TMDs ',version,': .... initialization'
     
-    if(started) then
-    if(outputLevel>1) write(*,*) 'arTeMiDe.TMDs already initialized'
-    else
-    
-    !!!!search for physic constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    !!!!search for masses entry entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) mCHARM
-    read(51,'(A)') line
-    read(51,*) mBOTTOM   
-    
-    !!!!search for grid constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*3 ') exit
-    end do    
-    !!!!search for uTMDPDF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*B ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) MakeGrid
-    read(51,'(A)') line
-    read(51,*) includeGluon 
-    
-    if(outputLevel>1) write(*,*) ' Griding = ',MakeGrid,' includeGluon = ',includeGluon
-    
-    if(outputLevel>1) write(*,*) 'Number of NP parameters: '
-    !!!!search for length of parameters
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*4 ') exit
-    end do
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*A ') exit
-    end do
-    !TMDevolution
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0)') exit
-    end do
-    read(51,*) j
-    parameterLength(0)=j
-    if(outputLevel>1) write(*,'(A,I2)') ' | TMD evolution	: ',parameterLength(0)
-    !uTMDPDF
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,*) j
-    parameterLength(1)=j
-    if(outputLevel>1) write(*,'(A,I2)') ' | unpolarized TMDPDF	: ',parameterLength(1)
-    !uTMDFF
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2)') exit
-    end do
-    read(51,*) j
-    parameterLength(2)=j
-    if(outputLevel>1) write(*,'(A,I2)') ' | unpolarized TMDFF	: ',parameterLength(2)
-    
-    !!!! Selecting the evolution type
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*B ') exit
-    end do    
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1)') exit
-    end do    
-    read(51,*) EvolutionType
-    if(outputLevel>1) then
-      if(EvolutionType==1) write(*,*) ' Selected evolution type: improved D (CSS-like)'
-      if(EvolutionType==2) write(*,*) ' Selected evolution type: improved gamma'
-      if(EvolutionType==3) write(*,*) ' Selected evolution type: fixed mu (optimal)'
+    call MoveTO(51,'*6   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
     end if
-    
     CLOSE (51, STATUS='KEEP') 
+    !!! then we read it again from the beginning to fill parameters of other modules
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     
-    if(outputLevel>1) write(*,*) 'Initialization of submodules ...'
-    call TMDR_Initialize(orderMain)
-    if(parameterLength(1)>0) then
-      call uTMDPDF_Initialize(orderMain)
-    else
-      if(outputLevel>1) write(*,*)  'uTMDPDF is not used.'
+    !! TMDR
+    call MoveTO(51,'*3   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) EvolutionType
+    
+    !! uTMDPDF
+    call MoveTO(51,'*4   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_uTMDPDF
+    
+    !! uTMDFF
+    call MoveTO(51,'*5   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_uTMDFF
+    
+    CLOSE (51, STATUS='KEEP')
+    
+    if(.not.QCDinput_IsInitialized()) then
+      if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
+      if(present(prefix)) then
+	call QCDinput_Initialize(file,prefix)
+      else
+	call QCDinput_Initialize(file)
+      end if
     end if
-    if(parameterLength(2)>0) then
-      call uTMDFF_Initialize(orderMain)
-    else
-      if(outputLevel>1) write(*,*)  'uTMDFF is not used.'
+    
+    if(.not.TMDR_IsInitialized()) then
+      if(outputLevel>1) write(*,*) '.. initializing TMDR (from ',moduleName,')'
+      if(present(prefix)) then
+	call TMDR_Initialize(file,prefix)
+      else
+	call TMDR_Initialize(file)
+      end if
     end if
     
-    totalNumberOfPar=sum(parameterLength)
+    if(include_uTMDPDF .and. (.not.uTMDPDF_IsInitialized())) then
+      if(outputLevel>1) write(*,*) '.. initializing uTMDPDF (from ',moduleName,')'
+      if(present(prefix)) then
+	call uTMDPDF_Initialize(file,prefix)
+      else
+	call uTMDPDF_Initialize(file)
+      end if
+    end if
     
-    if(MakeGrid) then
-       if(outputLevel>1) write(*,*) 'TMDs:TMD griding is ON'
-     end if
-    
+    if(include_uTMDFF .and. (.not.uTMDFF_IsInitialized())) then
+      if(outputLevel>1) write(*,*) '.. initializing uTMDFF (from ',moduleName,')'
+      if(present(prefix)) then
+	call uTMDFF_Initialize(file,prefix)
+      else
+	call uTMDFF_Initialize(file)
+      end if
+    end if
+  
       c1_global=1d0
       c3_global=1d0
-      c4_global=1d0
       
       
       started=.true.
      if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDs ',version,': .... initialized'
-     if(outputLevel>1) write(*,*) ' '
-    end if
+     if(outputLevel>1) write(*,*) 
   end subroutine TMDs_Initialize
 
-  !!!!!!!Functions which carry the trigger on convergences.... Its used in xSec, and probably in other places.
-  function TMDs_IsconvergenceLost()
-  logical::TMDs_IsconvergenceLost
-  TMDs_IsconvergenceLost=convergenceLost
-  end function TMDs_IsconvergenceLost
-  
-  subroutine TMDs_convergenceISlost()
-  convergenceLost=.true.
-  if(outputLevel>1) write(*,*) 'arTeMiDe.TMDs: convergence triger set to be lost.'
-  end subroutine TMDs_convergenceISlost
-  
-    !sets the NP parameters of TMD model (bmax,gB,etc)
-  subroutine TMDs_SetNPParameters(lambda)
-    real*8,intent(in):: lambda(:)
-    
-    if(size(lambda)<totalNumberOfPar) then
-      if(outputLevel>0) write(*,*) 'arTeMiDe.TMDs: WARNING! Length of NP parameters array (',size(lambda),&
-	  ') is less then expected (',totalNumberOfPar,')'
-      if(outputLevel>0) write(*,*) 'NOTHING IS DONE'
-    else
-    
-    convergenceLost=.false.
-    
-   call TMDR_setNPparameters(lambda(1:parameterLength(0)))
-   if(parameterLength(1)>0)&
-	call uTMDPDF_SetLambdaNP(lambda(parameterLength(0)+1:parameterLength(0)+parameterLength(1)) ,MakeGrid,includeGluon)
-   if(parameterLength(2)>0)&
-      call uTMDFF_SetLambdaNP(lambda(parameterLength(0)+parameterLength(1)+1:&
-				      parameterLength(0)+parameterLength(1)+parameterLength(2)),&
-				      MakeGrid,includeGluon)
-   end if
-
-  end subroutine TMDs_SetNPParameters
-  
-  !sets the NP parameters of TMD model for replica
-  subroutine TMDs_SetNPParameters_rep(num)
-    integer::num
-    
-    convergenceLost=.false.
-    
-   call TMDR_setNPparameters(num)
-   
-   if(parameterLength(1)>0) call uTMDPDF_SetLambdaNP(num,MakeGrid,includeGluon)
-   if(parameterLength(2)>0) call uTMDFF_SetLambdaNP(num,MakeGrid,includeGluon)
-  end subroutine TMDs_SetNPParameters_rep
-  
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors
-  subroutine TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
-    real*8::c1_in,c3_in,c4_in,c4_old
+  subroutine TMDs_SetScaleVariations(c1_in,c3_in)
+    real*8::c1_in,c3_in
     
     If(EvolutionType==1) then
     if(c1_in<0.1d0 .or. c1_in>10.d0) then
@@ -314,36 +224,8 @@ module TMDs
     end if
     end if
     
-    c4_old=c4_global
-    if(c4_in<0.1d0 .or. c4_in>10.d0) then
-       if(outputLevel>0) write(*,*) 'WARNING: arTeMiDe.TMDs: variation in c4 is enourmous. c4 is set to 2'
-      c4_global=2d0
-    else
-    c4_global=c4_in
-    end if
-    
-    if(outputLevel>1) write(*,*) 'TMDs: set scale variation as:',c1_global,c3_global,c4_global
-!     write(*,*) 'ADD INDEPENDENT VARIATIONS!! for TMDs'
-    !!! we reset c4 only if it different from the old one. Otherwise it can lead to the grid recalculation 
-    if(c4_old/=c4_in) then 
-     if(parameterLength(1)>0) then
-     call uTMDPDF_SetScaleVariation(c4_in)
-     call uTMDPDF_resetGrid(MakeGrid,includeGluon)
-     end if
-     if(parameterLength(2)>0) then
-     call uTMDFF_SetScaleVariation(c4_in)
-     call uTMDFF_resetGrid(MakeGrid,includeGluon)
-     end if
-    end if
+    if(outputLevel>1) write(*,*) 'TMDs: set scale variations constants (c1,c3) as:',c1_global,c3_global
   end subroutine TMDs_SetScaleVariations
-  
-  !!!Pass variable to SetPDFreplica, reset grid
-  subroutine TMDs_SetPDFreplica(rep)
-  integer::rep
-    convergenceLost=.false.
-    call uTMDPDF_SetPDFreplica(rep)  
-    call uTMDPDF_resetGrid(MakeGrid,includeGluon)
-  end subroutine TMDs_SetPDFreplica
   
   !!!!!!!!!!!!!!!!!!!uTMDPDF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
@@ -603,19 +485,3 @@ module TMDs
   end function uTMDFF_50_optimal
   
 end module TMDs
-
-! program example
-! use TMDs
-!   implicit none
-!   
-!   call TMDs_Initialize('LO')
-!   
-!   call TMDs_SetNPParameters((/0.189d0,0.2d0,0.425d0,0.189d0,0.12d0,0.425d0/))
-!   
-!   write(*,*) uTMDPDF_5(0.1d0,1d0,911d0,91d0**2,1)
-! !   write(*,*) uTMDPDF_50(0.1d0,1d0,911d0,91d0**2,1)
-!   
-!   write(*,*) uTMDFF_5(0.1d0,1d0,911d0,91d0**2,1)
-! !   write(*,*) uTMDFF_50(0.1d0,1d0,911d0,91d0**2,1)
-! 
-! end program example 

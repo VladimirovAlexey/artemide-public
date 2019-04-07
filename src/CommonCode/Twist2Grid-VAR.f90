@@ -19,7 +19,5 @@
   integer::GridSizeB=750
   real*8 :: slope=10d0
   real*8, dimension(:,:,:,:), allocatable :: gridMain !!!! THIS IS HUGE(!) matrix for the grid
-  real*8, dimension(:,:,:,:), allocatable :: extrapolateParameters !!!! for b>bGrid_Max we extrapolate by EXP(-a-b b-c b^2)
-  real*8, dimension(:,:,:), allocatable :: taleSings !!! some times tales are negarive we store the size of tales here
+  real*8, dimension(:,:,:), allocatable :: boundaryValues !!!! for b>bGrid_Max we approximate by fNP. With prefactor given by boundary value/fNP(bMax)
   real*8:: bFactor,slopeFactor !! some often used combinations
-  integer :: asymptoticBehavior!!the expected assymptotic behavor

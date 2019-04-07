@@ -1,11 +1,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.41
+!			arTeMiDe 2.00
 !
 !	Evaluation of the unpolarized TMD FF at low normalization point in zeta-prescription.
 !	
 !	if you use this module please, quote 1706.01473 (for arTeMiDe), + ????.???? (for UTMDFF)
 !
 !	27.02.2019  changed z^2 prescription, now dd=x^2 xd.
+!	29.03.2019  Update to version 2.00 (AV).
 !
 !				A.Vladimirov (19.04.2018)
 !
@@ -18,17 +19,14 @@ implicit none
 private
 
   !Current version of module
- character (len=5),parameter :: version="v1.41"
+ character (len=5),parameter :: version="v2.00"
  character (len=7),parameter :: moduleName="uTMDFF"
  
   INCLUDE 'Tables/NumConst.f90'  
   INCLUDE 'Tables/G7K15.f90'
 
 !-------------------Physical constants-----------------------------------------
-  
-  !!!Threashold parameters
-  real*8 :: mCHARM=1.4d0
-  real*8 :: mBOTTOM=4.75d0
+
 
 !--------------------------------Working variables-----------------------------------------------
   
@@ -38,7 +36,8 @@ private
 !! 2=WARNINGS
   integer::outputLevel=2
     !! variable that count number of WRNING mesagges. In order not to spam too much
-  integer::messageTriger=0
+  integer::messageTrigger=6
+  logical::started=.false.
   
   !!! The global order which is used in programm
   ! 0=LO, 1=NLO, 2=NNLO
@@ -72,9 +71,7 @@ private
   !! { 1/(1-x), (Log[1-x]/(1-x))_+}
   real*8, dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
   
-  !!! trigers for calculation
-  logical:: IsMuXdependent, IsFnpZdependent
-  integer:: counter
+  integer:: counter,messageCounter
   
   INCLUDE 'CommonCode/Twist2Convolution-VAR.f90'
   INCLUDE 'CommonCode/Twist2Grid-VAR.f90'
@@ -83,16 +80,18 @@ private
   
 !!--------------------------------- variables for the griding the TMD.---------------------------------------------
   logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated form the grid
+  logical :: prepareGrid!!!idicator that grid must be prepared
   logical :: withGluon!!!indicator the gluon is needed in the grid
   integer::numberOfHadrons
   integer,dimension(:),allocatable::hadronsInGRID
   
 !!-----------------------------------------------Public interface---------------------------------------------------
-  public::uTMDFF_Initialize,uTMDFF_SetLambdaNP,uTMDFF_resetGrid,uTMDFF_SetScaleVariation
+  public::uTMDFF_Initialize,uTMDFF_SetLambdaNP,uTMDFF_resetGrid,uTMDFF_SetScaleVariation,uTMDFF_CurrentNPparameters
+  public::uTMDFF_IsInitialized
   public::uTMDFF_lowScale5,uTMDFF_lowScale50
   
   interface uTMDFF_SetLambdaNP
-    module procedure uTMDFF_SetLambdaNP_usual,uTMDFF_SetLambdaNP_optional,uTMDFF_SetReplica,uTMDFF_SetReplica_optional
+    module procedure uTMDFF_SetLambdaNP_usual,uTMDFF_SetReplica_optional
   end interface
   
   contains
@@ -102,273 +101,276 @@ private
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !! Initialization of the package
-  subroutine uTMDFF_Initialize(orderMain)
-    character(len=*)::orderMain
-    character(256)::line
-    integer:: orderIntemidiate,i,j,h
-    real*8:: dummy1,dummy2
-    real*8,dimension(-5:5):: dummyList1,dummyList2
-    
-    
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-    !!! Search for output level
+  function uTMDFF_IsInitialized()
+  logical::uTMDFF_IsInitialized
+  uTMDFF_IsInitialized=started
+  end function uTMDFF_IsInitialized
+
+!!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
     do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
     end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine uTMDFF_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
+    character(len=8)::orderMain
+    logical::bSTAR_lambdaDependent
+    integer::i
+    
+    if(started) return
+    
+    if(.not.QCDinput_IsInitialized()) then
+      if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
+      if(present(prefix)) then
+      	call QCDinput_Initialize(file,prefix)
+      else
+	call QCDinput_Initialize(file)
+      end if
+    end if
+  
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
     
-    if(outputLevel>1) write(*,*) '----- arTeMiDe.uTMDFF ',version,': .... initialization'
+    call MoveTO(51,'*5   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
     
-    c4_global=1d0
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) orderMain
     
-    SELECT CASE(orderMain)
+    SELECT CASE(trim(orderMain))
       CASE ("LO")
-	if(outputLevel>1) write(*,*) 'Order set: LO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
 	order_global=0
       CASE ("LO+")
-	if(outputLevel>1) write(*,*) 'Order set: LO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
 	order_global=0
       CASE ("NLO")
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	order_global=1
       CASE ("NLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
 	order_global=1
       CASE ("NNLO")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
 	order_global=2
       CASE ("NNLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
 	order_global=2
       CASE DEFAULT
 	if(outputLevel>0)write(*,*) 'WARNING: arTeMiDe.uTMDFF_Initialize: unknown order for coefficient function. Switch to NLO.'
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	order_global=1
      END SELECT
     
      if(outputLevel>2) then
-      write(*,'(A,I1)') ' |  Coef.func     =as^',order_global
-     end if
-     
-    !!!!search for physic constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    !!!!search for masses entry entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) mCHARM
-    read(51,'(A)') line
-    read(51,*) mBOTTOM    
-    
-    if(outputLevel>2) then
-      write(*,*) 'Threshold masses'
-      write(*,'(A,F6.3)') ' |  mass Charm    =',mCHARM
-      write(*,'(A,F6.3)') ' |  mass Bottom   =',mBOTTOM
+      write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
      end if
     
-    !!!!search for numeric constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    !!!!search for uTMDFF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*E ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) tolerance
-    read(51,'(A)') line
-    read(51,*) maxIteration
-    if(outputLevel>2) then
-      write(*,'(A,ES10.3)') ' |  tolerance     =',tolerance
-      write(*,'(A,ES10.3)') ' |  max iteration =',REAL(maxIteration)
-    end if
+    !-------------parameters of NP model
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lambdaNPlength
     
-    !!!search for grid constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*3 ') exit
-    end do    
-    !!!!search for uTMDFF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*E ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) XGrid_Min
-    read(51,'(A)') line
-    read(51,*) BGrid_Max 
-    read(51,'(A)') line
-    read(51,*) GridSizeX
-    read(51,'(A)') line
-    read(51,*) GridSizeB
-    read(51,'(A)') line
-    read(51,*) slope
-    read(51,'(A)') line
-    read(51,*) asymptoticBehavior
-    read(51,'(A)') line
-    read(51,'(A)') line!!! reading hadrons
-    !!!! this mini code parse the input to line of integers
-    j=1
-    do i=1, len(line)    
-    if(line(i:i)==',') j=j+1
-    end do
-        
-    !!!! list of hadrons which are to grid.
-    !!!! prior to grid building the number is compared and the corresponding grid is build.
-    numberOfHadrons=j
-    allocate(hadronsInGRID(1:numberOfHadrons))
-    read(line,*) hadronsInGRID
-    
-     if(outputLevel>2) then
-      write(*,*) 'Grid options:'
-      write(*,'(A,ES10.3)') ' |  zGrid_Min                 =',xGrid_Min
-      write(*,'(A,ES10.3)') ' |  bGrid_Max                 =',bGrid_Max 
-      write(*,'(A,I6,A,I6,A)') ' |  (GridSizeZ,GridSizeB)     =(',GridSizeX,',',GridSizeB,')'
-      write(*,'(A,F6.3)') ' |  Bslope                     =',slope 
-      write(*,'(A,I1)') ' |  asymptoticBehavior        =',asymptoticBehavior
-      write(*,'(A,I3)')   ' |  hadrons to grid           =',numberOfHadrons
-      write(*,*)   ' | list of hadrons in grid    =(',hadronsInGRID,')'
-     end if
-
-    allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
-    allocate(extrapolateParameters(0:GridSizeX,1:2,-5:5,1:numberOfHadrons))
-    allocate(taleSings(0:GridSizeX,-5:5,1:numberOfHadrons))
-    
-    !!!!! number of NP parameters!!!!!!!!!!
-    !!!!! NP-parameter section
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*4 ') exit
-    end do
-    !!!!! number NP-parameter section
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    !!!!! FF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*2)') exit
-    end do
-      read(51,*) lambdaNPlength
-      
     if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
-      
+    
     if(lambdaNPlength<=0) then
-    write(*,*) 'WARNING: arTeMiDe.uTMDF_Initialize: number of non-pertrubative &
+    write(*,*) 'ERROR: arTeMiDe.uTMDPDF_Initialize: number of non-pertrubative &
 		    parameters should be >=1. Check the constants-file. Evaluation STOP'
     stop
     end if
+    
+    !-------------Numeric parameters
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) maxIteration
+    
+    if(outputLevel>2) then
+      write(*,'(A,ES10.3)') ' |  tolerance     =',tolerance
+      write(*,'(A,ES10.3)') ' |  max iteration =',REAL(maxIteration)
+     end if
+     
+    !-------------Make grid options
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) prepareGrid
+    call MoveTO(51,'*p2  ')
+    read(51,*) withGluon
+    call MoveTO(51,'*p3  ')
+    read(51,*) numberOfHadrons
+    allocate(hadronsInGRID(1:numberOfHadrons))
+    call MoveTO(51,'*p4  ')
+    read(51,*) hadronsInGRID
+    
+    !-------------Parameters of grid
+    call MoveTO(51,'*E   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) xGrid_Min
+    call MoveTO(51,'*p2  ')
+    read(51,*) bGrid_Max
+    call MoveTO(51,'*p3  ')
+    read(51,*) GridSizeX
+    call MoveTO(51,'*p4  ')
+    read(51,*) GridSizeB
+    call MoveTO(51,'*p5  ')
+    read(51,*) slope
+    
+     if(outputLevel>2) then
+      write(*,*) 'Grid options:'
+      write(*,'(A,ES10.3)') ' |  xGrid_Min                 =',xGrid_Min
+      write(*,'(A,ES10.3)') ' |  bGrid_Max                 =',bGrid_Max 
+      write(*,'(A,I6,A,I6,A)') ' |  (GridSizeX,GridSizeB)     =(',GridSizeX,',',GridSizeB,')'
+      write(*,'(A,F6.3)') ' |  slope                     =',slope 
+      write(*,'(A,I3)')   ' |  hadrons to grid           =',numberOfHadrons
+      write(*,*)   ' | list of hadrons in grid    =(',hadronsInGRID,')'
+     end if
+    
+    CLOSE (51, STATUS='KEEP') 
+    
+    allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
+    allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
+    
     
     allocate(lambdaNP(1:lambdaNPlength))
     allocate(lambdaNP_grid(1:lambdaNPlength))
     
     do i=1,lambdaNPlength
-      lambdaNP(i)=1.123d0!!!!any number but non-zero, otherwice there is a possible exaption situation during initial grid-evaluation
+      lambdaNP(i)=1d0
     end do
     
-    CLOSE (51, STATUS='KEEP') 
+    c4_global=1d0
     
-    if(QCDinput_IsInitialized()) then
-      if(outputLevel>1) write(*,*) 'QCDinput is already initalized'
-    else
-      if(outputLevel>1) write(*,*) '.. initializing QCDinput'
-      call QCDinput_Initialize(orderMain)
-      if(outputLevel>1) write(*,*) 'QCDinput is initalized'
-    end if
+    call ModelInit(outputLevel,lambdaNPlength)
     
-    if(outputLevel>2) write(*,*) 'Model initialization..'
-    call ModelInit(outputlevel,lambdaNPlength)
-    
-    !!!!!!!Checking the z-dependance of muOPE
+    !!!!!!!Checking the x-dependance of muOPE
     IsMuXdependent=testMU()
     
     if(IsMuXdependent) then
-    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: mu OPE is dependent on z'
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: mu OPE is dependent on x'
     else
-    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: mu OPE is independent on z'
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: mu OPE is independent on x'
     end if
     
-    !!!!!!!Checking the z-dependance of FNP
+        !!!!!!!Checking the lambda-dependance of bSTAR
+    bSTAR_lambdaDependent=testbSTAR(lambdaNPlength)
+    
+    if(bSTAR_lambdaDependent) then
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: bSTAR is dependent on lambda'
+    else
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: bSTAR is independent on lambda'
+    end if
+    
+    !!!!!!!Checking the x-dependance of FNP
     IsFnpZdependent=TestFNP(hadronsInGRID,lambdaNPlength)
     
     gridReady=.false.
-    messageTriger=0
     
     if(IsFnpZdependent) then
     if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: FNP is dependent on z'
     else
     if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: FNP is independent on z'
     end if
-     if(outputLevel>0) write(*,*) '----- arTeMiDe.uTMDFF ',version,': .... initialized'
-     if(outputLevel>1) write(*,*) ' '
+    
+    !!! if fnp depende on z or bSTAR depeds on lambda
+    !!! grid must be recalculate ech time. It canbe saved to single IsFnpZdependent
+    if(IsFnpZdependent .or. bSTAR_lambdaDependent) then
+      IsFnpZdependent=.true.
+      if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDFF: ............. convolution is lambda sensitive.'
+    end if
+    
+    messageCounter=0
+    
+    started=.true.
+    
+    if(outputLevel>0) write(*,*) '----- arTeMiDe.uTMDFF ',version,': .... initialized'
+    if(outputLevel>1) write(*,*) ' '
   end subroutine uTMDFF_Initialize
+
   
-    !! call for parameters from the model
-  subroutine uTMDFF_SetReplica(num)
-  integer:: num
-  
-  call uTMDFF_SetLambdaNP_usual(GiveReplicaParameters(num))
-  
-  end subroutine uTMDFF_SetReplica
-  
-  !! call for parameters from the model
+      !! call for parameters from the model
   subroutine uTMDFF_SetReplica_optional(num,buildGrid, gluonRequared)
   integer:: num
-  logical::buildGrid, gluonRequared
+  logical,optional:: buildGrid,gluonRequared
   
-  call uTMDFF_SetLambdaNP_optional(GiveReplicaParameters(num),buildGrid, gluonRequared)
+  if(present(buildGrid)) then
+    if(present(gluonRequared)) then
+      call uTMDFF_SetLambdaNP_usual(GiveReplicaParameters(num),buildGrid=buildGrid,gluonRequared=gluonRequared)
+    else
+      call uTMDFF_SetLambdaNP_usual(GiveReplicaParameters(num),buildGrid=buildGrid)
+    end if
+  else
+    if(present(gluonRequared)) then
+      call uTMDFF_SetLambdaNP_usual(GiveReplicaParameters(num),gluonRequared=gluonRequared)
+    else
+      call uTMDFF_SetLambdaNP_usual(GiveReplicaParameters(num))
+    end if
+   end if
   
   end subroutine uTMDFF_SetReplica_optional
-
- 
-  !!!Sets the non-pertrubative parameters lambda
-  subroutine uTMDFF_SetLambdaNP_usual(lambdaIN)
-    real*8,dimension(1:lambdaNPlength)::lambdaIN
-    real*8,dimension(1:lambdaNPlength)::lambdaOLD
-    logical::IsNewValues
-    integer::i
-    lambdaOLD=lambdaNP
-    lambdaNP=lambdaIN
-    IsNewValues=.false.
-    do i=1,lambdaNPlength
-     if(ABS(lambdaNP(i)-lambdaOLD(i))>10d-10) then
-      IsNewValues=.true.
-      exit
-     end if
-    end do
-    !!! if values are new then grid is out dated, if not do nothing
-    if(IsNewValues) then 
-     if(outputLevel>2) write(*,*) 'arTeMiDe.TMDFF: NPparameters reset = (',lambdaNP,')'
-     gridReady=.false.
-    end if
-  end subroutine uTMDFF_SetLambdaNP_usual
-  
     !!!Sets the non-pertrubative parameters lambda
     !!! carries additionl option to build the grid
     !!! if need to build grid, specify the gluon requared directive.
-  subroutine uTMDFF_SetLambdaNP_optional(lambdaIN,buildGrid, gluonRequared)
-    real*8,dimension(1:lambdaNPlength)::lambdaIN  
-    logical :: buildGrid,gluonRequared    
+  subroutine uTMDFF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
+    real*8,intent(in)::lambdaIN(:)
+    logical,optional :: buildGrid,gluonRequared
     real*8,dimension(1:lambdaNPlength)::lambdaOLD
     logical::IsNewValues
-    integer::i
-        messageTriger=0
+    integer::i,ll
+    messageCounter=0
+    
+    if(present(buildGrid)) prepareGrid=buildGrid
+    if(present(gluonRequared)) withGluon=gluonRequared
+    
+    ll=size(lambdaIN)
+    if(ll<lambdaNPlength) then 
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING length of lambdaNP(,',I3,') is less then requred (',I3,')')")&
+	      moduleName,ll,lambdaNPlength
+      if(outputLevel>0) write(*,*)'                Reset parameters are replaced by zeros!'
+      lambdaNP=0d0*lambdaNP
+      lambdaNP(1:ll)=lambdaIN(1:ll)
+    else if (ll>lambdaNPlength) then
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING&
+	      length of lambdaNP(,',I3,') is greater then requred (',I3,')')") moduleName,ll,lambdaNPlength
+      if(outputLevel>0) write(*,*)'                Array is truncated!'
+      lambdaNP(1:lambdaNPlength)=lambdaIN(1:lambdaNPlength)
+     else
+      lambdaOLD=lambdaNP
+      lambdaNP=lambdaIN
+     end if
+    
     
     lambdaOLD=lambdaNP
     lambdaNP=lambdaIN
@@ -381,11 +383,11 @@ private
     end do    
     
     
-    if(IsNewValues.and.(outputLevel>2)) write(*,*) 'arTeMiDe.TMDFF: NPparameters reset = (',lambdaNP,')'
+    if(IsNewValues.and.(outputLevel>2)) write(*,*) 'arTeMiDe.',moduleName,': NPparameters reset = (',lambdaNP,')'
     
     !! further if's are only for griding
     
-    if(buildGrid) then !!!grid is requred
+    if(prepareGrid) then !!!grid is requred
     
     if(IsNewValues) then  !! values are new
     
@@ -398,7 +400,7 @@ private
 	  gridReady=.true.
 	  
 	else !!! if z-Independent just do nothing.
-	 if(outputLevel>2) write(*,*) 'arTeMiDe_uTMDFF: the values are to be restored from the initial grid'
+	 if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': the values are to be restored from the initial grid'
 	end if
       
       else !!! grid is not ready (how comes?)
@@ -411,7 +413,7 @@ private
       if(gridReady) then  !!! grid is already build
 	  !!!nothing to do
       else!!rare option then parameters are not new but grit is not build
-        if(outputLevel>2) write(*,*) 'arTeMiDe_uTMDFF: parameters are not reset. But grid is not ready.'
+        if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': parameters are not reset. But grid is not ready.'
 	call MakeGrid()
 	gridReady=.true.
       end if
@@ -419,34 +421,49 @@ private
     end if
     
     else
-      !!! if grid is not requared nothing to do!    
+      gridReady=.false.
     end if 
     
-  end subroutine uTMDFF_SetLambdaNP_optional
+  end subroutine uTMDFF_SetLambdaNP_usual
   
-  !!! This subroutine ask for the grid reconstraction (or distruction)
+  !!! This subroutine ask for the grid reconstruction (or destruction)
   subroutine uTMDFF_resetGrid(buildGrid,gluonRequared)
-    logical::buildGrid,gluonRequared
-    integer::i
-    gridReady=.false.
-    !call uTMDFF_SetLambdaNP_optional(lambdaNP,buildGrid,gluonRequared)  
+    logical,optional::buildGrid,gluonRequared
+    logical::previousState
     
-!     call uTMDPDF_SetLambdaNP_optional(lambdaNP,buildGrid,gluonRequared)  
-      if(buildGrid) then
-	if(outputLevel>1) write(*,*) 'arTeMiDe.uTMDFF:  Grid Reset. with c4=',c4_global
-	withGluon=gluonRequared
-! 	call MakeGrid()
-! 	gridReady=.true.
+    if(present(buildGrid)) prepareGrid=buildGrid
+    if(present(gluonRequared)) withGluon=gluonRequared
+    
+    previousState=gridReady
+    gridReady=.false.
+    
+    ! we recalculate grid only if it was already calculated
+      if(prepareGrid.and.previousState) then
+        if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
+	call MakeGrid()
+	gridReady=.true.
       end if
   end subroutine uTMDFF_resetGrid
-  
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors
   subroutine uTMDFF_SetScaleVariation(c4_in)
     real*8::c4_in
-    c4_global=c4_in    
+    if(c4_in<0.1d0 .or. c4_in>10.d0) then
+      if(outputLevel>0) write(*,*) 'WARNING: arTeMiDe.uTMDFF: variation in c4 is enourmous. c4 is set to 2'
+      c4_global=2d0
+    else
+      c4_global=c4_in
+    end if
+    c4_global=c4_in
+    if(outputLevel>1) write(*,*) 'uTMDFF: set scale variations constant c4 as:',c4_global
+    call uTMDFF_resetGrid()
   end subroutine uTMDFF_SetScaleVariation
   
+  !!! retruns current value of NP parameters
+  subroutine uTMDFF_CurrentNPparameters(var)
+    real*8,dimension(1:lambdaNPlength)::var
+    var=lambdaNP
+  end subroutine uTMDFF_CurrentNPparameters
   
   !!! here we add x^2 since it is needed by FF convolution
   function xf(x,Q,hadron)
@@ -974,10 +991,11 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
     do j=-5,5
       if(fNP_grid(j)==0) then
       if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
-       if(outputLevel>0 .and. messageTriger<6) then
+       if(outputLevel>0 .and. messageCounter<messageTrigger) then
 	  write(*,*) 'WARNING: arTeMiDe.uTMDFF error in restoration: original value is zero. TMDFF set to zero. b=',bT
-	messageTriger=messageTriger+1
-	if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
+	messageCounter=messageCounter+1
+	if(messageCounter>messageTrigger)&
+	  write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
       end if
       end if
       uTMDFF_lowScale5(j)=0
@@ -1020,10 +1038,11 @@ real*8,dimension(-5:5)::uTMDFF_lowScale50
     do j=-5,5
       if(fNP_grid(j)==0) then
       if(uTMDFF_lowScale50(j)/=0) then
-      if(outputLevel>0 .and. messageTriger<6) then
+      if(outputLevel>0 .and. messageCounter<messageTrigger) then
 	write(*,*)  'WARNING: arTeMiDe_uTMDFF error in restoration: original value is zero. TMDPDF set to zero. b=',bT
-	messageTriger=messageTriger+1
-	if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
+	messageCounter=messageCounter+1
+	if(messageCounter>messageTrigger)&
+	    write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
       end if
       end if
       uTMDFF_lowScale50(j)=0

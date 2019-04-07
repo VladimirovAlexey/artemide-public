@@ -74,21 +74,6 @@
  zetaNP=zetaMUpert(mu,b/sqrtBMAX,f)
  end function zetaNP
  
- subroutine TMDR_SetReplica(rep)
- integer::rep,i
- real*8,dimension(1:NPlength):: InitVar
-   InitVar(1:2)=ReplicaParameters(rep)
-    if(NPlength>2) then
-     do i=3,NPlength
-      InitVar(i)=0d0
-     end do
-    end if
-    
-    !!! we also initialize the variables
-    call TMDR_setNPparameters(InitVar)
-    
- end subroutine TMDR_SetReplica 
- 
  !!! this is the table of replica prameters extracted in fit BSV19.
  !!! -2 is suggested for initialization replica
  !!! -1 is the best fit

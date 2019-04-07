@@ -21,7 +21,7 @@ private
   
   integer::lengthNP
 
-public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters
+public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters,TestbSTAR,bSTAR
 
   INCLUDE 'Tables/NumConst.f90'
 
@@ -112,6 +112,37 @@ contains
     end if	
     end do
   end function TestMU
+  
+  
+    !!! test bSTAR for lambdaNP-dependance
+  !!! .true. = lambda-dependent
+  function TestbSTAR(lambdaNPlength)
+    integer::lambdaNPlength,i,j,k
+    logical::TestbSTAR
+    real*8::bT,dummy1,dummy2
+    real*8,allocatable::lambdaNP(:)
+    
+    allocate(lambdaNP(1:lambdaNPlength))
+    TestbSTAR=.false.
+    do i=1,lambdaNPlength
+      lambdaNP=0.5d0+0d0*lambdaNP
+      do k=0,3
+	bT=0.1d0+k
+	dummy1=bSTAR(bT,lambdaNP)
+	
+	do j=1,3
+	  lambdaNP(i)=0.9d0*j
+	  dummy2=bSTAR(bT,lambdaNP)
+	  if(abs(dummy2-dummy1)>1d-10) then
+	    TestbSTAR=.true.
+	    exit
+	  end if
+	end do
+      end do
+    end do
+    
+  end function TestbSTAR
+  
   
   !!! transfer the replica paramters to main function
   function GiveReplicaParameters(num)

@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.41
+!			arTeMiDe 2.00
 !
 !	Evaluation of the TMD evolution kernel
 !	Here we use the improved gamma-solution, and the universal TMD definition.
@@ -10,6 +10,7 @@
 !			v1.32   A.Vladimirov (30.08.2018)
 !				b-freeze at 1d-6 A.Vladimirov (16.09.2018)
 !			v1.41   transpose-issue fixed A.Vladimirov (11.03.2019)
+!				29.03.2019  Update to version 2.00 (AV).
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDR
 use QCDinput
@@ -20,14 +21,10 @@ implicit none
 !   public
  
  !Current version of module
- character (len=5),parameter :: version="v1.41"
+ character (len=5),parameter :: version="v2.00"
+ character (len=7),parameter :: moduleName="TMDR"
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
-
-!!!Threashold parameters
-! Set in the constants file
-  real*8 :: mCHARM=1.4d0
-  real*8 :: mBOTTOM=4.75d0
   
   INCLUDE 'Tables/NumConst.f90'
   
@@ -127,6 +124,8 @@ implicit none
 !! 1=initialization details
 !! 2=WARNINGS
   integer::outputLevel=2
+  integer::messageTrigger=5
+  logical::started=.false.
   
 !! Precision tolerance used in various routines
   real*8::tolerance=0.001d0
@@ -134,7 +133,8 @@ implicit none
 !! Evolutio type 
   integer:: EvolutionType=3
   
-  integer::counter=0
+  integer::counter,messageCounter
+  
   
 !------------------------------------------Non-pertrubative parameters--------------------------------------------------
   
@@ -144,9 +144,9 @@ implicit none
   real*8,allocatable,dimension(:):: NPparam
 
   public::TMDR_R,TMDR_Rzeta
-  public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ
+  public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ,TMDR_IsInitialized,TMDR_CurrentNPparameters
   
-    public::DNP!,GammaCusp,gammaV
+  public::DNP!,GammaCusp,gammaV
   interface TMDR_setNPparameters
    module procedure TMDR_setNPparameters, TMDR_SetReplica
   end interface 
@@ -162,76 +162,113 @@ implicit none
  contains
   
    INCLUDE 'Model/TMDR_model.f90'
-  
-  !!! Initializing routing
+
+  function TMDR_IsInitialized()
+  logical::TMDR_IsInitialized
+  TMDR_IsInitialized=started
+  end function TMDR_IsInitialized
+   
+ !!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
+   
+!!! Initializing routing
 !!! Filles the prebuiled arrays
 !!! orderAD, is order of anomalous dimension for evolution
 !!!! order zeta is the order of pertrubative zeta expression, used only in the "universal TMD"
-subroutine TMDR_Initialize(orderMain)
-    character(len=*)::orderMain
-    character (len=50) :: line
-    integer ::i
+ subroutine TMDR_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
+    character(len=8)::orderMain
+    integer::i
     
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
+    if(started) return
+    
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     !!! Search for output level
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
-    if(outputLevel>1) write(*,*) '----- arTeMiDe.TMDR ',version,': .... initialization'
     
-      SELECT CASE(orderMain)
+    call MoveTO(51,'*3   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
+    
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) orderMain
+    
+    SELECT CASE(orderMain)
       CASE ("LO")
-	if(outputLevel>1) write(*,*) 'Order set: LO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
 	orderCusp=1
 	orderV=0
 	orderD=0
 	orderDresum=0
 	orderZETA=0
       CASE ("LO+")
-	if(outputLevel>1) write(*,*) 'Order set: LO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
 	orderCusp=1
 	orderV=1
 	orderD=1
 	orderDresum=0
 	orderZETA=0
       CASE ("NLO")
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	orderCusp=2
 	orderV=1
 	orderD=1
 	orderDresum=1
 	orderZETA=1
       CASE ("NLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
 	orderCusp=2
 	orderV=2
 	orderD=2
 	orderDresum=1
 	orderZETA=1
       CASE ("NNLO")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
 	orderCusp=3
 	orderV=2
 	orderD=2
 	orderDresum=2
 	orderZETA=2
       CASE ("NNLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
 	orderCusp=4!3
 	orderV=3
 	orderD=3
 	orderDresum=3!2
 	orderZETA=3!2
       CASE ("NNNLO")
-	if(outputLevel>1) write(*,*) 'Order set: NNNLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNNLO'
 	orderCusp=4
 	orderV=3
 	orderD=3
@@ -239,7 +276,7 @@ subroutine TMDR_Initialize(orderMain)
 	orderZETA=3
       CASE DEFAULT
 	if(outputLevel>0) write(*,*) 'arTeMiDe.TMDR_Initialize:try to set unknown ADs orders. Switch to NLO.'
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*)  trim(moduleName)//' Order set: NLO'
 	orderCusp=2
 	orderV=1
 	orderD=1
@@ -254,68 +291,15 @@ subroutine TMDR_Initialize(orderMain)
       write(*,'(A,I1)') ' |  Dresum        =as^',orderDresum
       write(*,'(A,I1)') ' |  zeta_mu       =as^',orderZETA
      end if
-    
-    if(QCDinput_IsInitialized()) then
-      if(outputLevel>1) write(*,*) 'QCDinput is already initalized'
-    else
-      if(outputLevel>1) write(*,*) '.. initializing QCDinput'
-      call QCDinput_Initialize(orderMain)
-      if(outputLevel>1) write(*,*) 'QCDinput is initalized'
-    end if
 
-     !!!!!!! --------------Read threashod parameters-------------------------
-    !!!!search for physic constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    !!!!search for masses entry entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) mCHARM
-    read(51,'(A)') line
-    read(51,*) mBOTTOM    
-!   
-     if(outputLevel>2) then
-      write(*,*) 'Threshold masses'
-      write(*,'(A,F6.3)') ' |  mass Charm    =',mCHARM
-      write(*,'(A,F6.3)') ' |  mass Bottom   =',mBOTTOM
-     end if
-
-         !!!!search for numeric constants entry
-         
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    !!!!search for TMDR entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*C ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) EvolutionType
     
-    if(outputLevel>2) write(*,'(A,ES10.3)') ' |   tolerance=',tolerance
-! 
-!     
-    !!!!!!! --------------Length of NP input-------------------------
+    if(outputLevel>2) write(*,'(A,I3)') ' Evolution type =',EvolutionType
     
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*4 ') exit
-    end do  
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*0)') exit
-    end do
+    !-------------------------
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
     read(51,*) NPlength
     
     if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',NPlength
@@ -325,43 +309,80 @@ subroutine TMDR_Initialize(orderMain)
     do i=1,NPlength
     NPparam(i)=0d0
     end do
-!   
-    !!!!!! --------------Evolution type------------------------------
     
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*B ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,*) EvolutionType
+    !--------------------------
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) tolerance
     
-    if(outputLevel>2) write(*,'(A,I3)') ' Evolution type =',EvolutionType
+    if(outputLevel>2) write(*,'(A,ES10.3)') ' |   tolerance=',tolerance
     
     CLOSE (51, STATUS='KEEP') 
     
+    if(.not.QCDinput_IsInitialized()) then
+      if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
+      if(present(prefix)) then
+      	call QCDinput_Initialize(file,prefix)
+      else
+	call QCDinput_Initialize(file)
+      end if
+    end if
+    
     if(outputLevel>2) write(*,*) 'Model initialization..'
     call ModelInitialization()
-!           
-     if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDR ',version,': .... initialized'
-     if(outputLevel>1) write(*,*) ' '
-     
+    
+    started=.true.
+    counter=0
+    messageCounter=0
+    if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDR ',version,': .... initialized'
+    if(outputLevel>1) write(*,*) ' '
   end subroutine TMDR_Initialize
 
     !Reset the NP parameters
- subroutine TMDR_setNPparameters(NPin)
-    real*8,dimension(1:NPlength)::NPin
+ subroutine TMDR_setNPparameters(lambdaIN)
+    real*8,intent(in)::lambdaIN(:)
+    integer::ll
     
-    NPparam=NPin
+    ll=size(lambdaIN)
+    if(ll<NPlength) then 
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING length of lambdaNP(,',I3,') is less then requred (',I3,')')")&
+	      moduleName,ll,NPlength
+      if(outputLevel>0) write(*,*)'                Reset parameters are replaced by zeros!'
+      NPparam=0d0*NPparam
+      NPparam(1:ll)=lambdaIN(1:ll)
+    else if (ll>NPlength) then
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING&
+	      length of lambdaNP(,',I3,') is greater then requred (',I3,')')") moduleName,ll,NPlength
+      if(outputLevel>0) write(*,*)'                Array is truncated!'
+      NPparam(1:NPlength)=lambdaIN(1:NPlength)
+     else
+      NPparam=lambdaIN
+     end if
     
     if(outputLevel>2) write(*,*) 'arTeMiDe.TMDR: NPparameters reset = (',NPparam,')'
     
  end subroutine TMDR_setNPparameters
 
-
-
+ subroutine TMDR_SetReplica(rep)
+ integer::rep,i
+ real*8,dimension(1:NPlength):: InitVar
+   InitVar(1:2)=ReplicaParameters(rep)
+    if(NPlength>2) then
+     do i=3,NPlength
+      InitVar(i)=0d0
+     end do
+    end if
+    
+    !!! we also initialize the variables
+    call TMDR_setNPparameters(InitVar)
+    
+ end subroutine TMDR_SetReplica 
+ 
+ subroutine TMDR_CurrentNPparameters(var)
+ real*8,dimension(1:NPlength)::var
+ var=NPparam
+ 
+ end subroutine TMDR_CurrentNPparameters
 !-------------------Anomalous dimensions------------------------------
   
   ! The TMD rapidity anomalous dimension D, pertrubative expression

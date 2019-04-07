@@ -3,9 +3,10 @@
 !
 !	Evaluation of the TMDs in KT space
 !	
-!	if you use this module please, quote 190?.?????
+!	if you use this module please, quote 1902.08474
 !
 !	ver 1.0: release (AV, 23.12.2018)
+!	ver 2.00: release (AV, 29.03.2019)
 !
 !				A.Vladimirov (23.12.2018)
 !
@@ -17,8 +18,8 @@ module TMDs_inKT
   private
 !   public
  
- !Current version of module
- character (len=5),parameter :: version="v1.40"
+ character (len=10),parameter :: moduleName="TMDs-inKT"
+ character (len=5),parameter :: version="v2.00"
  
  !------------------------------------------Tables-----------------------------------------------------------------------
     integer,parameter::Nmax=200
@@ -32,12 +33,10 @@ module TMDs_inKT
   !!!nodes of ogata quadrature
   real*8,dimension(1:Nmax)::bb
   
-  !Counters of calls "Integrand", Global in between setNP
   integer::GlobalCounter
-  !Counter of total calls of TMD_F (reset at setNP)
   integer::CallCounter
-  !Counter of maximum number of calls per integral
   integer::MaxCounter
+  integer::messageCounter
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
   
@@ -45,20 +44,12 @@ module TMDs_inKT
   
   logical::started=.false.
   
-  !! Level of output
-  !! 0=only critical
-  !! 1=initialization details
-  !! 2=WARNINGS
   integer::outputLevel=2
+  integer::messageTrigger=5
   
-  public::TMDs_inKT_Initialize,TMDs_inKT_SetNPParameters,TMDs_inKT_SetScaleVariations,&
-	  TMDs_inKT_ShowStatistic
+  public::TMDs_inKT_Initialize,TMDs_inKT_ShowStatistic,TMDs_inKT_IsInitialized,TMDs_inKT_ResetCounters
 	  
   real*8,dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50
-  
-  interface TMDs_inKT_SetNPParameters
-    module procedure TMDs_inKT_SetNPParameters,TMDs_inKT_SetNPParameters_rep
-  end interface
   
   interface uTMDPDF_kT_5
     module procedure uTMDPDF_kT_5_Ev,uTMDPDF_kT_5_optimal
@@ -77,102 +68,107 @@ module TMDs_inKT
   end interface
 
 contains 
-  !!! This subroutine can be called only ones per programm run in the very beginning
-  !!! It initializes TMDs subpackage
-  !!! It set the pertrubative orders(!), so pertrubative orders cannot be changed afterwards.
-  subroutine TMDs_inKT_Initialize(orderMain)
-    character(len=*)::orderMain
-    character(256)::line
-    integer:: j
+ function TMDs_inKT_IsInitialized()
+  logical::TMDs_inKT_IsInitialized
+  TMDs_inKT_IsInitialized=started
+ end function TMDs_inKT_IsInitialized
+
+!!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine TMDs_inKT_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
     
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
+    if(started) return
+    
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     !!! Search for output level
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
-    if(outputLevel>1) write(*,*) '----- arTeMiDe.TMDs-in-KT ',version,': .... initialization'
+    call MoveTO(51,'*8   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
     
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*BB') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) hOGATA
-    read(51,'(A)') line
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
     read(51,*) tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) hOGATA
+      
+      if(outputLevel>2) write(*,'(A,ES8.2)') ' | h for Ogata quadrature	: ',hOGATA
+      if(outputLevel>2) write(*,'(A,ES8.2)') ' | tolerance			: ',tolerance
+      
+      CLOSE (51, STATUS='KEEP') 
+      
+      if(outputLevel>1) write(*,*) 'arTeMiDe.TMDs-inKT: preparing Ogata tables'
+      call PrepareTables()
+      if(outputLevel>2) write(*,'(A,I4)') ' | Maximum number of nodes	:',Nmax
+      if(outputLevel>1) write(*,*) 'arTeMiDe.TMDs-inKT: Ogata tables prepared'
+      
+      GlobalCounter=0
+      CallCounter=0
+      MaxCounter=0
+      convergenceLost=.false.
+      
+      if(.not.TMDs_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing TMDs (from ',moduleName,')'
+	if(present(prefix)) then
+	  call TMDs_Initialize(file,prefix)
+	else
+	  call TMDs_Initialize(file)
+	end if
+      end if
+      
+      started=.true.
+      if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDs-inKT ',version,': .... initialized'
+      if(outputLevel>1) write(*,*) ' '
     
-    if(outputLevel>2) write(*,'(A,ES8.2)') ' | h for Ogata quadrature	: ',hOGATA
-    if(outputLevel>2) write(*,'(A,ES8.2)') ' | tolerance			: ',tolerance
+  end subroutine TMDs_inKT_Initialize
+
+
+  
+  subroutine TMDs_inKT_ResetCounters()
     
-    CLOSE (51, STATUS='KEEP') 
-    
-    if(outputLevel>1) write(*,*) 'arTeMiDe.TMDF: preparing Ogata tables'
-    call PrepareTables()
-    if(outputLevel>2) write(*,'(A,I4)') ' | Maximum number of nodes	:',Nmax
-    if(outputLevel>1) write(*,*) 'arTeMiDe.TMDF: Ogata tables prepared'
-    
+    convergenceLost=.false.
     GlobalCounter=0
     CallCounter=0
     MaxCounter=0
     
-    
-    if(started) then
-    if(outputLevel>1) write(*,*) 'arTeMiDe.TMDs-in-KT already initialized'
-    else
-    
-    
-    CLOSE (51, STATUS='KEEP') 
-    
-    call TMDs_Initialize(orderMain)
-    
-      started=.true.
-     if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDs-inKT ',version,': .... initialized'
-     if(outputLevel>1) write(*,*) ' '
-    end if
-  end subroutine TMDs_inKT_Initialize
-
-  !sets the NP parameters of TMD model (bmax,gB,etc)
-  subroutine TMDs_inKT_SetNPParameters(lambda)
-    real*8 :: lambda(:)
-    
-   call TMDs_SetNPParameters(lambda)
-
-  end subroutine TMDs_inKT_SetNPParameters
-  
-    !sets the NP parameters of TMD model (in replicas)
-  subroutine TMDs_inKT_SetNPParameters_rep(n)
-    integer::n
-    
-   call TMDs_SetNPParameters(n)
-
-  end subroutine TMDs_inKT_SetNPParameters_rep
- 
-  !!!! this routine set the variations of scales
-  !!!! it is used for the estimation of errors
-  subroutine TMDs_inKT_SetScaleVariations(c1_in,c3_in,c4_in)
-    real*8::c1_in,c3_in,c4_in
-    
-    call TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
-    
-  end subroutine TMDs_inKT_SetScaleVariations
+  end subroutine TMDs_inKT_ResetCounters
   
     !!!!!!!Functions which carry the trigger on convergences.... Its used in xSec, and probably in other places.
   function TMDs_inKT_IsconvergenceLost()
   logical::TMDs_inKT_IsconvergenceLost
-  !!! checks TMDs trigger
-  if(TMDs_IsconvergenceLost()) convergenceLost=.true.
   
   TMDs_inKT_IsconvergenceLost=convergenceLost
   end function TMDs_inKT_IsconvergenceLost

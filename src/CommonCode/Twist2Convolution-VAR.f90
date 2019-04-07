@@ -21,3 +21,5 @@
   real*8,dimension(-5:5)::PDFcurrent !!!value of f(xCurrent)
   real*8,dimension(-5:5)::Fcurrent !!!value of fNP(1)
   real*8,dimension(-5:5) :: integralWeight
+  !!!triger for calculation
+  logical:: IsMuXdependent, IsFnpZdependent

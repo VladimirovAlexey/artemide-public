@@ -11,6 +11,8 @@ use TMDs
 use TMDs_inKT
 use TMDX_DY
 use TMDX_SIDIS
+use aTMDe_control
+use uTMDPDF
 
 !!! this flag is requared to guaranty that artemide is not started twice (it lead to the crush)
 logical::started=.false.
@@ -18,47 +20,73 @@ logical::started=.false.
 contains
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GENERAL
-  subroutine Initialize(orderMain)
-    character(len=*)::orderMain 
+  subroutine Initialize(file)
+    character(len=*)::file
     if(started) then
       write(*,*) 'artemide already runs'
     else
-      call TMDX_DY_Initialize(orderMain)
-      call TMDX_SIDIS_Initialize(orderMain)
-      call TMDs_inKT_Initialize(orderMain)
+      call artemide_Initialize(file)
       started=.true.
     end if
   end subroutine Initialize
   
-    !! call for parameters from the model
-  subroutine SetLambda_ByReplica(num)
+  
+  !! call for parameters from the model
+  subroutine SetReplica_TMDR(num)
   integer:: num
+  call artemide_SetReplica_TMDR(num)
+  end subroutine SetReplica_TMDR
   
-  call TMDX_DY_SetNPParameters(num)
+  !!
+  subroutine SetReplica_uTMDPDF(num)
+  integer:: num
+  call artemide_SetReplica_uTMDPDF(num)
+  end subroutine SetReplica_uTMDPDF
   
-  end subroutine SetLambda_ByReplica
+  !!
+  subroutine SetReplica_uTMDFF(num)
+  integer:: num
+  call artemide_SetReplica_uTMDFF(num)
+  end subroutine SetReplica_uTMDFF
   
   !!!Sets the non-pertrubative parameters lambda
-  subroutine SetLambda(lambdaIN)
+  subroutine SetLambda_Main(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
-    
-    call TMDX_DY_SetNPParameters(lambdaIN)
-    
-  end subroutine SetLambda
+    call artemide_SetNPparameters(lambdaIN)
+  end subroutine SetLambda_Main
+  
+  
+    !!!Sets the non-pertrubative parameters lambda
+  subroutine SetLambda_TMDR(lambdaIN)
+    real*8,intent(in)::lambdaIN(:)
+    call artemide_SetNPparameters_TMDR(lambdaIN)
+  end subroutine SetLambda_TMDR
+  
+      !!!Sets the non-pertrubative parameters lambda
+  subroutine SetLambda_uTMDPDF(lambdaIN)
+    real*8,intent(in)::lambdaIN(:)
+    call artemide_SetNPparameters_uTMDPDF(lambdaIN)
+  end subroutine SetLambda_uTMDPDF
+  
+  !!!Sets the non-pertrubative parameters lambda
+  subroutine SetLambda_uTMDFF(lambdaIN)
+    real*8,intent(in)::lambdaIN(:)
+    call artemide_SetNPparameters_uTMDFF(lambdaIN)
+  end subroutine SetLambda_uTMDFF
   
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors
   subroutine SetScaleVariation(c1_in,c2_in,c3_in,c4_in)
     real*8::c1_in,c2_in,c3_in,c4_in
     
-    call TMDX_DY_SetScaleVariations(c1_in,c2_in,c3_in,c4_in)
+    call artemide_SetScaleVariations(c1_in,c2_in,c3_in,c4_in)
     
   end subroutine SetScaleVariation
   
   !! reset the number for PDF replica for uTMDPDF
   subroutine SetPDFreplica(rep)
     integer::rep
-    call TMDs_SetPDFreplica(rep)
+    call uTMDPDF_SetPDFreplica(rep)
   end subroutine SetPDFreplica
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!uTMD

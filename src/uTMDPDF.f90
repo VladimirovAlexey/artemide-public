@@ -1,11 +1,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.4
+!			arTeMiDe 2.0
 !
 !	Evaluation of the unpolarized TMD PDF at low normalization point in zeta-prescription.
 !	
 !	if you use this module please, quote 1706.01473
 !
-!	08.11.2018  essential error in griding with x-dependance FIXED.
+!	08.11.2018  essential error in griding with x-dependance FIXED (AV).
+!	29.03.2019  Update to version 2.00 (AV).
 !
 !				A.Vladimirov (19.04.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -19,26 +20,21 @@ implicit none
  private 
  
   !Current version of module
- character (len=5),parameter :: version="v1.40"
+ character (len=5),parameter :: version="v2.00"
  character (len=7),parameter :: moduleName="uTMDPDF"
  
   INCLUDE 'Tables/NumConst.f90'
   INCLUDE 'Tables/G7K15.f90'
-  
-!-------------------Physical constants-----------------------------------------
- 
-  !!!Threashold parameters
-  real*8 :: mCHARM=1.4d0
-  real*8 :: mBOTTOM=4.75d0
 
-!--------------------------------Working variables-----------------------------------------------
+!--------------------------------Working variables-----------------------------------------------!--- general
+  logical:: started=.false.
 !! Level of output
 !! 0=only critical
 !! 1=initialization details
 !! 2=WARNINGS
   integer::outputLevel=2
   !! variable that count number of WRNING mesagges. In order not to spam too much
-  integer::messageTriger=0
+  integer::messageTrigger=6
   
   !!! The global order which is used in programm
   ! it is set by SetOrderForC subroutine
@@ -73,16 +69,14 @@ implicit none
   !! { 1/(1-x), (Log[1-x]/(1-x))_+}
   real*8, dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
   
-    !!! trigers for calculation
-  logical:: IsMuXdependent, IsFnpZdependent
-  
-  integer :: counter
+  integer :: counter,messageCounter
   
   INCLUDE 'CommonCode/Twist2Convolution-VAR.f90'
   INCLUDE 'CommonCode/Twist2Grid-VAR.f90'
   
 !!--------------------------------- variables for the griding the TMD.---------------------------------------------
-  logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated form the grid
+  logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated from the grid
+  logical :: prepareGrid!!!idicator that grid must be prepared
   logical :: withGluon!!!indicator the gluon is needed in the grid
   
   integer::numberOfHadrons
@@ -91,12 +85,13 @@ implicit none
 !!-----------------------------------------------Public interface---------------------------------------------------
     
   public::uTMDPDF_Initialize,uTMDPDF_SetLambdaNP,uTMDPDF_SetScaleVariation,uTMDPDF_resetGrid,uTMDPDF_SetPDFreplica
+  public::uTMDPDF_IsInitialized,uTMDPDF_CurrentNPparameters
   public::uTMDPDF_lowScale5,uTMDPDF_lowScale50	
 !   public::CheckCoefficient  
 !   public::mu_OPE
   
   interface uTMDPDF_SetLambdaNP
-    module procedure uTMDPDF_SetLambdaNP_usual,uTMDPDF_SetLambdaNP_optional,uTMDPDF_SetReplica,uTMDPDF_SetReplica_optional
+    module procedure uTMDPDF_SetLambdaNP_usual,uTMDPDF_SetReplica_optional
   end interface
   
   contains
@@ -105,171 +100,107 @@ implicit none
   INCLUDE 'CommonCode/Twist2Grid.f90'
   
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !! Initialization of the package
-  subroutine uTMDPDF_Initialize(orderMain)
-    character(len=*)::orderMain
-    character(256)::line
-    integer:: orderIntemidiate,i,j,h
-    real*8::dummy1,dummy2
-    real*8,dimension(-5:5)::dummyList1,dummyList2
-    
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-    !!! Search for output level
+
+  function uTMDPDF_IsInitialized()
+  logical::uTMDPDF_IsInitialized
+  uTMDPDF_IsInitialized=started
+  end function uTMDPDF_IsInitialized
+ !!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
     do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
     end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine uTMDPDF_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
+    character(len=8)::orderMain
+    logical::bSTAR_lambdaDependent
+    integer::i
     
-    messageTriger=0
+    if(started) return
     
-    if(outputLevel>1) write(*,*) '----- arTeMiDe.uTMDPDF ',version,': .... initialization'
+    if(.not.QCDinput_IsInitialized()) then
+      if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
+      if(present(prefix)) then
+      	call QCDinput_Initialize(file,prefix)
+      else
+	call QCDinput_Initialize(file)
+      end if
+    end if
+  
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
-    c4_global=1d0
     
-    SELECT CASE(orderMain)
+    call MoveTO(51,'*4   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
+    
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) orderMain
+    
+    SELECT CASE(trim(orderMain))
       CASE ("LO")
-	if(outputLevel>1) write(*,*) 'Order set: LO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
 	order_global=0
       CASE ("LO+")
-	if(outputLevel>1) write(*,*) 'Order set: LO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
 	order_global=0
       CASE ("NLO")
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	order_global=1
       CASE ("NLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
 	order_global=1
       CASE ("NNLO")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
 	order_global=2
       CASE ("NNLO+")
-	if(outputLevel>1) write(*,*) 'Order set: NNLO+'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
 	order_global=2
       CASE DEFAULT
 	if(outputLevel>0)write(*,*) 'WARNING: arTeMiDe.uTMDPDF_Initialize: unknown order for coefficient function. Switch to NLO.'
-	if(outputLevel>1) write(*,*) 'Order set: NLO'
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	order_global=1
      END SELECT
     
      if(outputLevel>2) then
-      write(*,'(A,I1)') ' |  Coef.func     =as^',order_global
+      write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
      end if
     
-    !!!!search for physic constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    !!!!search for masses entry entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) mCHARM
-    read(51,'(A)') line
-    read(51,*) mBOTTOM    
-    
-     if(outputLevel>2) then
-      write(*,*) 'Threshold masses'
-      write(*,'(A,F6.3)') ' |  mass Charm    =',mCHARM
-      write(*,'(A,F6.3)') ' |  mass Bottom   =',mBOTTOM
-     end if
-    
-    !!!!search for numeric constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    !!!!search for uTMDPDF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*D ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) tolerance
-    read(51,'(A)') line
-    read(51,*) maxIteration 
-     if(outputLevel>2) then
-      write(*,'(A,ES10.3)') ' |  tolerance     =',tolerance
-      write(*,'(A,ES10.3)') ' |  max iteration =',REAL(maxIteration)
-     end if
-    
-    !!!!search for grid constants entry
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*3 ') exit
-    end do    
-    !!!!search for uTMDPDF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*D ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) xGrid_Min
-    read(51,'(A)') line
-    read(51,*) bGrid_Max 
-    read(51,'(A)') line
-    read(51,*) GridSizeX
-    read(51,'(A)') line
-    read(51,*) GridSizeB
-    read(51,'(A)') line
-    read(51,*) slope
-    read(51,'(A)') line
-    read(51,*) asymptoticBehavior
-    read(51,'(A)') line
-    read(51,'(A)') line!!! reading hadrons
-    !!!! this mini code parse the input to line of integers
-    j=1
-    do i=1, len(line)    
-    if(line(i:i)==',') j=j+1
-    end do
-    
-    !!!! list of hadrons which are to grid.
-    !!!! prior to grid building the number is compared and the corresponding grid is build.
-    numberOfHadrons=j
-    allocate(hadronsInGRID(1:numberOfHadrons))
-    read(line,*) hadronsInGRID
-    
-    
-     if(outputLevel>2) then
-      write(*,*) 'Grid options:'
-      write(*,'(A,ES10.3)') ' |  xGrid_Min                 =',xGrid_Min
-      write(*,'(A,ES10.3)') ' |  bGrid_Max                 =',bGrid_Max 
-      write(*,'(A,I6,A,I6,A)') ' |  (GridSizeX,GridSizeB)     =(',GridSizeX,',',GridSizeB,')'
-      write(*,'(A,F6.3)') ' |  slope                     =',slope 
-      write(*,'(A,I1)') ' |  asymptoticBehavior        =',asymptoticBehavior
-      write(*,'(A,I3)')   ' |  hadrons to grid           =',numberOfHadrons
-      write(*,*)   ' | list of hadrons in grid    =(',hadronsInGRID,')'
-     end if
-    
-    allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
-    allocate(extrapolateParameters(0:GridSizeX,1:2,-5:5,1:numberOfHadrons))
-    allocate(taleSings(0:GridSizeX,-5:5,1:numberOfHadrons))
-    
-    !!!!! number of NP parameters!!!!!!!!!!
-    !!!!! NP-parameter section
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*4 ') exit
-    end do
-    !!!!! number NP-parameter section
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    !!!!! PDF entry
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-      read(51,*) lambdaNPlength
+    !-------------parameters of NP model
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lambdaNPlength
     
     if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
     
@@ -279,6 +210,59 @@ implicit none
     stop
     end if
     
+    !-------------Numeric parameters
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) maxIteration
+    
+    if(outputLevel>2) then
+      write(*,'(A,ES10.3)') ' |  tolerance     =',tolerance
+      write(*,'(A,ES10.3)') ' |  max iteration =',REAL(maxIteration)
+     end if
+     
+    !-------------Make grid options
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) prepareGrid
+    call MoveTO(51,'*p2  ')
+    read(51,*) withGluon
+    call MoveTO(51,'*p3  ')
+    read(51,*) numberOfHadrons
+    allocate(hadronsInGRID(1:numberOfHadrons))
+    call MoveTO(51,'*p4  ')
+    read(51,*) hadronsInGRID
+    
+    !-------------Parameters of grid
+    call MoveTO(51,'*E   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) xGrid_Min
+    call MoveTO(51,'*p2  ')
+    read(51,*) bGrid_Max
+    call MoveTO(51,'*p3  ')
+    read(51,*) GridSizeX
+    call MoveTO(51,'*p4  ')
+    read(51,*) GridSizeB
+    call MoveTO(51,'*p5  ')
+    read(51,*) slope
+    
+     if(outputLevel>2) then
+      write(*,*) 'Grid options:'
+      write(*,'(A,ES10.3)') ' |  xGrid_Min                 =',xGrid_Min
+      write(*,'(A,ES10.3)') ' |  bGrid_Max                 =',bGrid_Max 
+      write(*,'(A,I6,A,I6,A)') ' |  (GridSizeX,GridSizeB)     =(',GridSizeX,',',GridSizeB,')'
+      write(*,'(A,F6.3)') ' |  slope                     =',slope 
+      write(*,'(A,I3)')   ' |  hadrons to grid           =',numberOfHadrons
+      write(*,*)   ' | list of hadrons in grid    =(',hadronsInGRID,')'
+     end if
+    
+    CLOSE (51, STATUS='KEEP') 
+    
+    allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
+    allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
+    
+    
     allocate(lambdaNP(1:lambdaNPlength))
     allocate(lambdaNP_grid(1:lambdaNPlength))
     
@@ -286,15 +270,7 @@ implicit none
       lambdaNP(i)=1d0
     end do
     
-    CLOSE (51, STATUS='KEEP') 
-    
-    if(QCDinput_IsInitialized()) then
-      if(outputLevel>1) write(*,*) 'QCDinput is already initalized'
-    else
-      if(outputLevel>1) write(*,*) '.. initializing QCDinput'
-      call QCDinput_Initialize(orderMain)
-      if(outputLevel>1) write(*,*) 'QCDinput is initalized'
-    end if
+    c4_global=1d0
     
     call ModelInit(outputLevel,lambdaNPlength)
     
@@ -305,6 +281,15 @@ implicit none
     if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: mu OPE is dependent on x'
     else
     if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: mu OPE is independent on x'
+    end if
+    
+        !!!!!!!Checking the lambda-dependance of bSTAR
+    bSTAR_lambdaDependent=testbSTAR(lambdaNPlength)
+    
+    if(bSTAR_lambdaDependent) then
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: bSTAR is dependent on lambda'
+    else
+    if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: bSTAR is independent on lambda'
     end if
     
     !!!!!!!Checking the x-dependance of FNP
@@ -318,25 +303,38 @@ implicit none
     if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: FNP is independent on z'
     end if
     
+    !!! if fnp depende on z or bSTAR depeds on lambda
+    !!! grid must be recalculate ech time. It canbe saved to single IsFnpZdependent
+    if(IsFnpZdependent .or. bSTAR_lambdaDependent) then
+      IsFnpZdependent=.true.
+      if(outputLevel>2) write(*,*) 'arTeMiDe.uTMDPDF: ............. convolution is lambda sensitive.'
+    end if
+    
+    started=.true.
+    messageCounter=0
+    
     if(outputLevel>0) write(*,*) '----- arTeMiDe.uTMDPDF ',version,': .... initialized'
     if(outputLevel>1) write(*,*) ' '
   end subroutine uTMDPDF_Initialize
-  
-  
-  !! call for parameters from the model
-  subroutine uTMDPDF_SetReplica(num)
-  integer:: num
-  
-  call uTMDPDF_SetLambdaNP_usual(GiveReplicaParameters(num))
-  
-  end subroutine uTMDPDF_SetReplica
-  
+
     !! call for parameters from the model
   subroutine uTMDPDF_SetReplica_optional(num,buildGrid, gluonRequared)
   integer:: num
-  logical :: buildGrid,gluonRequared
+  logical,optional:: buildGrid,gluonRequared
   
-  call uTMDPDF_SetLambdaNP_optional(GiveReplicaParameters(num),buildGrid, gluonRequared)
+  if(present(buildGrid)) then
+    if(present(gluonRequared)) then
+      call uTMDPDF_SetLambdaNP_usual(GiveReplicaParameters(num),buildGrid=buildGrid,gluonRequared=gluonRequared)
+    else
+      call uTMDPDF_SetLambdaNP_usual(GiveReplicaParameters(num),buildGrid=buildGrid)
+    end if
+  else
+    if(present(gluonRequared)) then
+      call uTMDPDF_SetLambdaNP_usual(GiveReplicaParameters(num),gluonRequared=gluonRequared)
+    else
+      call uTMDPDF_SetLambdaNP_usual(GiveReplicaParameters(num))
+    end if
+   end if
   
   end subroutine uTMDPDF_SetReplica_optional
   
@@ -350,41 +348,37 @@ implicit none
   
   end subroutine uTMDPDF_SetPDFreplica
   
-  !!!Sets the non-pertrubative parameters lambda
-  subroutine uTMDPDF_SetLambdaNP_usual(lambdaIN)
-    real*8,dimension(1:lambdaNPlength)::lambdaIN  
-    real*8,dimension(1:lambdaNPlength)::lambdaOLD
-    logical::IsNewValues
-    integer::i
-    messageTriger=0
-    
-    lambdaOLD=lambdaNP
-    lambdaNP=lambdaIN
-    IsNewValues=.false.
-    do i=1,lambdaNPlength
-     if(ABS(lambdaNP(i)-lambdaOLD(i))>10d-10) then
-      IsNewValues=.true.
-      exit
-     end if
-    end do
-    !!! if values are new then grid is out dated, if not do nothing
-    if(IsNewValues) then 
-     if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': NPparameters reset = (',lambdaNP,')'
-     gridReady=.false.
-    end if
-    
-  end subroutine uTMDPDF_SetLambdaNP_usual
-  
     !!!Sets the non-pertrubative parameters lambda
     !!! carries additionl option to build the grid
     !!! if need to build grid, specify the gluon requared directive.
-  subroutine uTMDPDF_SetLambdaNP_optional(lambdaIN,buildGrid, gluonRequared)
-    real*8,dimension(1:lambdaNPlength)::lambdaIN  
-    logical :: buildGrid,gluonRequared
+  subroutine uTMDPDF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
+    real*8,intent(in)::lambdaIN(:)
+    logical,optional :: buildGrid,gluonRequared
     real*8,dimension(1:lambdaNPlength)::lambdaOLD
     logical::IsNewValues
-    integer::i
-    messageTriger=0
+    integer::i,ll
+    messageCounter=0
+    
+    if(present(buildGrid)) prepareGrid=buildGrid
+    if(present(gluonRequared)) withGluon=gluonRequared
+    
+    ll=size(lambdaIN)
+    if(ll<lambdaNPlength) then 
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING length of lambdaNP(,',I3,') is less then requred (',I3,')')")&
+	      moduleName,ll,lambdaNPlength
+      if(outputLevel>0) write(*,*)'                Reset parameters are replaced by zeros!'
+      lambdaNP=0d0*lambdaNP
+      lambdaNP(1:ll)=lambdaIN(1:ll)
+    else if (ll>lambdaNPlength) then
+      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING&
+	      length of lambdaNP(,',I3,') is greater then requred (',I3,')')") moduleName,ll,lambdaNPlength
+      if(outputLevel>0) write(*,*)'                Array is truncated!'
+      lambdaNP(1:lambdaNPlength)=lambdaIN(1:lambdaNPlength)
+     else
+      lambdaOLD=lambdaNP
+      lambdaNP=lambdaIN
+     end if
+    
     
     lambdaOLD=lambdaNP
     lambdaNP=lambdaIN
@@ -401,7 +395,7 @@ implicit none
     
     !! further if's are only for griding
     
-    if(buildGrid) then !!!grid is requred
+    if(prepareGrid) then !!!grid is requred
     
     if(IsNewValues) then  !! values are new
     
@@ -435,24 +429,34 @@ implicit none
     end if
     
     else
-      !!! if grid is not requared nothing to do!    
+      gridReady=.false.
     end if 
     
-  end subroutine uTMDPDF_SetLambdaNP_optional
+  end subroutine uTMDPDF_SetLambdaNP_usual
+  
+  !!! returns current value of NP parameters
+  subroutine uTMDPDF_CurrentNPparameters(var)
+    real*8,dimension(1:lambdaNPlength)::var
+    var=lambdaNP
+ end subroutine uTMDPDF_CurrentNPparameters
   
   !!! This subroutine ask for the grid reconstruction (or destruction)
   subroutine uTMDPDF_resetGrid(buildGrid,gluonRequared)
-    logical::buildGrid,gluonRequared
+    logical,optional::buildGrid,gluonRequared
+    logical::previousState
+    
+    if(present(buildGrid)) prepareGrid=buildGrid
+    if(present(gluonRequared)) withGluon=gluonRequared
+    
+    previousState=gridReady
     gridReady=.false.
     
-!     call uTMDPDF_SetLambdaNP_optional(lambdaNP,buildGrid,gluonRequared)  
-      if(buildGrid) then
+    !! we recalculate grid only if it was already calculated!
+      if(prepareGrid .and. previousState) then
         if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-	withGluon=gluonRequared
 	call MakeGrid()
 	gridReady=.true.
       end if
-!     write(*,*) 'CHECK'
   end subroutine uTMDPDF_resetGrid
   
   
@@ -460,7 +464,15 @@ implicit none
   !!!! it is used for the estimation of errors
   subroutine uTMDPDF_SetScaleVariation(c4_in)
     real*8::c4_in
-    c4_global=c4_in    
+    if(c4_in<0.1d0 .or. c4_in>10.d0) then
+      if(outputLevel>0) write(*,*) 'WARNING: arTeMiDe.uTMDPDF: variation in c4 is enourmous. c4 is set to 2'
+      c4_global=2d0
+    else
+      c4_global=c4_in
+    end if
+    c4_global=c4_in
+    if(outputLevel>1) write(*,*) 'uTMDPDF: set scale variations constant c4 as:',c4_global
+    call uTMDPDF_resetGrid()
   end subroutine uTMDPDF_SetScaleVariation
  
 !-------------------------------------------------
@@ -1008,10 +1020,11 @@ function uTMDPDF_lowScale5(x,bT,hadron)
      if(fNP_grid(j)==0) then
       if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
       
-       if(outputLevel>0 .and. messageTriger<6) then
+       if(outputLevel>0 .and. messageCounter<messageTrigger) then
 	  write(*,*) 'WARNING: arTeMiDe.',moduleName,' error in restoration: original value is zero. TMDPDF set to zero. b=',bT
-	  messageTriger=messageTriger+1
-	  if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
+	  messageCounter=messageCounter+1
+	  if(messageCounter>messageTrigger) &
+		write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
        end if
        end if
       uTMDPDF_lowScale5(j)=0!!!! this is case then 0/0
@@ -1058,10 +1071,11 @@ function uTMDPDF_lowScale50(x,bT,hadron)
     do j=-5,5
       if(fNP_grid(j)==0) then
       if(uTMDPDF_lowScale50(j)/=0.and.j/=0) then
-      if(outputlevel>0 .and. messageTriger<6) then
+      if(outputlevel>0 .and. messageCounter<messageTrigger) then
 	write(*,*)  'WARNING: arTeMiDe',moduleName,' error in restoration: original value is zero. TMDPDF set to zero. b=',bT
-	messageTriger=messageTriger+1
-	  if(messageTriger>5) write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
+	messageCounter=messageCounter+1
+	  if(messageCounter>messageTrigger) &
+		    write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
 	end if
       end if
       uTMDPDF_lowScale50(j)=0

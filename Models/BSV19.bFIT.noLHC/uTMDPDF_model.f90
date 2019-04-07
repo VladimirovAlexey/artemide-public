@@ -54,7 +54,20 @@
   FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
   end function FNP
   
-    !!!!This function is the mu(x,b), which is used inside the OPE
+    !!!! This is the function b* that enter the logarithms of coefficient function
+  !!!! at small-b it should be ~b to match the collinear regime
+  !!!! at large-b it is a part of model
+  !!!! NOTE: if it is lambda-dependent, the grid will be recalculate each reset of lambdaNP
+  function bSTAR(bT,lambdaNP)
+    real*8,intent(in)::bT
+    real*8,intent(in)::lambdaNP(:)
+    real*8::bSTAR
+    
+    bSTAR=bT/sqrt(1d0+(bT/500d0)**2)
+    
+  end function bSTAR
+  
+  !!!!This function is the mu(x,b), which is used inside the OPE
   function mu_OPE(x,bt)
   real*8::bt,mu_OPE,x
   !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0

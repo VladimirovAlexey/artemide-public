@@ -18,11 +18,15 @@ implicit none
   private
   
    !Current version of module
- character (len=5),parameter :: version="v1.41"
+ character (len=10),parameter :: moduleName="TMDX-SIDIS"
+ character (len=5),parameter :: version="v2.00"
   
-  real*8 :: tolerance=0.0005d0
   
+  logical::started=.false.
   integer::outputlevel
+  integer::messageTrigger
+  
+  real*8::hc2
   
   !The variables for all parameters of the model!
   !it is used only as input if these parameters are not set by the user.
@@ -34,6 +38,10 @@ implicit none
   logical::includeCuts_global
   !! (yMin,yMax,W2)
   real*8,dimension(1:3)::CutParameters_global
+    !!! Target mass of target (squared)
+  real*8:: M2_target_global=0.939d0**2
+  !!! Produced mass (squared)
+  real*8:: M2_product_global=0.1d0**2
   
   !!other global parameters, which are defined upon initialization
   integer:: orderH_global
@@ -43,28 +51,24 @@ implicit none
   !! corrM2 ~ M2/Q
   logical:: corrQT,corrM1,corrM2 !!!if true include
   
-  !!! Target mass of target (squared)
-  real*8:: M2_target_global=0.939d0**2
-  !!! Produced mass (squared)
-  real*8:: M2_product_global=0.1d0**2
   
-  !!! these are minimal grid values of x and z. It is used to constraint kinematics
-  real*8::xGridMin,zGridMin
   
+  real*8 :: tolerance=0.0005d0
   !!! number of sections for PT-integral by default
   integer::NumPTdefault=4
   
   real*8::c2_global!,muHard_global
   
-  integer::GlobalCounter,CallCounter
-  
-  real*8::hc2
-  
-  logical::started=.false.
+  integer::GlobalCounter
+  integer::CallCounter
   
   
-  public::TMDX_SIDIS_setProcess,TMDX_SIDIS_ShowStatistic,TMDX_SIDIS_Initialize,TMDX_SIDIS_SetNPParameters,&
-	  TMDX_SIDIS_XSetup,TMDX_SIDIS_SetCuts,kinematicArray
+  
+  
+  
+  
+  public::TMDX_SIDIS_setProcess,TMDX_SIDIS_ShowStatistic,TMDX_SIDIS_Initialize,&
+	  TMDX_SIDIS_XSetup,TMDX_SIDIS_SetCuts,TMDX_SIDIS_IsInitialized,TMDX_SIDIS_ResetCounters,TMDX_SIDIS_SetScaleVariation
   
   public::CalcXsec_SIDIS,CalcXsec_SIDIS_Zint_Xint_Qint,CalcXsec_SIDIS_PTint_Zint_Xint_Qint,xSec_SIDIS,xSec_SIDIS_List,&
 	  xSec_SIDIS_List_forharpy
@@ -72,10 +76,6 @@ implicit none
   
   interface TMDX_SIDIS_setProcess
     module procedure TMDX_setProcess1,TMDX_setProcess3,TMDX_setProcess30
-  end interface
-  
-  interface TMDX_SIDIS_SetNPParameters
-    module procedure TMDX_SIDIS_SetNPParameters,TMDX_SIDIS_SetNPParameters_rep
   end interface
   
   
@@ -93,33 +93,69 @@ implicit none
   end interface
   
 contains
-  
-  !!Just passes the initialization to subpackages
-  !! This also set orders. Orders cannot be changes afterwards
- subroutine TMDX_SIDIS_Initialize(orderMain)
-  character(len=*)::orderMain
-  character(256)::line
-  real*8::dummy
-  integer::i
-!$ integer:: omp_get_thread_num
-  
-    OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-    !!! Search for output level
+
+  function TMDX_SIDIS_IsInitialized()
+  logical::TMDX_SIDIS_IsInitialized
+  TMDX_SIDIS_IsInitialized=started
+ end function TMDX_SIDIS_IsInitialized
+
+!!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
     do
-    read(51,'(A)') line    
-    if(line(1:3)=='*0 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
     end do
-    read(51,'(A)') line
-    read(51,*) outputLevel
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine TMDX_SIDIS_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared,dummyLogical
+    character(len=8)::orderMain
+    integer::i
+    !$ integer:: omp_get_thread_num
+    
+    if(started) return
+    
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
   
-  process_global=(/1,-10221191,2001/)
-  
-  if(outputLevel>1) write(*,*) '----- arTeMiDe.TMD_SIDIS ',version,': .... initialization'
-     SELECT CASE(orderMain)
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
+    
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) hc2
+    
+    call MoveTO(51,'*9   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
+    
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) orderMain
+    SELECT CASE(orderMain)
       CASE ("LO")
 	orderH_global=0
       CASE ("LO+")
@@ -136,122 +172,59 @@ contains
 	if(outputLevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS:try to set unknown order. Switch to NLO.'
 	orderH_global=1
      END SELECT
+     if(outputLevel>2) write(*,*) '	artemide.TMDX_SIDIS: the used order is ',trim(orderMain)
      
-    !!!! Physical constants
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*1 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*C ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) hc2    !!!!!!!!!!!GeV->mbarn
-
-    !!! parameters of numerical evaluation
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*2 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*A ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) tolerance
-    read(51,'(A)') line
-    read(51,*) NumPTdefault
-    
-    !!! minimal values of grids
-    do
-    read(51,'(A)') line    
-    if(line(1:3)=='*3 ') exit
-    end do    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*D ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) xGridMin
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*E ') exit
-    end do
-    read(51,'(A)') line
-    read(51,*) zGridMin
-    
-    !! inclusion of power corrections
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*5 ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*B ') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,*) corrQT
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*2)') exit
-    end do
-    read(51,*) corrM1
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*3)') exit
-    end do
-    read(51,*) corrM2
-    
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*B+') exit
-    end do
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*1)') exit
-    end do
-    read(51,*) dummy
-    M2_target_global=dummy**2
-    do
-    read(51,'(A)') line
-    if(line(1:3)=='*2)') exit
-    end do
-    read(51,*) dummy
-    M2_product_global=dummy**2
-    
-!$    if(outputLevel>1) write(*,*) '	... parallel evaluation of cross-sections is to be used'
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*6 ') exit
-!$    end do
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*A ') exit
-!$    end do
-!$    do
-!$    read(51,'(A)') line
-!$    if(line(1:3)=='*1)') exit
-!$    end do
+     !! kineamtica corrections
+     call MoveTO(51,'*p2   ')
+     read(51,*) corrQT
+     if(outputLevel>2 .and. corrQT) write(*,*) '	artemide.TMDX_SIDIS: qT/Q corrections in kinematics are included.'
+     !! kineamtica corrections
+     call MoveTO(51,'*p3   ')
+     read(51,*) corrM1
+     if(outputLevel>2 .and. corrM1) write(*,*) '	artemide.TMDX_SIDIS: target mass corrections in kinematics are included.'
+     !! kineamtica corrections
+     call MoveTO(51,'*p4   ')
+     read(51,*) corrM2
+     if(outputLevel>2 .and. corrM2) write(*,*) '	artemide.TMDX_SIDIS: product mass corrections in kinematics are included.'
+     
+     call MoveTO(51,'*B   ')
+     call MoveTO(51,'*p1  ')
+     read(51,*) tolerance
+     call MoveTO(51,'*p2  ')
+     read(51,*) NumPTdefault
+     
+!$    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: parallel evaluation of cross-sections is to be used'
+!$    call MoveTO(51,'*C   ')
+!$    call MoveTO(51,'*p1  ')
 !$    read(51,*) i
 !$    call OMP_set_num_threads(i)
-!$    if(outputLevel>1) write(*,*) '	... number of threads for parallel evaluation is set to ', i	
+!$    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: number of threads for parallel evaluation is set to ', i	
 
+!$     if(outputLevel>2) write(*,*) '------TEST OF PARALLEL PROCESSING ----------'
 !$OMP PARALLEL
-!$     if(outputLevel>2) write(*,*) '         thread num ',  omp_get_thread_num(), ' ready.'
+!$     if(outputLevel>2) write(*,*) '   artemide.TMDX_SIDIS:thread num ',  omp_get_thread_num(), ' ready.'
 !$OMP END PARALLEL
-    
     CLOSE (51, STATUS='KEEP')
-     
-     call EWinput_Initialize(orderMain)
-     call TMDF_Initialize(orderMain)
-     
+    
+     if(.not.EWinput_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
+	if(present(prefix)) then
+	  call EWinput_Initialize(file,prefix)
+	else
+	  call EWinput_Initialize(file)
+	end if
+      end if
+      
+      if(.not.TMDF_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing TMDF (from ',moduleName,')'
+	if(present(prefix)) then
+	  call TMDF_Initialize(file,prefix)
+	else
+	  call TMDF_Initialize(file)
+	end if
+      end if
+    
      includeCuts_global=.false.
-     CutParameters_global=(/0d0,1d0,0d0/)
-     
      c2_global=1d0
      
      GlobalCounter=0
@@ -260,9 +233,15 @@ contains
      started=.true.
     write(*,*)  '----- arTeMiDe.TMD_SIDIS ',version,'.... initialized'
   end subroutine TMDX_SIDIS_Initialize
+
+  subroutine TMDX_SIDIS_ResetCounters()
+  if(outputlevel>2) call TMDX_SIDIS_ShowStatistic()
+  GlobalCounter=0
+  CallCounter=0
+  end subroutine TMDX_SIDIS_ResetCounters
   
+
  subroutine TMDX_SIDIS_ShowStatistic()
-      call TMDF_ShowStatistic()
   
       write(*,'(A,ES12.3)') 'TMDX SIDIS statistics   total calls of point xSec  :  ',Real(GlobalCounter)
       write(*,'(A,ES12.3)') '                              total calls of xSecF :  ',Real(CallCounter)
@@ -271,12 +250,10 @@ contains
   
   
   !!!!Call this after TMD initializetion but before NP, and X parameters
-  subroutine TMDX_SIDIS_SetScaleVariations(c1_in,c2_in,c3_in,c4_in)
-    real*8::c1_in,c2_in,c3_in,c4_in
+  subroutine TMDX_SIDIS_SetScaleVariation(c2_in)
+    real*8::c2_in
     
-    if(outputLevel>1) write(*,*) 'TMDX_SIDIS: scales reset:',c1_in,c2_in,c3_in,c4_in
-    
-    call TMDF_SetScaleVariations(c1_in,c3_in,c4_in)
+    if(outputLevel>1) write(*,*) 'TMDX_SIDIS: scale variation constant c2 reset:',c2_in
     
     if(c2_in<0.1d0 .or. c2_in>10.d0) then
     if(outputLevel>0) write(*,*) 'TMDX_SIDIS WARNING: variation in c2 is enourmous. c2 is set to 2'
@@ -285,24 +262,7 @@ contains
     c2_global=c2_in
     end if
     
-  end subroutine TMDX_SIDIS_SetScaleVariations
-  
-  !!Just passes settting of NP parameters to subpackage
-  subroutine TMDX_SIDIS_SetNPParameters(lambda)
-    real*8::lambda(:)
-    GlobalCounter=0
-     CallCounter=0
-    call TMDF_SetNPParameters(lambda)
-  end subroutine TMDX_SIDIS_SetNPParameters
-  
-    !!Just passes settting of NP parameters to subpackage
-  subroutine TMDX_SIDIS_SetNPParameters_rep(num)
-    integer::num
-    GlobalCounter=0
-     CallCounter=0
-    call TMDF_SetNPParameters(num)
-  end subroutine TMDX_SIDIS_SetNPParameters_rep
-  
+  end subroutine TMDX_SIDIS_SetScaleVariation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!! PROCESS DEFINITION
   

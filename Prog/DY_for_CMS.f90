@@ -3,6 +3,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 program xSec_DY
+use aTMDe_control
 use TMDX_DY
 implicit none
 
@@ -31,9 +32,14 @@ call cpu_time(time1)
 
 process=1!!
 
+!This is from the artemide ver.1.4
+!   call TMDX_DY_Initialize("NNLO")
+!   call TMDX_DY_SetNPParameters((/3.3235d0,0.0380d0,0.2204d0, 7.0808d0,351.7950d0, 2.4632d0,-3.8334d0,0.0001d0, 0.0000d0/))
 
-   call TMDX_DY_Initialize("NNLO")
-   call TMDX_DY_SetNPParameters((/3.3235d0,0.0380d0,0.2204d0, 7.0808d0,351.7950d0, 2.4632d0,-3.8334d0,0.0001d0, 0.0000d0/))
+!This is for artemide ver.2.00
+  call artemide_Initialize('constants-file','Models/BSV19.bFIT/')
+  call artemide_SetReplica_uTMDPDF(0)
+  call artemide_SetReplica_TMDR(0)
 
      
   s=13000d0**2
@@ -44,7 +50,8 @@ process=1!!
   ptCut2=20d0
      
    call TMDX_DY_SetProcess(process)
-   call SetCuts(.true.,ptCut,ptCut2,yMin,yMax)
+   !call SetCuts(.true.,ptCut,ptCut2,yMin,yMax)
+   call TMDX_DY_SetCuts(.true.,ptCut,ptCut2,yMin,yMax)
    call TMDX_DY_XSetup(s,91d0,0d0)
    
    !---------------------------------------------------------CENTRAL VALUE
@@ -123,7 +130,8 @@ process=1!!
    
   !---------------------------------------------------------Variation of c2+
   
-  call TMDX_DY_SetScaleVariations(1d0,2d0,1d0,1d0)
+!   call TMDX_DY_SetScaleVariations(1d0,2d0,1d0,1d0)
+  call artemide_SetScaleVariations(1d0,2d0,1d0,1d0)
    
   Qmin=50d0
   Qmax=76d0
@@ -153,7 +161,8 @@ process=1!!
    !-----------------------------------------------------------------
      !---------------------------------------------------------Variation of c2-
   
-  call TMDX_DY_SetScaleVariations(1d0,0.5d0,1d0,1d0)
+!   call TMDX_DY_SetScaleVariations(1d0,0.5d0,1d0,1d0)
+  call artemide_SetScaleVariations(1d0,0.5d0,1d0,1d0)
    
   Qmin=50d0
   Qmax=76d0
@@ -183,7 +192,8 @@ process=1!!
   !-----------------------------------------------------------------
   !---------------------------------------------------------Variation of c4+
   
-  call TMDX_DY_SetScaleVariations(1d0,1d0,1d0,2d0)
+!   call TMDX_DY_SetScaleVariations(1d0,1d0,1d0,2d0)
+  call artemide_SetScaleVariations(1d0,1d0,1d0,2d0)
    
   Qmin=50d0
   Qmax=76d0
@@ -213,7 +223,8 @@ process=1!!
    !-----------------------------------------------------------------
    !---------------------------------------------------------Variation of c4-
   
-  call TMDX_DY_SetScaleVariations(1d0,1d0,1d0,0.5d0)
+!   call TMDX_DY_SetScaleVariations(1d0,1d0,1d0,0.5d0)
+  call artemide_SetScaleVariations(1d0,1d0,1d0,0.5d0)
    
   Qmin=50d0
   Qmax=76d0

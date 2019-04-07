@@ -19,21 +19,18 @@ module TMDF
   private
 !   public
  
- !Current version of module
- character (len=5),parameter :: version="v1.41"
+ character (len=7),parameter :: moduleName="TMDR"
+ character (len=5),parameter :: version="v2.00"
 
 !------------------------------------------Tables-----------------------------------------------------------------------
     integer,parameter::Nmax=200
     INCLUDE 'Tables/BesselZero.f90'
 !------------------------------------------Working variables------------------------------------------------------------
   
-  logical::started=.false.
-  
-  !! Level of output
-  !! 0=only critical
-  !! 1=initialization details
-  !! 2=WARNINGS
   integer::outputLevel=2
+  !! variable that count number of WRNING mesagges. In order not to spam too much
+  integer::messageTrigger=6
+  logical::started=.false.
   
   logical:: convergenceLost=.false.
   
@@ -43,66 +40,71 @@ module TMDF
   !!!nodes of ogata quadrature
   real*8,dimension(0:3,1:Nmax)::bb,bb0
   
-  !Counters of calls "Integrand", Global in between setNP
   integer::GlobalCounter
-  !Counter of total calls of TMDF_F (reset at setNP)
   integer::CallCounter
-  !Counter of maximum number of calls per integral
   integer::MaxCounter
+  integer::messageCounter
 !-----------------------------------------Public interface--------------------------------------------------------------
-  public::TMDF_SetNPParameters,TMDF_SetScaleVariations,TMDF_Initialize,TMDF_ShowStatistic
+  public::TMDF_Initialize,TMDF_ShowStatistic,TMDF_ResetCounters
   public:: TMDF_F
-  public::TMDF_convergenceISlost,TMDF_IsconvergenceLost
-  
-  real*8,allocatable::currentNP(:)
-  
-  interface TMDF_SetNPParameters
-    module procedure TMDF_SetNPParameters,TMDF_SetNPParameters_rep
-  end interface
+  public::TMDF_convergenceISlost,TMDF_IsconvergenceLost,TMDF_IsInitialized
   
  contains
- 
-      !!! This subroutine can be called only ones per programm run in the very beginning
-  !!! It initializes TMDRm abd TMDconvolution subpackages
-  !!! It set the pertrubative orders(!), so pertrubative orders cannot be changed afterwards.
-  !!! It also set the paths forPDF and As greeds according to orderPDF (NLO or NNLO).
-  subroutine TMDF_Initialize(orderMain)
-    character(len=*)::orderMain
-    character(256)::line
-    integer:: j
-    real*8::X
+  function TMDF_IsInitialized()
+  logical::TMDF_IsInitialized
+  TMDF_IsInitialized=started
+  end function TMDF_IsInitialized
+
+!!! move CURRET in streem to the next line that starts from pos (5 char)
+ subroutine MoveTO(streem,pos)
+ integer,intent(in)::streem
+ character(len=5)::pos
+ character(len=300)::line
+    do
+    read(streem,'(A)') line    
+    if(line(1:5)==pos) exit
+    end do
+ end subroutine MoveTO
+
+   !! Initialization of the package
+  subroutine TMDF_Initialize(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=300)::path,line
+    logical::initRequared
     
-    if(started) then
-      if(outputLevel>1) write(*,*) 'arTeMiDe.TMDF already initialized'
-    else    
-      OPEN(UNIT=51, FILE='constants', ACTION="read", STATUS="old")    
-      !!! Search for output level
-      do
-	read(51,'(A)') line    
-	if(line(1:3)=='*0 ') exit
-      end do    
-      do
-	read(51,'(A)') line
-	if(line(1:3)=='*A ') exit
-      end do
-      read(51,'(A)') line
-      read(51,*) outputLevel
+    if(started) return
+  
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    !!! Search for output level
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) outputLevel    
+    if(outputLevel>2) write(*,*) '--------------------------------------------- '
+    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    call MoveTO(51,'*p3  ')
+    read(51,*) messageTrigger
     
-    
-      if(outputLevel>1) write(*,*) '----- arTeMiDe.TMDF ',version,': .... initialization'
-      
-      do
-	read(51,'(A)') line    
-	if(line(1:3)=='*2 ') exit
-      end do    
-      do
-	read(51,'(A)') line
-	if(line(1:3)=='*AA') exit
-      end do
-      read(51,'(A)') line
-      read(51,*) hOGATA
-      read(51,'(A)') line
-      read(51,*) tolerance
+    call MoveTO(51,'*7   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequared
+    if(.not.initRequared) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      started=.false.
+      return
+    end if
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) hOGATA
       
       if(outputLevel>2) write(*,'(A,ES8.2)') ' | h for Ogata quadrature	: ',hOGATA
       if(outputLevel>2) write(*,'(A,ES8.2)') ' | tolerance			: ',tolerance
@@ -114,17 +116,34 @@ module TMDF
       if(outputLevel>2) write(*,'(A,I4)') ' | Maximum number of nodes	:',Nmax
       if(outputLevel>1) write(*,*) 'arTeMiDe.TMDF: Ogata tables prepared'
       
+      convergenceLost=.false.
       GlobalCounter=0
       CallCounter=0
       MaxCounter=0
+      messageCounter=0
       
-      call TMDs_Initialize(orderMain)
-      call EWinput_Initialize(orderMain)
+      if(.not.TMDs_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing TMDs (from ',moduleName,')'
+	if(present(prefix)) then
+	  call TMDs_Initialize(file,prefix)
+	else
+	  call TMDs_Initialize(file)
+	end if
+      end if
+      
+      if(.not.EWinput_IsInitialized()) then
+	if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
+	if(present(prefix)) then
+	  call EWinput_Initialize(file,prefix)
+	else
+	  call EWinput_Initialize(file)
+	end if
+      end if
+      
       
       started=.true.
       if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDF ',version,': .... initialized'
       if(outputLevel>1) write(*,*) ' '
-    end if
     
   end subroutine TMDF_Initialize
 
@@ -132,8 +151,6 @@ module TMDF
   function TMDF_IsconvergenceLost()
   logical::TMDF_IsconvergenceLost
   !!! checks TMDs trigger
-  if(TMDs_IsconvergenceLost()) convergenceLost=.true.
-  
   TMDF_IsconvergenceLost=convergenceLost
   end function TMDF_IsconvergenceLost
   
@@ -155,55 +172,19 @@ module TMDF
   end subroutine TMDF_ShowStatistic
   
   !passes the NP parameters to TMDs
-  subroutine TMDF_SetNPParameters(lambda)
-    real*8 :: lambda(:)
-   
-   !!some output statistic
+  subroutine TMDF_ResetCounters()
    if(outputLevel>2) call TMDF_ShowStatistic()
-   
-   !!! save current parameters
-   if(.not. allocated(currentNP)) allocate(currentNP(1:size(lambda)))   
-   currentNP=lambda
    
    convergenceLost=.false.
    
    GlobalCounter=0
    CallCounter=0
    MaxCounter=0
-   
-   call TMDs_setNPparameters(lambda)
+   messageCounter=0
 
-  end subroutine TMDF_SetNPParameters
+  end subroutine TMDF_ResetCounters
   
-   !passes the NP parameters to TMDs
-  subroutine TMDF_SetNPParameters_rep(num)
-   integer::num
-   
-   !!some output statistic
-   if(outputLevel>2) call TMDF_ShowStatistic()
-   
-   !!! save current parameters
-   if(.not. allocated(currentNP)) allocate(currentNP(1:1))   
-   currentNP(1)=real(num)
-   
-   convergenceLost=.false.
-   
-   GlobalCounter=0
-   CallCounter=0
-   MaxCounter=0
-   
-   call TMDs_setNPparameters(num)
 
-  end subroutine TMDF_SetNPParameters_rep
-  
-!passes the scale variation to TMDs
- subroutine TMDF_SetScaleVariations(c1_in,c3_in,c4_in)
-    real*8::c1_in,c3_in,c4_in
-    
-    call TMDs_SetScaleVariations(c1_in,c3_in,c4_in)
-    
- end subroutine TMDF_SetScaleVariations
- 
  !!!Prepare tables for Ogata quadrature with given h
  subroutine PrepareTables()
   real*8,parameter::piHalf=1.5707963267948966d0
@@ -294,8 +275,8 @@ module TMDF
   if(k>=Nmax) then	
     if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDF: OGATA quadrature diverge. TMD decaing too slow? '
       if(outputlevel>1) then
-      write(*,*) 'Current set of NP parameters ------------'
-      write(*,*) currentNP
+      !write(*,*) 'Current set of NP parameters ------------'
+      !write(*,*) currentNP
       write(*,*) 'Information over the last call ----------'
       write(*,*) 'bt/qT= ',bb(n,Nmax)/qT, 'qT=',qT
       write(*,*) 'W=',Integrand(Q2,bb(n,Nmax)/qT,x1,x2,mu,zeta1,zeta2,process), 'eps/integral =', eps/integral
@@ -328,8 +309,8 @@ module TMDF
   if(k>=Nmax) then	
     if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDF: OGATA quadrature diverge. TMD decaing too slow? '
       if(outputlevel>1) then
-      write(*,*) 'Current set of NP parameters ------------'
-      write(*,*) currentNP
+      !write(*,*) 'Current set of NP parameters ------------'
+      !write(*,*) currentNP
       write(*,*) 'Information over the last call ----------'
       write(*,*) 'bt/qT= ',bb0(n,Nmax)/qT, 'qT=',qT
       write(*,*) 'W=',Integrand(Q2,bb0(n,Nmax)/qT,x1,x2,mu,zeta1,zeta2,process), 'eps/integral =', eps/integral
@@ -642,7 +623,6 @@ module TMDF
 	+paramW_CD*(FA(4)*FB(-1)+FA(1)*FB(-4)+FA(-4)*FB(1)+FA(-1)*FB(4))&	!c*dbar+d*cbar+cbar*d+dbar*c
 	+paramW_CS*(FA(4)*FB(-3)+FA(3)*FB(-4)+FA(-4)*FB(3)+FA(-3)*FB(4))&	!c*sbar+s*cbar+cbar*s+sbar*c
 	+paramW_CB*(FA(4)*FB(-5)+FA(5)*FB(-4)+FA(-4)*FB(5)+FA(-5)*FB(4))	!c*bbar+b*cbar+cbar*b+bbar*c
-	
 !--------------------------------------------------------------------------------  
   CASE (1001) !p+Cu->gamma* !!this is for E288
 	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
@@ -658,6 +638,14 @@ module TMDF
 	Integrand=2d0/9d0*(FA(2)*FB(-2)+FA(-2)*FB(2))+2d0/9d0*(FA(-2)*FB(1)+FA(2)*FB(-1))&
 	      +1d0/18d0*(FA(-1)*FB(2)+FA(1)*FB(-2))+1d0/18d0*(FA(-1)*FB(1)+FA(1)*FB(-1))&
 	      +1d0/9d0*(FA(-3)*FB(3)+FA(3)*FB(-3)+4d0*FA(-4)*FB(4)+4d0*FA(4)*FB(-4)+FA(-5)*FB(5)+FA(5)*FB(-5))
+  !--------------------------------------------------------------------------------  
+  CASE (1003) !pbar+W->gamma* !!this is for E537
+	!Wolfram has A=183,	Z=74,	N=109
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDPDF_5(x2,b,mu,zeta2,1)
+	Integrand=296d0/1647d0*(FA(2)*FB(2)+FA(-2)*FB(-2))+436d0/1647d0*(FA(2)*FB(1)+FA(-2)*FB(-1))&
+	      +109d0/1647d0*(FA(1)*FB(2)+FA(-1)*FB(-2))+74d0/1647d0*(FA(1)*FB(1)+FA(-1)*FB(-1))&
+	      +1d0/9d0*(FA(3)*FB(3)+FA(-3)*FB(-3)+4d0*FA(4)*FB(4)+4d0*FA(-4)*FB(-4)+FA(5)*FB(5)+FA(-5)*FB(-5))
   !----------------------------------------------------------------------------------
   !-------------------------SIDIS----------------------------------------------------
   !----------------------------------------------------------------------------------
@@ -686,8 +674,8 @@ module TMDF
    write(*,*) 'arTeMiDe TMDF: CRITICAL ERROR. Integrand evaluated to NaN'
    write(*,*) 'bT=',b, 'x1,x2=',x1,x2,' process=',process
    write(*,*) 'mu=',mu, 'Q2=',Q2
-   write(*,*) 'Current set of NP parameters ------------'
-   write(*,*) currentNP
+   !write(*,*) 'Current set of NP parameters ------------'
+   !write(*,*) currentNP
    write(*,*) 'arTeMiDe: ConvergenceLOST trigger ON'
    call TMDF_convergenceISlost()
    Integrand=1d10
@@ -697,9 +685,9 @@ module TMDF
    write(*,*) 'arTeMiDe TMDF: CRITICAL ERROR. Integrand evaluated to >10^32'
    write(*,*) 'bT=',b, 'x1,x2=',x1,x2,' process=',process
    write(*,*) 'mu=',mu, 'Q2=',Q2
-   write(*,*) 'Current set of NP parameters ------------'
-   write(*,*) currentNP
-   write(*,*) 'arTeMiDe: onvergenceLOST trigger ON'
+   !write(*,*) 'Current set of NP parameters ------------'
+   !write(*,*) currentNP
+   write(*,*) 'arTeMiDe: convergenceLOST trigger ON'
    call TMDF_convergenceISlost()
    Integrand=1d10
    end if
@@ -769,47 +757,5 @@ function XIntegrandForDYwithZgamma(FAB,Q2)
 	  +paramB*FAB(-5))*&
 	  Q2*Q2/((Q2-MZ2)**2+GammaZ2*MZ2)
      
-     
-!      XIntegrandForDYwithZgamma=&
-!      (&!gamma-part
-! 	  4d0/9d0*FA(2)*FB(-2)&
-! 	  +1d0/9d0*FA(1)*FB(-1)&
-! 	  +1d0/9d0*FA(3)*FB(-3)&
-! 	  +4d0/9d0*FA(4)*FB(-4)&
-! 	  +1d0/9d0*FA(5)*FB(-5)&
-! 	  +4d0/9d0*FA(-2)*FB(2)&
-! 	  +1d0/9d0*FA(-1)*FB(1)&
-! 	  +1d0/9d0*FA(-3)*FB(3)&
-! 	  +4d0/9d0*FA(-4)*FB(4)&
-! 	  +1d0/9d0*FA(-5)*FB(5))&
-!      +&!gamma-Z interference
-!      paramMIXL*(&
-! 	  paramMIXU*FA(2)*FB(-2)&
-! 	  +paramMIXD*FA(1)*FB(-1)&
-! 	  +paramMIXS*FA(3)*FB(-3)&
-! 	  +paramMIXC*FA(4)*FB(-4)&
-! 	  +paramMIXB*FA(5)*FB(-5)&
-! 	  +paramMIXU*FA(-2)*FB(2)&
-! 	  +paramMIXD*FA(-1)*FB(1)&
-! 	  +paramMIXS*FA(-3)*FB(3)&
-! 	  +paramMIXC*FA(-4)*FB(4)&
-! 	  +paramMIXB*FA(-5)*FB(5))*&
-! 	  2d0*Q2*(Q2-MZ2)/((Q2-MZ2)**2+GammaZ2*MZ2)&
-!      +&!ZZ-contributions
-!      paramL*(&
-! 	  paramU*FA(2)*FB(-2)&
-! 	  +paramD*FA(1)*FB(-1)&
-! 	  +paramS*FA(3)*FB(-3)&
-! 	  +paramC*FA(4)*FB(-4)&
-! 	  +paramB*FA(5)*FB(-5)&
-! 	  +paramU*FA(-2)*FB(2)&
-! 	  +paramD*FA(-1)*FB(1)&
-! 	  +paramS*FA(-3)*FB(3)&
-! 	  +paramC*FA(-4)*FB(4)&
-! 	  +paramB*FA(-5)*FB(5))*&
-! 	  Q2*Q2/((Q2-MZ2)**2+GammaZ2*MZ2)
-     
 end function XIntegrandForDYwithZgamma
- 
- 
 end module TMDF
