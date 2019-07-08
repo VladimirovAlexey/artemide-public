@@ -10,6 +10,7 @@
 !	This part is devoted to the Grid evaluation
 !
 !	v.2.00 Large-b evaluation changed AV (25.03.2019)
+!	v.2.01 Cosmetic changes		  AV (25.04.2019)
 !
 !				A.Vladimirov (08.10.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -65,7 +66,7 @@ subroutine MakeGrid()
      end if
     end do    
     end do
-    if(outputLevel>1 .and. numberOfHadrons>1) write(*,'(" ",A,": Grid for hadron ",I3," calculated")') moduleName,hadronsInGRID(h)
+    if(outputLevel>1 .and. numberOfHadrons>1) write(*,'(" ",A,": Grid for hadron ",I3," is done")') moduleName,hadronsInGRID(h)
    end do
   !!!!!!!!!!!!!**************************************************************************************************************
   !!!!!!!!!!!!!**************************************************************************************************************
@@ -112,8 +113,15 @@ subroutine MakeGrid()
     
     call cpu_time(time2)
     
-    if(outputlevel>1) write(*,'(" ",A,": Grid build  (",I5," x",I5,")  calc.time=",F6.2,"s. ")')&
-	moduleName, GridSizeX,GridSizeB, time2-time1
+    if(outputlevel>1) then
+      if(numberOfHadrons>1) then
+	write(*,'(" ",A,": Grids are built  (",I5," x",I5,")  calc.time=",F6.2,"s. ")')&
+	  moduleName, GridSizeX,GridSizeB, time2-time1
+      else
+	write(*,'(" ",A,": Grid is built  (",I5," x",I5,")  calc.time=",F6.2,"s. ")')&
+	  moduleName, GridSizeX,GridSizeB, time2-time1
+      end if
+    end if
     
   !!check the grid
   !! we pass though grid restoring a point from near-by points
@@ -150,7 +158,11 @@ subroutine MakeGrid()
     
 !   check x-grid
     do iB=0,GridSizeB
-    maxValue=MAXVAL(ABS(gridMain(0:GridSizeX,iB,1:3,h)))
+    if(withGluon) then 
+      maxValue=MAXVAL(ABS(gridMain(0:GridSizeX,iB,0:3,h)))
+    else
+      maxValue=MAXVAL(ABS(gridMain(0:GridSizeX,iB,1:3,h)))
+    end if
     if(maxValue>0d0) then
     do iX=0,GridSizeX-4
       checkValue=((-gridMain(iX,iB,-5:5,h)+4d0*gridMain(iX+1,iB,-5:5,h)+4d0*gridMain(iX+3,iB,-5:5,h)&

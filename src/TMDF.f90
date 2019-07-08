@@ -19,8 +19,10 @@ module TMDF
   private
 !   public
  
- character (len=7),parameter :: moduleName="TMDR"
- character (len=5),parameter :: version="v2.00"
+ character (len=7),parameter :: moduleName="TMDF"
+ character (len=5),parameter :: version="v2.01"
+ !Last appropriate verion of constants-file
+ integer,parameter::inputver=1
 
 !------------------------------------------Tables-----------------------------------------------------------------------
     integer,parameter::Nmax=200
@@ -72,6 +74,7 @@ module TMDF
     character(len=*),optional::prefix
     character(len=300)::path,line
     logical::initRequared
+    integer::FILEver
     
     if(started) return
   
@@ -85,6 +88,14 @@ module TMDF
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -624,6 +635,113 @@ module TMDF
 	+paramW_CS*(FA(4)*FB(-3)+FA(3)*FB(-4)+FA(-4)*FB(3)+FA(-3)*FB(4))&	!c*sbar+s*cbar+cbar*s+sbar*c
 	+paramW_CB*(FA(4)*FB(-5)+FA(5)*FB(-4)+FA(-4)*FB(5)+FA(-5)*FB(4))	!c*bbar+b*cbar+cbar*b+bbar*c
 !--------------------------------------------------------------------------------  
+  CASE(20) !pp -> Higgs (unpol.part+lin.pol.part)
+	FA=uTMDPDF_50(x1,b,mu,zeta1,1)
+	FB=uTMDPDF_50(x2,b,mu,zeta2,1)
+	Integrand=FA(0)*FB(0) !!!! unpolarized part
+	
+	FA=lpTMDPDF_50(x1,b,mu,zeta1,1)
+	FB=lpTMDPDF_50(x2,b,mu,zeta2,1)
+	Integrand=Integrand+FA(0)*FB(0) !!!! linearly polarized part
+!--------------------------------------------------------------------------------  
+  CASE(21) !pp -> Higgs (unpol.part)
+	FA=uTMDPDF_50(x1,b,mu,zeta1,1)
+	FB=uTMDPDF_50(x2,b,mu,zeta2,1)
+	Integrand=FA(0)*FB(0)
+  
+!--------------------------------------------------------------------------------  
+  CASE(22) !pp -> Higgs (lin.pol.part)
+	FA=lpTMDPDF_50(x1,b,mu,zeta1,1)
+	FB=lpTMDPDF_50(x2,b,mu,zeta2,1)
+	Integrand=FA(0)*FB(0)
+	
+!--------------------------------------------------------------------------------
+  CASE (101) !p h->gamma
+	! e_q^2 *F_q(A)*F_qbar(B)
+	if(zeta1==zeta2) then
+	 FAB=uPDF_uPDF(x1,x2,b,mu,zeta1,1,2)
+	else
+	 FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	 FB=uTMDPDF_5(x2,b,mu,zeta2,2)
+	 FAB=FA*(FB(5:-5:-1))
+	end if
+	
+	Integrand=FAB(1)/9.d0&
+	  +FAB(2)*4.d0/9.d0&
+	  +FAB(3)/9.d0&
+	  +FAB(4)*4d0/9.d0&
+	  +FAB(5)/9d0&
+	  +FAB(-1)/9.d0&
+	  +FAB(-2)*4.d0/9.d0&
+	  +FAB(-3)/9.d0&
+	  +FAB(-4)*4d0/9.d0&
+	  +FAB(-5)/9d0
+!--------------------------------------------------------------------------------  
+  CASE (102) !pbar h->gamma
+	! e_q^2 *F_q(A)*F_q(B)
+	if(zeta1==zeta2) then
+	 FAB=uPDF_anti_uPDF(x1,x2,b,mu,zeta1,1,2)
+	else
+	 FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	 FB=uTMDPDF_5(x2,b,mu,zeta2,2)
+	 FAB=FA*FB
+	end if
+	!! in fact, we must revert this array, but the coefficients are symmetric
+	Integrand=FAB(1)/9.d0&
+	  +FAB(2)*4.d0/9.d0&
+	  +FAB(3)/9.d0&
+	  +FAB(4)*4d0/9.d0&
+	  +FAB(5)/9d0&
+	  +FAB(-1)/9.d0&
+	  +FAB(-2)*4.d0/9.d0&
+	  +FAB(-3)/9.d0&
+	  +FAB(-4)*4d0/9.d0&
+	  +FAB(-5)/9d0
+!--------------------------------------------------------------------------------
+  CASE (103) !p hbar->gamma
+	! e_q^2 *F_q(A)*F_qbar(B)
+	if(zeta1==zeta2) then
+	 FAB=uPDF_anti_uPDF(x1,x2,b,mu,zeta1,1,2)
+	else
+	 FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	 FB=uTMDPDF_5(x2,b,mu,zeta2,2)
+	 FAB=FA*FB
+	end if
+	!! in fact, we must revert this array, but the coefficients are symmetric
+	
+	Integrand=FAB(1)/9.d0&
+	  +FAB(2)*4.d0/9.d0&
+	  +FAB(3)/9.d0&
+	  +FAB(4)*4d0/9.d0&
+	  +FAB(5)/9d0&
+	  +FAB(-1)/9.d0&
+	  +FAB(-2)*4.d0/9.d0&
+	  +FAB(-3)/9.d0&
+	  +FAB(-4)*4d0/9.d0&
+	  +FAB(-5)/9d0
+!--------------------------------------------------------------------------------  
+  CASE (104) !pbar hbar->gamma
+	! e_q^2 *F_q(A)*F_q(B)
+	! e_q^2 *F_q(A)*F_qbar(B)
+	if(zeta1==zeta2) then
+	 FAB=uPDF_uPDF(x1,x2,b,mu,zeta1,1,2)
+	else
+	 FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	 FB=uTMDPDF_5(x2,b,mu,zeta2,2)
+	 FAB=FA*(FB(5:-5:-1))
+	end if
+	
+	Integrand=FAB(1)/9.d0&
+	  +FAB(2)*4.d0/9.d0&
+	  +FAB(3)/9.d0&
+	  +FAB(4)*4d0/9.d0&
+	  +FAB(5)/9d0&
+	  +FAB(-1)/9.d0&
+	  +FAB(-2)*4.d0/9.d0&
+	  +FAB(-3)/9.d0&
+	  +FAB(-4)*4d0/9.d0&
+	  +FAB(-5)/9d0
+!--------------------------------------------------------------------------------  
   CASE (1001) !p+Cu->gamma* !!this is for E288
 	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
 	FB=uTMDPDF_5(x2,b,mu,zeta2,1)
@@ -646,6 +764,14 @@ module TMDF
 	Integrand=296d0/1647d0*(FA(2)*FB(2)+FA(-2)*FB(-2))+436d0/1647d0*(FA(2)*FB(1)+FA(-2)*FB(-1))&
 	      +109d0/1647d0*(FA(1)*FB(2)+FA(-1)*FB(-2))+74d0/1647d0*(FA(1)*FB(1)+FA(-1)*FB(-1))&
 	      +1d0/9d0*(FA(3)*FB(3)+FA(-3)*FB(-3)+4d0*FA(4)*FB(4)+4d0*FA(-4)*FB(-4)+FA(5)*FB(5)+FA(-5)*FB(-5))
+  !--------------------------------------------------------------------------------  
+  CASE (1004) !pminus+W->gamma* !!this is for E537
+	!Wolfram has A=183,	Z=74,	N=109
+	FA=uTMDPDF_5(x1,b,mu,zeta1,2)
+	FB=uTMDPDF_5(x2,b,mu,zeta2,1)
+	Integrand=296d0/1647d0*(FA(-2)*FB(2)+FA(2)*FB(-2))+436d0/1647d0*(FA(-2)*FB(1)+FA(2)*FB(-1))&
+	      +109d0/1647d0*(FA(-1)*FB(2)+FA(1)*FB(-2))+74d0/1647d0*(FA(-1)*FB(1)+FA(1)*FB(-1))&
+	      +1d0/9d0*(FA(-3)*FB(3)+FA(3)*FB(-3)+4d0*FA(-4)*FB(4)+4d0*FA(4)*FB(-4)+FA(-5)*FB(5)+FA(5)*FB(-5))
   !----------------------------------------------------------------------------------
   !-------------------------SIDIS----------------------------------------------------
   !----------------------------------------------------------------------------------

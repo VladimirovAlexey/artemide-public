@@ -13,9 +13,9 @@ implicit none
 
 private
 
-character (len=5),parameter :: version="v2.00"
+character (len=5),parameter :: version="v2.01"
 !! actual version of input file
-integer,parameter::inputVer=1
+integer,parameter::inputVer=6
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
@@ -25,7 +25,7 @@ integer::messageTrigger
 !-----------------------physic parameters
 logical::include_EWinput
 !mass, and width parameters
-real*8::mCHARM,mBOTTOM,mZ,mW,GammaZ,GammaW
+real*8::mCHARM,mBOTTOM,mTOP,mZ,mW,GammaZ,GammaW,mH,GammaH,vevH
 !other physical parameters
 real*8::hc2,alphaQED_MZ,sW2
 !CKM matrix
@@ -40,6 +40,11 @@ character(len=100),allocatable::sets_of_uPDFs(:)
 integer::number_of_uFFs
 integer,allocatable::enumeration_of_uFFs(:),replicas_of_uFFs(:)
 character(len=100),allocatable::sets_of_uFFs(:)
+
+!--------------------- lpPDF parameters
+integer::number_of_lpPDFs
+integer,allocatable::enumeration_of_lpPDFs(:),replicas_of_lpPDFs(:)
+character(len=100),allocatable::sets_of_lpPDFs(:)
 
 !-------------------- TMDR options
 logical::include_TMDR
@@ -67,6 +72,16 @@ logical::uTMDFF_makeGrid,uTMDFF_withGluon
 real*8::uTMDFF_grid_bMax,uTMDFF_grid_xMin,uTMDFF_grid_slope
 integer::uTMDFF_grid_SizeX,uTMDFF_grid_SizeB
 
+!-------------------- uTMDPDF parameters
+logical::include_lpTMDPDF
+integer::lpTMDPDF_lambdaLength
+real*8::lpTMDPDF_tolerance
+integer::lpTMDPDF_maxIteration
+character*8::lpTMDPDF_order
+logical::lpTMDPDF_makeGrid,lpTMDPDF_withGluon
+real*8::lpTMDPDF_grid_bMax,lpTMDPDF_grid_xMin,lpTMDPDF_grid_slope
+integer::lpTMDPDF_grid_SizeX,lpTMDPDF_grid_SizeB
+
 !-------------------- TMDs parameters
 logical::include_TMDs
 
@@ -83,7 +98,7 @@ logical::include_TMDX_DY
 character*8::TMDX_DY_order
 real*8::TMDX_DY_tolerance
 integer::TMDX_DY_ptSECTION
-logical::TMDX_DY_exactX1X2
+logical::TMDX_DY_exactX1X2,TMDX_DY_piResum
 integer::TMDX_DY_numProc
 
 !-------------------- TMDX-SIDIS parameters
@@ -97,10 +112,11 @@ integer::TMDX_SIDIS_numProc
 
 !---------------------------------------------------
 public::artemide_Setup_Default,artemide_Setup_fromFile,artemide_include,CreateConstantsFile,ReadConstantsFile
-public::Set_uPDF,Set_uFF,Set_quarkMasses,Set_EWparameters
+public::Set_uPDF,Set_uFF,Set_lpPDF,Set_quarkMasses,Set_EWparameters
 public::Set_TMDR_order,Set_TMDR_evolutionType,Set_TMDR_lengthNParray
 public::Set_uTMDPDF,Set_uTMDPDF_order,Set_uTMDPDF_gridEvaluation,Set_uTMDPDF_lengthNParray
 public::Set_uTMDFF,Set_uTMDFF_order,Set_uTMDFF_gridEvaluation,Set_uTMDFF_lengthNParray
+public::Set_lpTMDPDF,Set_lpTMDPDF_order,Set_lpTMDPDF_gridEvaluation,Set_lpTMDPDF_lengthNParray
 contains
   
   !!!
@@ -147,12 +163,17 @@ contains
     !-----------------------physic parameters
     mCHARM=1.400d0	!threashold mass for charm quark
     mBOTTOM=4.750d0	!threashold mass for bottom quark
+    mTOP=173.00d0	!threashold mass for top quark
     
     mZ=91.1876d0	!pole mass for Z-boson
     GammaZ=2.4952d0	!width of Z-boson
     
     mW=80.379d0		!pole mass for W-boson
     GammaW=2.085d0	!width of W-boson
+    
+    mH=125.1d0		!pole mass for Higgs-boson
+    GammaH=0.0042d0	!width of Higgs-boson [GeV]
+    vevH=246.d0		!Higgs Vev
     
     hc2=0.389379338d0	!transformation constant (hc)^2   GeV->mbarn
     
@@ -201,6 +222,19 @@ contains
     replicas_of_uFFs=(/0/)
     sets_of_uFFs=(/trim('ABSENT')/)
     
+    !-------------------Parameters for lpPDFs evaluation
+    ! by definition we do not initiate any lpPDF
+    number_of_lpPDFs=0
+    if(allocated(enumeration_of_lpPDFs)) deallocate(enumeration_of_lpPDFs)
+    if(allocated(replicas_of_lpPDFs)) deallocate(replicas_of_lpPDFs)
+    if(allocated(sets_of_lpPDFs)) deallocate(sets_of_lpPDFs)
+    allocate(enumeration_of_lpPDFs(1:1))
+    allocate(replicas_of_lpPDFs(1:1))
+    allocate(sets_of_lpPDFs(1:1))
+    enumeration_of_lpPDFs=(/-1/)
+    replicas_of_lpPDFs=(/0/)
+    sets_of_lpPDFs=(/trim('ABSENT')/)
+    
     !-------------------- parameters for TMDR
     include_TMDR=.true.
     TMDR_order=trim(order)
@@ -237,6 +271,20 @@ contains
     uTMDFF_grid_slope=10d0
     
     
+    !-------------------- parameters for lpTMDPDF
+    include_lpTMDPDF=.false. !!! we do not initialize lpTMDPDF by definition
+    lpTMDPDF_order=trim(order)
+    lpTMDPDF_makeGrid=.true.
+    lpTMDPDF_withGluon=.true.
+    lpTMDPDF_lambdaLength=2
+    lpTMDPDF_tolerance=0.0001d0	!tolerance (i.e. relative integration tolerance -- in convolution integrals)
+    lpTMDPDF_maxIteration=10000	!maxIteration for adaptive integration
+    lpTMDPDF_grid_xMin=0.00001d0
+    lpTMDPDF_grid_bMax=100d0
+    lpTMDPDF_grid_SizeX=250
+    lpTMDPDF_grid_SizeB=750
+    lpTMDPDF_grid_slope=10d0
+    
     !------------------ parameters for TMDs
     include_TMDs=.true.
     
@@ -256,6 +304,7 @@ contains
     TMDX_DY_ptSECTION=4		!default number of sections for pt-bin integration
     TMDX_DY_order=trim(order)
     TMDX_DY_exactX1X2=.true.
+    TMDX_DY_piResum=.false.
     TMDX_DY_numProc=8
     
     !------------------ parameters for TMDX-DY
@@ -306,6 +355,9 @@ contains
       case('uTMDFF')
 	include_uTMDFF=.true.
 	if(outputLevel>1) write(*,*) 'artemide_setup: Module uTMDFF is included'
+      case('lpTMDPDF')
+	include_lpTMDPDF=.true.
+	if(outputLevel>1) write(*,*) 'artemide_setup: Module lpTMDPDF is included'
       case('TMDR')
 	include_TMDR=.true.
 	if(outputLevel>1) write(*,*) 'artemide_setup: Module TMDR is included'
@@ -462,21 +514,94 @@ contains
   
   end subroutine Set_uFF
   
-  subroutine Set_quarkMasses(mC,mB)
-  real,optional::mC,mB
-  if(present(mC)) mCHARM=mC
-  if(present(mB)) mCHARM=mC
+    !!! Adds a uPDF to initialization list
+  subroutine Set_lpPDF(hadron,setName,replica)
+  integer,intent(in)::hadron
+  character(len=*),intent(in)::setName
+  integer,intent(in),optional::replica
+  integer::pos,i
+  integer,allocatable::enum_old(:),rep_old(:)
+  character(len=100),allocatable::sets_old(:)
   
-  if(outputLevel>1) write(*,"('artemide_setup: quark masses reset (mCHARM,mBOTTOM)=(',F6.3,',',F6.3,')')") mCHARM,mBOTTOM
+  !!! If there is no hadron so far in the list, we make it new
+  if(number_of_lpPDFs==0) then
+    if(outputLevel>2) write(*,"('artemide_setup: lpPDF initialization list is made')")
+    number_of_lpPDFs=1
+    pos=1 !!! by default all allocated with single element, we have to just rewrite it.
+    
+    
+  else if(ANY(enumeration_of_lpPDFs.eq.hadron)) then!!!! hadron already in the grid. We ust redefine it
+    if(outputLevel>2) write(*,"('artemide_setup: lpPDF for hadron',I3,' is redefined')") hadron
+    do i=1,number_of_lpPDFs
+      if(enumeration_of_lpPDFs(i)==hadron) exit
+    end do
+    pos=i
+    
+    
+  else	!!!! this hadron is NEW
+    if(outputLevel>2) write(*,"('artemide_setup: lpPDF for hadron',I3,' is added')") hadron
+    
+    !!save old arrays
+    allocate(enum_old(1:number_of_lpPDFs))
+    allocate(rep_old(1:number_of_lpPDFs))
+    allocate(sets_old(1:number_of_lpPDFs))
+    do i=1,number_of_lpPDFs
+      enum_old(i)=enumeration_of_lpPDFs(i)
+      rep_old(i)=replicas_of_lpPDFs(i)
+      sets_old(i)=sets_of_lpPDFs(i)
+    end do
+    
+    !! reallocating arrays
+    deallocate(enumeration_of_lpPDFs,replicas_of_lpPDFs,sets_of_lpPDFs)
+    
+    number_of_lpPDFs=number_of_lpPDFs+1
+    allocate(enumeration_of_lpPDFs(1:number_of_lpPDFs))
+    allocate(replicas_of_lpPDFs(1:number_of_lpPDFs))
+    allocate(sets_of_lpPDFs(1:number_of_lpPDFs))
+    !! copy information
+    do i=1,number_of_lpPDFs-1
+      enumeration_of_lpPDFs(i)=enum_old(i)
+      replicas_of_lpPDFs(i)=rep_old(i)
+      sets_of_lpPDFs(i)=sets_old(i)
+    end do
+    pos=number_of_lpPDFs
+    
+    deallocate(enum_old,sets_old,rep_old)
+  end if
+  
+  enumeration_of_lpPDFs(pos)=hadron
+  sets_of_lpPDFs(pos)=trim(setName)
+  if(present(replica)) then
+    replicas_of_lpPDFs(pos)=replica
+  else
+    replicas_of_lpPDFs(pos)=0
+  end if
+  
+  if(outputLevel>1) write(*,"('artemide_setup: lpPDF ',A,' for hadron ',I3,' added to initializaton list')") trim(setName),hadron
+  
+  end subroutine Set_lpPDF
+  
+  
+  subroutine Set_quarkMasses(mC,mB,mT)
+  real,optional::mC,mB,mT
+  if(present(mC)) mCHARM=mC
+  if(present(mB)) mBOTTOM=mB
+  if(present(mT)) mTOP=mT
+  
+  if(outputLevel>1) write(*,"('artemide_setup: quark masses reset (mCHARM,mBOTTOM,mTOP)=(',F6.3,',',F6.3,',',F6.3,')')")&
+	    mCHARM,mBOTTOM,mTOP
   end subroutine Set_quarkMasses
   
-  subroutine Set_EWparameters(alphaInv,massZ,massW,widthZ,widthW,sin2ThetaW,UD,US,UB,CD,CS,CB)
-  real*8,optional::alphaInv,massZ,massW,widthZ,widthW,sin2ThetaW,UD,US,UB,CD,CS,CB
+  subroutine Set_EWparameters(alphaInv,massZ,massW,widthZ,widthW,massH,widthH,vevHIGGS,sin2ThetaW,UD,US,UB,CD,CS,CB)
+  real*8,optional::alphaInv,massZ,massW,widthZ,widthW,sin2ThetaW,UD,US,UB,CD,CS,CB,massH,widthH,vevHIGGS
    if(present(alphaInv)) alphaQED_MZ=alphaInv
    if(present(massZ)) MZ=massZ
    if(present(massW)) MW=massW
+   if(present(massH)) MH=massH   
    if(present(widthZ)) GammaZ=widthZ
    if(present(widthW)) GammaW=widthW
+   if(present(widthH)) GammaH=widthH
+   if(present(vevHIGGS)) vevH=vevHIGGS
    if(present(sin2ThetaW)) sW2=sin2ThetaW
    if(present(UD)) Vckm_UD=UD
    if(present(US)) Vckm_US=US
@@ -505,7 +630,12 @@ contains
   subroutine Set_TMDR_evolutionType(num)
   integer::num
   
-  TMDR_evolutionType=num
+  if(num<=0 .or. num>4) then
+    write(*,"('artemide_setup: error in Set_TMDR_evolutionType, type must be =1,2,3,4 but not ',I3)") TMDR_evolutionType
+    TMDR_evolutionType=4
+  else
+    TMDR_evolutionType=num
+  end if
   
   if(outputLevel>1) write(*,"('artemide_setup: TMDR evolution type is changed to ',I3)") TMDR_evolutionType
   
@@ -621,6 +751,54 @@ contains
   end subroutine Set_uTMDFF_lengthNParray
   
   
+  !-------------------------
+  subroutine Set_lpTMDPDF(hadron,setName,replica)
+  integer,intent(in)::hadron
+  character(len=*),intent(in)::setName
+  integer,intent(in),optional::replica
+    
+    if(.not.include_lpTMDPDF) then
+      include_lpTMDPDF=.true.
+      if(outputLevel>1) write(*,"('artemide_setup: lpTMDPDF module included into initialisaion list')") 
+    end if
+    
+    if(outputLevel>1) write(*,"('artemide_setup: lpTMDPDF ',A,' for hadron ',I3,' added to grid list')") trim(setName),hadron
+    call Set_uPDF(hadron,setName,replica)
+  
+  end subroutine Set_lpTMDPDF
+  
+  subroutine Set_lpTMDPDF_order(order)
+  character(len=*)::order
+  
+  if(len(order)<8) then
+    lpTMDPDF_order=trim(order)
+  else
+    lpTMDPDF_order=trim(order(1:8))
+  end if
+  
+  if(outputLevel>1) write(*,"('artemide_setup: lpTMDPDF order is changed to ',A)") lpTMDPDF_order
+  
+  end subroutine Set_lpTMDPDF_order
+  
+  subroutine Set_lpTMDPDF_gridEvaluation(prepareGrid,includeGluon)
+  logical::prepareGrid
+  logical,optional::includeGluon
+  
+  lpTMDPDF_makeGrid=prepareGrid
+  if(present(includeGluon)) lpTMDPDF_withGluon=includeGluon
+  
+  if(outputLevel>1) write(*,"('artemide_setup: lpTMDPDF grid evaluation is changed to (',L2,',',L2,')')") prepareGrid,includeGluon
+  
+  end subroutine Set_lpTMDPDF_gridEvaluation
+  
+  subroutine Set_lpTMDPDF_lengthNParray(num)
+  integer::num
+  
+  lpTMDPDF_lambdaLength=num
+  
+  if(outputLevel>1) write(*,"('artemide_setup: lpTMDPDF length of NP array is set to ',I3)") lpTMDPDF_lambdaLength
+  
+  end subroutine Set_lpTMDPDF_lengthNParray
   
   !-------------------------------------------------------READ AND WRITE CONSTANTS FILE---------------------------------------
   subroutine CreateConstantsFile(file,prefix)
@@ -678,6 +856,8 @@ contains
     write(51,*) mCHARM
     write(51,"('*p2  : mass of bottom-quark')")
     write(51,*) mBOTTOM
+    write(51,"('*p3  : mass of top-quark')")
+    write(51,*) mTOP
     write(51,"(' ')")
     write(51,"('*B   : ---- uPDF sets----')")
     write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
@@ -703,6 +883,19 @@ contains
     end do
     write(51,"('*p4  : list of initialization replicas')")
     write(51,*) replicas_of_uFFs
+    
+    write(51,"(' ')")
+    write(51,"('*D   : ----lpPDF sets----')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
+    write(51,*) number_of_lpPDFs
+    write(51,"('*p2  : reference number for hadrons')")
+    write(51,*) enumeration_of_lpPDFs
+    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    do i=1,number_of_lpPDFs
+      write(51,*) trim(sets_of_lpPDFs(i))
+    end do
+    write(51,"('*p4  : list of initialization replicas')")
+    write(51,*) replicas_of_lpPDFs
     
     
     write(51,"(' ')")
@@ -732,6 +925,13 @@ contains
     write(51,*) mW
     write(51,"('*p2  : width of W-boson [GeV]')")
     write(51,*) GammaW
+    write(51,"('*D   : ---- Higgs-boson ----')")
+    write(51,"('*p1  : mass of Higgs-boson [GeV]')")
+    write(51,*) mH
+    write(51,"('*p2  : width of H-boson [GeV]')")
+    write(51,*) GammaH
+    write(51,"('*p3  : Vacuum expectation value (VEV) for Higgs potential [GeV]')")
+    write(51,*) vevH
     
     write(51,"(' ')")
     write(51,"(' ')")
@@ -891,6 +1091,8 @@ contains
     write(51,*) trim(TMDX_DY_order)
     write(51,"('*p2  : Use the exact values of x1 and x2 (include qT/Q correction)')")
     write(51,*) TMDX_DY_exactX1X2
+    write(51,"('*p3  : Use resummation of pi^2-corrections in hard coefficient')")
+    write(51,*) TMDX_DY_piResum
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration))')")
     write(51,*) TMDX_DY_tolerance
@@ -927,6 +1129,48 @@ contains
     write(51,"('*p1  : Maximum number of processors to use')")
     write(51,*) TMDX_SIDIS_numProc
     
+    
+    write(51,"(' ')")
+    write(51,"(' ')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('# ----                           PARAMETERS OF lpTMDPDF                 -----')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('*11  :')")
+    write(51,"('*p1  : initialize lpTMDPDF module')")
+    write(51,*) include_lpTMDPDF
+    write(51,"(' ')")
+    write(51,"('*A   : ---- Main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function')")
+    write(51,*) trim(lpTMDPDF_order)
+    write(51,"('*B   : ---- Parameters of NP model ----')")
+    write(51,"('*p1  : Length of lambdaNP')")
+    write(51,*) lpTMDPDF_lambdaLength
+    write(51,"('*C   : ---- Numerical evaluation parameters ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
+    write(51,*) lpTMDPDF_tolerance
+    write(51,"('*p2  : Maximum number of iterations (for adaptive integration))')")
+    write(51,*) lpTMDPDF_maxIteration
+    write(51,"('*D   : ---- Grid preparation options ----')")
+    write(51,"('*p1  : Prepare grid')")
+    write(51,*) lpTMDPDF_makeGrid
+    write(51,"('*p2  : Include gluon TMDs into the grid')")
+    write(51,*) lpTMDPDF_withGluon
+    write(51,"('*p3  : total number of PDFs added to the grid (by default it coincides with number of initialized PDFs)')")
+    write(51,*) number_of_lpPDFs
+    write(51,"('*p4  : reference numbers for hadrons (by default it coincides with references for PDFs)')")
+    write(51,*) enumeration_of_lpPDFs
+    write(51,"('*E   : ---- Parameters of grid ----')")
+    write(51,"('*p1  : xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough)')")
+    write(51,*) lpTMDPDF_grid_xMin
+    write(51,"('*p2  : the maximum bT in grid (min=0), for larger approximate extrapolation is done')")
+    write(51,*) lpTMDPDF_grid_bMax
+    write(51,"('*p3  : GridSizeX (250 is enough for 10^-8 presicion, for grid up to 10^-5)')")
+    write(51,*) lpTMDPDF_grid_SizeX
+    write(51,"('*p4  : GridSizeB (750 is enough for ~10^-6 presicion, 500 for 10^-5 presicion)')")
+    write(51,*) lpTMDPDF_grid_SizeB
+    write(51,"('*p5  : slope scale of griding at smaller b (better not to change it :) )')")
+    write(51,*) lpTMDPDF_grid_slope
+    
   CLOSE (51, STATUS='KEEP') 
     
     if(outputLevel>1) write(*,*) 'aTMDe_setup: Constans file is written.'
@@ -961,7 +1205,7 @@ contains
   else
     path=trim(adjustr(file))
   end if
-  if(outputLevel>2) write(*,*) 'path:',path
+  if(outputLevel>1) write(*,*) '       path:',path
   
   OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     !# ----                           GLOBAL PARAMETERS                      -----
@@ -995,6 +1239,11 @@ contains
     read(51,*) mCHARM
     call MoveTO(51,'*p2  ')
     read(51,*) mBOTTOM
+    if(FILEversion>3) then
+      call MoveTO(51,'*p3  ')
+      read(51,*) mTOP
+    end if
+    !-------PDF for uTMDPDF
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     
@@ -1015,6 +1264,7 @@ contains
     call MoveTO(51,'*p4  ')
     read(51,*) replicas_of_uPDFs
     
+    !-------FF for uTMDFF
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) number_of_uFFs
@@ -1035,6 +1285,28 @@ contains
     call MoveTO(51,'*p4  ')
     read(51,*) replicas_of_uFFs
     
+    if(FILEversion>=3) then
+    !-------PDF for uTMDPDF
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    
+    read(51,*) number_of_lpPDFs
+    if(allocated(enumeration_of_lpPDFs)) deallocate(enumeration_of_lpPDFs)
+    if(allocated(replicas_of_lpPDFs)) deallocate(replicas_of_lpPDFs)
+    if(allocated(sets_of_lpPDFs)) deallocate(sets_of_lpPDFs)
+    allocate(enumeration_of_lpPDFs(1:number_of_lpPDFs))
+    allocate(sets_of_lpPDFs(1:number_of_lpPDFs))
+    allocate(replicas_of_lpPDFs(1:number_of_lpPDFs))    
+    
+    call MoveTO(51,'*p2  ')
+    read(51,*) enumeration_of_lpPDFs
+    call MoveTO(51,'*p3  ')
+    do i=1,number_of_lpPDFs
+      read(51,*) sets_of_lpPDFs(i)
+    end do
+    call MoveTO(51,'*p4  ')
+    read(51,*) replicas_of_lpPDFs
+    end if
     
     !# ----                           PARAMETERS OF EWinput                  -----
     call MoveTO(51,'*2   ')
@@ -1058,6 +1330,15 @@ contains
     read(51,*) mW
     call MoveTO(51,'*p2  ')
     read(51,*) GammaW
+    if(FILEversion>=5) then
+      call MoveTO(51,'*D   ')
+      call MoveTO(51,'*p1  ')
+      read(51,*) mH
+      call MoveTO(51,'*p2  ')
+      read(51,*) GammaH
+      call MoveTO(51,'*p3  ')
+      read(51,*) vevH
+    end if
     
     
     !# ----                            PARAMETERS OF TMDR                    -----
@@ -1069,6 +1350,11 @@ contains
     read(51,*) TMDR_order
     call MoveTO(51,'*p2  ')
     read(51,*) TMDR_evolutionType
+    if(inputVer<2 .and. TMDR_evolutionType>=4) then
+     write(*,*) 'aTMDe_setup: mismatch in TMDR_evolutionType (3-A-p2). Set to 3'
+     TMDR_evolutionType=3
+    end if
+    
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDR_lambdaLength
@@ -1100,8 +1386,10 @@ contains
     call MoveTO(51,'*p3  ')
     read(51,*) i
     if(i/=number_of_uPDFs) then
-      if(outputLevel>0) write(*,*) 'ESSENTIAL INCONSITENCY: number of uPDFs unequal uTMDPDFs'
-      if(outputLevel>0) write(*,*) '                        information on number of uTMDPDFs ignored'
+      if(outputLevel>0) write(*,*) ' '
+      if(outputLevel>0) write(*,*) 'ESSENTIAL INCONSITENCY: the number of uPDFs is unequal to the number of uTMDPDFs'
+      if(outputLevel>0) write(*,*) '                        information on the number of uTMDPDFs is ignored'
+      if(outputLevel>0) write(*,*) ' '
     end if
     call MoveTO(51,'*E   ')
     call MoveTO(51,'*p1  ')
@@ -1192,6 +1480,10 @@ contains
     read(51,*) TMDX_DY_order
     call MoveTO(51,'*p2  ')
     read(51,*) TMDX_DY_exactX1X2
+    if(FILEversion>=6) then
+      call MoveTO(51,'*p3  ')
+      read(51,*) TMDX_DY_piResum
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_DY_tolerance
@@ -1223,6 +1515,51 @@ contains
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_SIDIS_numProc
+    
+    if(FILEversion>=3) then
+    !# ----                           PARAMETERS OF lpTMDPDF                  -----
+    call MoveTO(51,'*11  ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_lpTMDPDF
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lpTMDPDF_order
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lpTMDPDF_lambdaLength
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lpTMDPDF_tolerance
+    call MoveTO(51,'*p2  ')
+    read(51,*) lpTMDPDF_maxIteration
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lpTMDPDF_makeGrid
+    call MoveTO(51,'*p2  ')
+    read(51,*) lpTMDPDF_withGluon
+    call MoveTO(51,'*p3  ')
+    read(51,*) i
+    if(i/=number_of_lpPDFs) then
+      if(outputLevel>0) write(*,*) ' '
+      if(outputLevel>0) write(*,*) 'ESSENTIAL INCONSITENCY: the number of lpPDFs is unequal to the number of lpTMDPDFs'
+      if(outputLevel>0) write(*,*) '                        information on the number of lpTMDPDFs is ignored'
+      if(outputLevel>0) write(*,*) ' '
+    end if
+    call MoveTO(51,'*E   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) lpTMDPDF_grid_xMin
+    call MoveTO(51,'*p2  ')
+    read(51,*) lpTMDPDF_grid_bMax
+    call MoveTO(51,'*p3  ')
+    read(51,*) lpTMDPDF_grid_SizeX
+    call MoveTO(51,'*p4  ')
+    read(51,*) lpTMDPDF_grid_SizeB
+    call MoveTO(51,'*p5  ')
+    read(51,*) lpTMDPDF_grid_slope
+    else
+      write(*,*) 'aTMDe_setup: parameters of lin.pol.gluons set default. (const-ver. < 3)'
+    end if
+    
     
   CLOSE (51, STATUS='KEEP') 
     

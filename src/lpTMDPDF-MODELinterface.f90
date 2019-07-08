@@ -1,9 +1,9 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			Model interface for unpolarized TMD FF
+!			Model interface for linearly-polarized gluon TMD PDF
 !
 !			the files of model it-self are defined by user in /model
 !
-!				A.Vladimirov (08.10.2018)
+!				A.Vladimirov (13.06.2018)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -12,12 +12,12 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! USER DEFINED FUNCTIONS   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-module uTMDFF_model
+module lpTMDPDF_model
 implicit none
 
 private
   character(50)::name='NONAME'
-  character (len=5),parameter :: version="v2.00"
+  character (len=5),parameter :: version="v2.01"
   
   integer::lengthNP
 
@@ -27,18 +27,18 @@ public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters,TestbSTAR,bSTA
 
 contains
 
-  INCLUDE 'Model/uTMDFF_model.f90'
+  INCLUDE 'Model/lpTMDPDF_model.f90'
  
   !!!!!! Write nessecery model intitialization.
-  subroutine ModelInit(outputlevel,num)
-    integer:: outputlevel,num
+  subroutine ModelInit(outputlevel,length)
+    integer:: outputlevel,length
     
-    if(outputLevel>1) write(*,*) 'uTMDFF Model initialization (ver.',version,') ...'
+    if(outputLevel>1) write(*,*) 'linear-pol. gluon TMDPDF Model initialization (ver.',version,') ...'
     
-    lengthNP=num
+    lengthNP=length
     
     call ModelInitialization()
-    if(outputlevel>1) write(*,*) 'uTMDFF Model name: ',name,'  ... initialized'
+    if(outputlevel>1) write(*,*) 'linear-pol. gluon PDF Model name: ',name,'  ... initialized'
   end subroutine ModelInit
   
   !!! test FNP for z-dependance
@@ -85,7 +85,6 @@ contains
   
   
   !!! test MU for x-dependance
-  !!! .true. = x-dependent
   function TestMU()
   logical::TestMU
   real*8::xR,bR
@@ -113,6 +112,7 @@ contains
     end if	
     end do
   end function TestMU
+  
   
     !!! test bSTAR for lambdaNP-dependance
   !!! .true. = lambda-dependent
@@ -144,14 +144,14 @@ contains
   end function TestbSTAR
   
   
-    !!! transfer the replica paramters to main function
+  !!! transfer the replica paramters to main function
   function GiveReplicaParameters(num)
   real*8::GiveReplicaParameters(1:lengthNP)
   integer::num,i,ss
   ss=size(ReplicaParameters(num))
   
   if(lengthNP<ss) then
-   write(*,*) 'ERROR: arTeMiDe.uTMDFF_MODEL: number of non-pertrubative parameters for model ',name,&
+   write(*,*) 'ERROR: arTeMiDe.lpTMDPDF_MODEL: number of non-pertrubative parameters for model ',name,&
 		    ' should be >= ',ss
    write(*,*) 'EVALUATION STOP'
    stop
@@ -166,7 +166,6 @@ contains
   end if
   
   end function GiveReplicaParameters
-  
 
-end module uTMDFF_model
+end module lpTMDPDF_model
   

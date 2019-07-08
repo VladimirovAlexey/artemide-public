@@ -17,8 +17,12 @@ private
 
 logical:: started=.false.
 integer::outputLevel
+character (len=7),parameter :: moduleName="EWinput"
+character (len=5),parameter :: version="v2.01"
+!Last appropriate verion of constants-file
+integer,parameter::inputver=5
 
-real*8::Zmass,Wmass,alphaZ,sW2,cW2
+real*8::Zmass,Wmass,Hmass,alphaZ,sW2,cW2
 real*8::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 
 public::alphaEM,EWinput_Initialize,EWinput_IsInitialized
@@ -33,6 +37,8 @@ real*8,public::paramW_UD,paramW_US,paramW_UB,paramW_CD,paramW_CS,paramW_CB,param
 real*8,public::GammaZ2,MZ2
 real*8,public::GammaW2,MW2
 
+!!-Higgs-boso parameters
+real*8,public::MH2,GammaH2,VEVH
 
 
 contains
@@ -60,6 +66,7 @@ contains
   character(len=300)::path
   logical::initRequared
   real*8::dummy
+  integer::FILEver
   
   if(started) return
   
@@ -73,6 +80,14 @@ contains
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -117,7 +132,15 @@ contains
     read(51,*) dummy
     GammaW2=dummy**2     !!!!!!!!!!W width
     
-    
+     call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) Hmass     !!!!!!!!!!Higgs mass
+    MH2=Hmass**2
+    call MoveTO(51,'*p2  ')
+    read(51,*) dummy
+    GammaH2=dummy**2     !!!!!!!!!!Higgs width
+    call MoveTO(51,'*p3  ')
+    read(51,*) VEVH      !!!!!!!!!!Higgs VEV
     
     CLOSE (51, STATUS='KEEP')
   

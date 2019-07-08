@@ -32,6 +32,8 @@ $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 \
 $(SOURCEDIR)/uTMDPDF.f90 \
 $(SOURCEDIR)/uTMDFF-MODELinterface.f90 \
 $(SOURCEDIR)/uTMDFF.f90 \
+$(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 \
+$(SOURCEDIR)/lpTMDPDF.f90 \
 $(SOURCEDIR)/TMDs.f90 \
 $(SOURCEDIR)/TMDF.f90 \
 $(SOURCEDIR)/TMDs_inKT.f90 \
@@ -45,7 +47,10 @@ CommonFiles=\
 $(SOURCEDIR)/CommonCode/Twist2Convolution.f90 \
 $(SOURCEDIR)/CommonCode/Twist2Grid.f90 \
 $(SOURCEDIR)/CommonCode/Twist2Convolution-VAR.f90 \
-$(SOURCEDIR)/CommonCode/Twist2Grid-VAR.f90 
+$(SOURCEDIR)/CommonCode/Twist2Grid-VAR.f90
+
+ExtraFiles=\
+$(SOURCEDIR)/DYcoeff-func.f90
 
 aTMDeMODEL = \
 $(SOURCEDIR)/Model/TMDR_model.f90 \
@@ -63,6 +68,8 @@ $(OBJ)/uTMDPDF-MODELinterface.o \
 $(OBJ)/uTMDPDF.o \
 $(OBJ)/uTMDFF-MODELinterface.o \
 $(OBJ)/uTMDFF.o\
+$(OBJ)/lpTMDPDF-MODELinterface.o \
+$(OBJ)/lpTMDPDF.o \
 $(OBJ)/TMDs.o \
 $(OBJ)/TMDF.o \
 $(OBJ)/TMDs_inKT.o \
@@ -90,7 +97,11 @@ $(OBJ)/uTMDFF-MODELinterface.o: $(SOURCEDIR)/uTMDFF-MODELinterface.f90 $(SOURCED
 	$(FC) -c $(SOURCEDIR)/uTMDFF-MODELinterface.f90
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
-	
+
+$(OBJ)/lpTMDPDF-MODELinterface.o: $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/lpTMDPDF_model.f90
+	$(FC) -c $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
 	
 $(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90
 	mkdir -p obj
@@ -129,13 +140,19 @@ $(OBJ)/uTMDFF.o: $(SOURCEDIR)/uTMDFF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uT
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
+$(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(CommonFiles)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/lpTMDPDF.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
 $(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QCDinput.o
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDR.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o
+$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDs.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -153,7 +170,7 @@ $(OBJ)/TMDF.o: $(SOURCEDIR)/TMDF.f90 $(OBJ)/TMDs.o
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDX_DY.o: $(SOURCEDIR)/TMDX_DY.f90 $(OBJ)/TMDF.o  $(OBJ)/QCDinput.o
+$(OBJ)/TMDX_DY.o: $(SOURCEDIR)/TMDX_DY.f90 $(SOURCEDIR)/DYcoeff-func.f90 $(OBJ)/TMDF.o  $(OBJ)/QCDinput.o
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDX_DY.f90 -I$(MOD)
 	mv *.o $(OBJ)

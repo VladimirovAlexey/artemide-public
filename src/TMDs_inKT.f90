@@ -19,7 +19,9 @@ module TMDs_inKT
 !   public
  
  character (len=10),parameter :: moduleName="TMDs-inKT"
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.01"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=1
  
  !------------------------------------------Tables-----------------------------------------------------------------------
     integer,parameter::Nmax=200
@@ -29,9 +31,9 @@ module TMDs_inKT
  
    real*8::hOGATA,tolerance
   !!!weights of ogata quadrature
-  real*8,dimension(1:Nmax)::ww
+  real*8,dimension(0:3,1:Nmax)::ww
   !!!nodes of ogata quadrature
-  real*8,dimension(1:Nmax)::bb
+  real*8,dimension(0:3,1:Nmax)::bb
   
   integer::GlobalCounter
   integer::CallCounter
@@ -49,7 +51,7 @@ module TMDs_inKT
   
   public::TMDs_inKT_Initialize,TMDs_inKT_ShowStatistic,TMDs_inKT_IsInitialized,TMDs_inKT_ResetCounters
 	  
-  real*8,dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50
+  real*8,dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50,lpTMDPDF_kT_50
   
   interface uTMDPDF_kT_5
     module procedure uTMDPDF_kT_5_Ev,uTMDPDF_kT_5_optimal
@@ -65,6 +67,10 @@ module TMDs_inKT
   
   interface uTMDFF_kT_50
     module procedure uTMDFF_kT_50_Ev,uTMDFF_kT_50_optimal
+  end interface
+  
+  interface lpTMDPDF_kT_50
+    module procedure lpTMDPDF_kT_50_Ev,lpTMDPDF_kT_50_optimal
   end interface
 
 contains 
@@ -90,6 +96,7 @@ contains
     character(len=*),optional::prefix
     character(len=300)::path,line
     logical::initRequared
+    integer::FILEver
     
     if(started) return
     
@@ -103,6 +110,14 @@ contains
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -193,25 +208,50 @@ contains
   
    !!!Prepare tables for Ogata quadrature with given h
    !!! note that the factor 1/(2pi) is taken into ww
+!  subroutine PrepareTables()
+!   real*8,parameter::piHalf=1.5707963267948966d0
+!   real*8,parameter::pi=3.141592653589793d0
+!   integer::i
+!   real*8::t!=h*xi
+!   real*8::psiPart!=tanh[pi/2 Sinh[h xi]]
+!   
+!   do i=1,Nmax
+!     t=hOGATA*JZero(0,i)
+!     psiPart=Tanh(piHalf*Sinh(t))
+!       bb(i)=JZero(0,i)*psiPart
+!       ww(i)=BESSEL_J0(bb(i))/JZero(0,i)/(BESSEL_J1(JZero(0,i))**2)*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
+! !      write(*,*) psiPart,b(k,i),w(k,i)
+!   end do
+!  
+!  end subroutine PrepareTables
+ 
+ 
+  !!!Prepare tables for Ogata quadrature with given h
+  !!! note that the factor 1/(2pi) is taken into ww
+  !!! the difference between definition in TMDF and here is 1/pi
  subroutine PrepareTables()
   real*8,parameter::piHalf=1.5707963267948966d0
   real*8,parameter::pi=3.141592653589793d0
-  integer::i
+  integer::i,k
   real*8::t!=h*xi
   real*8::psiPart!=tanh[pi/2 Sinh[h xi]]
   
+  do k=0,3
   do i=1,Nmax
-    t=hOGATA*JZero(0,i)
+    t=hOGATA*JZero(k,i)
     psiPart=Tanh(piHalf*Sinh(t))
-      bb(i)=JZero(0,i)*psiPart
-      ww(i)=BESSEL_J0(bb(i))/JZero(0,i)/pi/(BESSEL_J1(JZero(0,i))**2)*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
+      bb(k,i)=JZero(k,i)*psiPart
+      ww(k,i)=BESSEL_JN(k,bb(k,i))/pi/JZero(k,i)/(BESSEL_JN(k+1,JZero(k,i))**2)&
+			*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
 !      write(*,*) psiPart,b(k,i),w(k,i)
   end do
- 
+  end do
+  
  end subroutine PrepareTables
  
  !--------------------------------------INTERFACES TO TMD------------------------------------------------
  
+ !---------------------------------------------------uTMDPDF
  function uTMDPDF_kT_5_Ev(x,qT,mu,zeta,hadron)
  real*8::uTMDPDF_kT_5_Ev(-5:5)
  real*8::x,qT,mu,zeta
@@ -240,6 +280,7 @@ contains
  uTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,4,hadron) 
  end function uTMDPDF_kT_50_optimal
  
+ !---------------------------------------------------uTMDFF
  function uTMDFF_kT_5_Ev(x,qT,mu,zeta,hadron)
  real*8::uTMDFF_kT_5_Ev(-5:5)
  real*8::x,qT,mu,zeta
@@ -268,6 +309,25 @@ contains
  uTMDFF_kT_50_optimal=Fourier(x,qT,10d0,10d0,8,hadron) 
  end function uTMDFF_kT_50_optimal
  
+ 
+ !---------------------------------------------------lpTMDPDF
+ 
+ function lpTMDPDF_kT_50_Ev(x,qT,mu,zeta,hadron)
+ real*8::lpTMDPDF_kT_50_Ev(-5:5)
+ real*8::x,qT,mu,zeta
+ integer::hadron
+ lpTMDPDF_kT_50_Ev=Fourier(x,qT,mu,zeta,9,hadron) 
+ end function lpTMDPDF_kT_50_Ev
+ 
+ function lpTMDPDF_kT_50_optimal(x,qT,hadron)
+ real*8::lpTMDPDF_kT_50_optimal(-5:5)
+ real*8::x,qT
+ integer::hadron
+ lpTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,10,hadron) 
+ end function lpTMDPDF_kT_50_optimal
+ 
+ 
+ !------------------------------------------FOURIER--------------------------------
   !!!This is the defining module function
  !!! It evaluates the integral 
  !!!  int_0^infty   b db/2pi  J0(b qT) F1
@@ -277,7 +337,7 @@ contains
   integer::num,hadron
   real*8::integral(-5:5),eps(-5:5)
   real*8::v1,v2,v3,v4
-  integer::k
+  integer::k,n
   real*8::Fourier(-5:5)
   
   CallCounter=CallCounter+1
@@ -299,8 +359,16 @@ contains
   v3=1d0
   v4=1d0
   
+  !!!! select the order of Bessel function for transform
+  SELECT CASE(num)
+    CASE(9,10)
+      n=2
+    CASE DEFAULT
+      n=0
+  END SELECT
+  
   do k=1,Nmax!!! maximum of number of bessel roots preevaluated in the head
-    eps=ww(k)*bb(k)*Integrand(bb(k)/qT,x,mu,zeta,num,hadron)
+    eps=ww(n,k)*bb(n,k)*Integrand(bb(n,k)/qT,x,mu,zeta,num,hadron)
     
     integral=integral+eps
 !     if(k>8) then
@@ -317,8 +385,8 @@ contains
     if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDs-in-kT: OGATA quadrature diverge. TMD decaing too slow? '
       if(outputlevel>1) then
       write(*,*) 'Information over the last call ----------'
-      write(*,*) 'bt/qT= ',bb(Nmax)/qT, 'qT=',qT
-      write(*,*) 'W=',Integrand(bb(Nmax)/qT,x,mu,zeta,num,hadron), 'eps/integral =', eps/integral
+      write(*,*) 'bt/qT= ',bb(n,Nmax)/qT, 'qT=',qT
+      write(*,*) 'W=',Integrand(bb(n,Nmax)/qT,x,mu,zeta,num,hadron), 'eps/integral =', eps/integral
       write(*,*) 'v1+v2+v3+v4=',v1+v2+v3+v4, '>',tolerance*ABS(integral)
       write(*,*) 'x=',x,'type =',num,' it is ',CallCounter,'call.'
       write(*,*) '------------------------------------------'
@@ -367,6 +435,14 @@ contains
   
   CASE(8) !!! uTMDFF  quarks+gluon OPTIMAL
    Integrand=uTMDFF_50(x,b,hadron)
+   
+  CASE(9) !!! lin.pol.gluon TMDPDF
+  !!! minus is due to definition (see manual)
+   Integrand=-lpTMDPDF_50(x,b,mu,zeta,hadron)
+  
+  CASE(10) !!! lim.pol.gluon TMDPDF OPTIMAL
+  !!! minus is due to definition (see manual)
+   Integrand=-lpTMDPDF_50(x,b,hadron)
    
  END SELECT
  

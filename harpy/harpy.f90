@@ -31,6 +31,10 @@ contains
   end subroutine Initialize
   
   
+  subroutine ShowStatistics()
+   call artemide_ShowStatistics()
+  end  subroutine ShowStatistics
+  
   !! call for parameters from the model
   subroutine SetReplica_TMDR(num)
   integer:: num

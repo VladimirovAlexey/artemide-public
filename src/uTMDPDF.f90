@@ -22,6 +22,8 @@ implicit none
   !Current version of module
  character (len=5),parameter :: version="v2.00"
  character (len=7),parameter :: moduleName="uTMDPDF"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=1
  
   INCLUDE 'Tables/NumConst.f90'
   INCLUDE 'Tables/G7K15.f90'
@@ -86,7 +88,7 @@ implicit none
     
   public::uTMDPDF_Initialize,uTMDPDF_SetLambdaNP,uTMDPDF_SetScaleVariation,uTMDPDF_resetGrid,uTMDPDF_SetPDFreplica
   public::uTMDPDF_IsInitialized,uTMDPDF_CurrentNPparameters
-  public::uTMDPDF_lowScale5,uTMDPDF_lowScale50	
+  public::uTMDPDF_lowScale5,uTMDPDF_lowScale50
 !   public::CheckCoefficient  
 !   public::mu_OPE
   
@@ -124,7 +126,7 @@ implicit none
     logical::initRequared
     character(len=8)::orderMain
     logical::bSTAR_lambdaDependent
-    integer::i
+    integer::i,FILEver
     
     if(started) return
     
@@ -147,6 +149,14 @@ implicit none
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -345,7 +355,7 @@ implicit none
   
   call QCDinput_SetPDFreplica(rep)
   gridReady=.false.  
-  
+  call uTMDPDF_resetGrid()
   end subroutine uTMDPDF_SetPDFreplica
   
     !!!Sets the non-pertrubative parameters lambda
@@ -474,7 +484,7 @@ implicit none
     if(outputLevel>1) write(*,*) 'uTMDPDF: set scale variations constant c4 as:',c4_global
     call uTMDPDF_resetGrid()
   end subroutine uTMDPDF_SetScaleVariation
- 
+
 !-------------------------------------------------
  !!!!array of x times PDF(x,Q) for hadron 'hadron'
  !!!! array is (-5:5) (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
@@ -506,8 +516,9 @@ implicit none
   
   end function parametrizationString
   
-    !!! the function which contains the functions of parameterizations
-    !!! at values of z -> 1
+  !!! the function which contains 
+    !!! int_z^1 parameterization at values of z -> 1
+    !!! it is used to estimate integration error at z~1
   function parametrizationStringAt1(z)
   real*8::z,l1z
   real*8,dimension(1:parametrizationLength)::parametrizationStringAt1

@@ -19,6 +19,9 @@ def initialize(fileName):
     else:
         print "Welcome to harpy -- the python interface for artemide"
 
+def ShowStatistics():
+    artemide.harpy.showstatistics()
+
 def setNPparameters(l):
     """Setting NP parameters for the model
                 Arguments: (l)
@@ -26,7 +29,7 @@ def setNPparameters(l):
                 (integer)        = loads replica
                 (array)          = set array on NP parameters
     """
-    if isinstance(l,list):
+    if isinstance(l,list) or isinstance(l,numpy.ndarray):
         artemide.harpy.setlambda_main(numpy.asfortranarray(l))
     else:
         print 'ERROR: argument must be list'
@@ -97,7 +100,7 @@ def _IsKinematicProper(s,qT,Q,y):
         print 'Q (',Q[1],') > s(', s,')'
         return False
     
-    x1x2=(Q[1]**2+qT[1]**2)/s
+    x1x2=(Q[0]**2+qT[0]**2)/s
     ymax=-numpy.log(numpy.sqrt(x1x2))
     ymin=-ymax
     

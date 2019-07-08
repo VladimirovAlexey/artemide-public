@@ -16,6 +16,8 @@ module harpy ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/ha
     subroutine initialize(file) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         character*(*) :: file
     end subroutine initialize
+    subroutine showstatistics ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    end subroutine showstatistics
     subroutine setreplica_tmdr(num) ! in /home/vla18041/LinkData2/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         integer :: num
     end subroutine setreplica_tmdr

@@ -5,7 +5,7 @@
 !			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
 !			muOPE=C0/b+2
 !
-!			Model for unpolarized TMD evolution for BSV19.bFIT [1902.08474]
+!			Model for unpolarized TMD evolution for BSV19.bFIT  [1902.08474]
 !
 !			corresponds to bb* model
 !
@@ -34,24 +34,24 @@
   !!! x-- is the bjorken variable of TMD
   !!! z-- is convolution variable
   function FNP(x,z,bT,hadron,lambdaNP)
-    real*8,intent(in)::x,z,bT
-    integer,intent(in)::hadron
-    real*8,intent(in)::lambdaNP(:)
-    real*8,dimension(-5:5)::FNP
-    
-    real*8::FNP0
-    real*8::bb,w1,w2,w3
-    bb=bT**2
-    w1=lambdaNP(1)*(1-x)+x*lambdaNP(2)+x*(1-x)*lambdaNP(5)
-    w2=lambdaNP(3)*x**lambdaNP(4)+lambdaNP(6)
-    
-    if(w2<0d0 .or. w1<0d0) then
-      FNP0=-1d0
-    else
-      FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
-    end if
+  real*8::x,z,bT
+  real*8,dimension(-5:5)::FNP
+  real*8::FNP0
+  integer::hadron
+  real*8,intent(in)::lambdaNP(:)
 
-    FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+   real*8::bb,w1,w2,w3
+   bb=bT**2
+   w1=lambdaNP(1)*(1-x)+x*lambdaNP(2)+x*(1-x)*lambdaNP(5)
+   w2=lambdaNP(3)*x**lambdaNP(4)+lambdaNP(6)
+   
+   if(w2<0d0 .or. w1<0d0) then
+   FNP0=-1d0
+   else
+   FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
+   end if
+
+  FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
   end function FNP
   
   !!!! This is the function b* that enter the logarithms of coefficient function
@@ -67,17 +67,15 @@
     
   end function bSTAR
   
-  !!!!This function is the mu(x,b), which is used inside the OPE
-  function mu_OPE(x,bT)
-    real*8,intent(in)::bT,x
-    real*8::mu_OPE
-    
-    !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
-    mu_OPE=C0_const*1d0/bT+2d0
-    
-    if(mu_OPE>1000d0) then
-      mu_OPE=1000d0
-    end if
+    !!!!This function is the mu(x,b), which is used inside the OPE
+  function mu_OPE(x,bt)
+  real*8::bt,mu_OPE,x
+  !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
+  mu_OPE=C0_const*1d0/bT+2d0
+  
+  if(mu_OPE>1000d0) then
+    mu_OPE=1000d0
+  end if
   end function mu_OPE
   
    !!! this is the table of replica prameters extracted in fit BSV19.

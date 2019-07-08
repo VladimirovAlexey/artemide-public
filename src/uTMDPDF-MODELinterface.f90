@@ -17,7 +17,7 @@ implicit none
 
 private
   character(50)::name='NONAME'
-  character (len=5),parameter :: version="v1.4"
+  character (len=5),parameter :: version="v2.00"
   
   integer::lengthNP
 
@@ -33,12 +33,12 @@ contains
   subroutine ModelInit(outputlevel,length)
     integer:: outputlevel,length
     
-    if(outputLevel>2) write(*,*) 'PDF Model initialization (ver.',version,') ...'
+    if(outputLevel>1) write(*,*) 'uTMDPDF Model initialization (ver.',version,') ...'
     
     lengthNP=length
     
     call ModelInitialization()
-    if(outputlevel>2) write(*,*) 'PDF Model name: ',name,'  ... initialized'
+    if(outputlevel>1) write(*,*) 'uTMDPDF Model name: ',name,'  ... initialized'
   end subroutine ModelInit
   
   !!! test FNP for z-dependance

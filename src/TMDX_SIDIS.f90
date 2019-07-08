@@ -20,6 +20,8 @@ implicit none
    !Current version of module
  character (len=10),parameter :: moduleName="TMDX-SIDIS"
  character (len=5),parameter :: version="v2.00"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=1
   
   
   logical::started=.false.
@@ -117,7 +119,7 @@ contains
     character(len=300)::path,line
     logical::initRequared,dummyLogical
     character(len=8)::orderMain
-    integer::i
+    integer::i,FILEver
     !$ integer:: omp_get_thread_num
     
     if(started) return
@@ -132,6 +134,14 @@ contains
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '

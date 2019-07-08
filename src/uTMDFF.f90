@@ -21,6 +21,8 @@ private
   !Current version of module
  character (len=5),parameter :: version="v2.00"
  character (len=7),parameter :: moduleName="uTMDFF"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=1
  
   INCLUDE 'Tables/NumConst.f90'  
   INCLUDE 'Tables/G7K15.f90'
@@ -125,7 +127,7 @@ private
     logical::initRequared
     character(len=8)::orderMain
     logical::bSTAR_lambdaDependent
-    integer::i
+    integer::i,FILEver
     
     if(started) return
     
@@ -148,6 +150,14 @@ private
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -465,6 +475,8 @@ private
     var=lambdaNP
   end subroutine uTMDFF_CurrentNPparameters
   
+  
+
   !!! here we add x^2 since it is needed by FF convolution
   function xf(x,Q,hadron)
       real*8 :: x,Q
@@ -495,8 +507,9 @@ private
   
   end function parametrizationString
   
-    !!! the function which contains the functions of parameterizations
-    !!! at values of z -> 1
+  !!! the function which contains 
+    !!! int_z^1 parameterization at values of z -> 1
+    !!! it is used to estimate integration error at z~1
   function parametrizationStringAt1(z0)
   real*8::z0
   real*8,dimension(1:parametrizationLength)::parametrizationStringAt1

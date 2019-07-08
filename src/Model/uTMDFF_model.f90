@@ -34,22 +34,31 @@
   real*8::FNP0
   integer::hadron
   real*8,intent(in)::lambdaNP(:)
-  
-  real*8::bb,w1,w2
-  
-  bb=bT**2/x**2
-  
-  w1=lambdaNP(1)*(1d0-x)+lambdaNP(2)*x
-  w2=lambdaNP(3)+lambdaNP(4)*x**2
 
-  FNP0=Exp(-bb*w1/sqrt(1d0+w2*bb))
+   real*8:: bb,c1,c0
+   real*8::ZZ,AA
+   bb=bT/lambdaNP(1)
+   AA=(1-x)*lambdaNP(2)+x*lambdaNP(3)
+   c0=(AA-0.5d0)*bb
+   c1=(AA+0.5d0)*bb
+   ZZ=1d0
+   
+   if(AA<0.0001d0) then
+   FNP0=1d6
+   else if(c1>50d0) then
+   FNP0=(1-lambdaNP(4))*Exp(c0-c1)*Abs(ZZ)+lambdaNP(4)*Exp(-bT**2/lambdaNP(5)**2)
+   else
+   FNP0=(1-lambdaNP(4))*Cosh(c0)/Cosh(c1)*Abs(ZZ)+lambdaNP(4)*Exp(-bT**2/lambdaNP(5)**2)
+   end if
+
+
   
   FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
 !   FNP=(/FNP1,FNP1,FNP1,FNP1,FNP1,FNP0,FNP0,FNP0,FNP1,FNP1,FNP1/)
 !   FNP=(/FNP2,FNP2,FNP2,FNP2,FNP2,FNP2,FNP0,FNP1,FNP2,FNP2,FNP2/)
   end function FNP
   
-  !!!! This is the function b* that enter the logarithms of coefficient function
+    !!!! This is the function b* that enter the logarithms of coefficient function
   !!!! at small-b it should be ~b to match the collinear regime
   !!!! at large-b it is a part of model
   !!!! NOTE: if it is lambda-dependent, the grid will be recalculate each reset of lambdaNP
@@ -62,17 +71,15 @@
     
   end function bSTAR
   
-  !!!!This function is the mu(x,b), which is used inside the OPE
-  function mu_OPE(x,bT)
-    real*8,intent(in)::bT,x
-    real*8::mu_OPE
-    
-    !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
-    mu_OPE=C0_const*1d0/bT+2d0
-    
-    if(mu_OPE>1000d0) then
-      mu_OPE=1000d0
-    end if
+    !!!!This function is the mu(x,b), which is used inside the OPE
+  function mu_OPE(x,bt)
+  real*8::bt,mu_OPE,x
+  !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
+  mu_OPE=C0_const*1d0/bT+2d0
+  
+  if(mu_OPE>1000d0) then
+    mu_OPE=1000d0
+  end if
   end function mu_OPE
   
  function ReplicaParameters(rep)

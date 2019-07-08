@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.4
+!			arTeMiDe 2.01
 !
 !	Evaluation of the TMD cross-section for DY-like cross-sections
 !	
@@ -10,6 +10,7 @@
 !	ver 1.2: module is renamed, and multiple renaming of functions (AV, 15.10.2017)
 !	ver 1.31: part of functions migrated to TMDF, rest updated (AV, 1.06.2018)
 !	ver 1.4: encapsulation of cuts, and process,+ multiple updates (AV, 18.01.2019)
+!	ver 2.01: Added Higgs xSec, piresum option, and coefficient function moved to separate file (AV, 17.06.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_DY
 
@@ -23,7 +24,9 @@ implicit none
   
    !Current version of module
  character (len=7),parameter :: moduleName="TMDX-DY"
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.01"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=6
   
   real*8 :: tolerance=0.0005d0
   
@@ -48,6 +51,7 @@ implicit none
   !!other global parameters see SetXParameters  
   integer:: orderH_global
   logical:: includeCuts_global
+  logical::usePIresum
   integer:: exactX1X2    !!!=1 if exact x's=true, =0 otherwise
   
   !!! number of sections for PT-integral by default
@@ -59,6 +63,7 @@ implicit none
   
   integer::GlobalCounter
   integer::CallCounter
+  integer::messageCounter
   
   real*8::hc2
   
@@ -133,7 +138,7 @@ contains
     character(len=300)::path,line
     logical::initRequared,dummyLogical
     character(len=8)::orderMain
-    integer::i
+    integer::i,FILEver
     !$ integer:: omp_get_thread_num
     
     if(started) return
@@ -148,6 +153,14 @@ contains
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -199,6 +212,9 @@ contains
       exactX1X2=0
      end if
      if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_DY: qT/Q correction for x1 and x2 variables are included.'
+     call MoveTO(51,'*p3   ')
+     read(51,*) usePIresum
+     if(outputLevel>2 .and. usePIresum) write(*,*) '	artemide.TMDX_DY: pi-resummation in coef.function included.'
      
      call MoveTO(51,'*B   ')
      call MoveTO(51,'*p1  ')
@@ -242,6 +258,7 @@ contains
      
      GlobalCounter=0
      CallCounter=0
+     messageCounter=0
      
      started=.true.
     write(*,*)  '----- arTeMiDe.TMD_DY ',version,'.... initialized'
@@ -251,6 +268,7 @@ contains
   if(outputlevel>2) call TMDX_DY_ShowStatistic
   GlobalCounter=0
   CallCounter=0
+  messageCounter=0
   end subroutine TMDX_DY_ResetCounters
   
   subroutine TMDX_DY_ShowStatistic()
@@ -423,6 +441,9 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
+  !!!! for easier read coeff-functions are split into separate file
+  INCLUDE 'DYcoeff-func.f90'
+  
   !!!!! Prefactor 2 is (universal part) x (cuts) x H
   function PreFactor2(kin,process, includeCuts_in,CutParam)
     real*8,dimension(1:7),intent(in)::kin
@@ -470,6 +491,14 @@ contains
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
 	    0.1086d0!Br from PDG, ee+mumu
+    CASE (5) !exclusive HIGGSboson production
+	! (2\pi) *pi Mh^2 as(mu)/36/s/vev^2 * H*cT^2
+	! (1.033)^2 is correction for mT mass in Ct at LO.
+	uniPart=(1d0/18d0)*MH2*(As(c2_global*kin(3))/VEVH)**2/kin(2)*&
+	   HardCoefficientHIGGS(kin(3))*(EffCouplingHFF(kin(3))**2)*1.0677023627519822d0*&
+	    hc2*1d9!from GeV to pb
+	    
+	cutPrefactor=1d0 !!! cut-prefactor is different in this case! 
     CASE DEFAULT 
       write(*,*) 'ERROR: arTeMiDe.TMDX_DY: unknown process p2=',process(2),' .Evaluation stop.'
       stop
@@ -501,33 +530,6 @@ contains
       stop
   END SELECT
   end function PreFactor1
-  
-    
-  !!! hard coefficeint taken from 1004.3653 up to 2-loop
-  !!! it takes global values of Q,order
-  function HardCoefficientDY(mu)
-    real*8::HardCoefficientDY,mu,LQ!=Log[Q^2/mu^2]=-2Log[c1]
-    real*8::alpha
-    
-    HardCoefficientDY=1.d0
-    if(orderH_global>=1) then
-      LQ=-2d0*LOG(c2_global)
-      alpha=As(mu*c2_global)
-      HardCoefficientDY=HardCoefficientDY+alpha*&
-      (9.372102581166892d0 + 8d0*LQ-2.6666666666666665d0*LQ**2)
-    if(orderH_global>=2) then
-      HardCoefficientDY=HardCoefficientDY+alpha**2*&
-      (359.39087353234015d0 + 1.9820949255839224d0*LQ - 42.08073588761418d0*LQ**2&
-	- 14.518518518518519d0*LQ**3 + 3.5555555555555554d0*LQ**4)
-    if(orderH_global>=3) then
-      HardCoefficientDY=HardCoefficientDY+alpha**3*&
-      (8968.91048473732d0 - 2759.2358438992906d0*LQ - 1417.132743244908d0*LQ**2&
-      + 36.47614733116575d0*LQ**3 + 107.28732602899498d0*LQ**4 + 10.271604938271604d0*LQ**5& 
-      -3.1604938271604937d0*LQ**6)
-    end if
-    end if
-    end if
-  end function HardCoefficientDY
   
   !!! check is the process y-symmetric
   function IsySymmetric(p2)
@@ -631,13 +633,19 @@ contains
     Xsec_Yint=2d0*integralOverYpoint_S(var,process,incCut,CutParam,0d0,ymax)!!! 2 since symmetric
       
     else !!!non-symmetric integral!!!!!!!!
-      if(ymax > ymax_check) then
-        ymax=yMax_check
-      end if!!!!! else case: automatically taken into account
-      if(ymin < ymin_check) then
-        ymin=ymin_check
-      end if!!!!! else case: automatically taken into account
-    Xsec_Yint=integralOverYpoint_S(var,process,incCut,CutParam,ymin,ymax)
+      if(ymax<ymin_check .or. ymin>ymax_check) then !!! the case then y is outside physicsl region
+	Xsec_Yint=0d0
+      else
+	if(ymax > ymax_check) then
+	  ymax=yMax_check
+	end if!!!!! else case: automatically taken into account
+	if(ymin < ymin_check) then
+	  ymin=ymin_check
+	end if!!!!! else case: automatically taken into account
+	
+      Xsec_Yint=integralOverYpoint_S(var,process,incCut,CutParam,ymin,ymax)
+      
+      end if
   end if
   
   

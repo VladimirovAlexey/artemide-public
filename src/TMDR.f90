@@ -11,6 +11,8 @@
 !				b-freeze at 1d-6 A.Vladimirov (16.09.2018)
 !			v1.41   transpose-issue fixed A.Vladimirov (11.03.2019)
 !				29.03.2019  Update to version 2.00 (AV).
+!			v2.01 	Added zeta-line with non-pertrubative D A.Vladimirov (06.06.2019)
+!				Added gluon evolution A.Vladimirov (12.06.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDR
 use QCDinput
@@ -21,8 +23,10 @@ implicit none
 !   public
  
  !Current version of module
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.01"
  character (len=7),parameter :: moduleName="TMDR"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=2
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
   
@@ -130,8 +134,8 @@ implicit none
 !! Precision tolerance used in various routines
   real*8::tolerance=0.001d0
 
-!! Evolutio type 
-  integer:: EvolutionType=3
+!! Evolution type 
+  integer:: EvolutionType=4
   
   integer::counter,messageCounter
   
@@ -143,20 +147,24 @@ implicit none
   !! array of non-pertrubative parameters
   real*8,allocatable,dimension(:):: NPparam
 
-  public::TMDR_R,TMDR_Rzeta
+  public::TMDR_R,TMDR_Rzeta,TMDR_R_toSL
   public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ,TMDR_IsInitialized,TMDR_CurrentNPparameters
   
   public::DNP!,GammaCusp,gammaV
+  
+  public::zetaMUpert,zetaMuResum,zetaSL,zetaNP
+  
+  
   interface TMDR_setNPparameters
    module procedure TMDR_setNPparameters, TMDR_SetReplica
   end interface 
   
   interface TMDR_R
-    module procedure TMDR_R_type1,TMDR_R_type2
+    module procedure TMDR_R_type1,TMDR_R_typeZ
   end interface
   
   interface TMDR_Rzeta
-    module procedure TMDR_Rzeta_type1,TMDR_Rzeta_type2,TMDR_Rzeta_type3
+    module procedure TMDR_Rzeta_type1,TMDR_Rzeta_typeZ3,TMDR_Rzeta_type3
   end interface
   
  contains
@@ -189,7 +197,7 @@ implicit none
     character(len=300)::path,line
     logical::initRequared
     character(len=8)::orderMain
-    integer::i
+    integer::i,FILEver
     
     if(started) return
     
@@ -203,6 +211,14 @@ implicit none
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -318,6 +334,7 @@ implicit none
     if(outputLevel>2) write(*,'(A,ES10.3)') ' |   tolerance=',tolerance
     
     CLOSE (51, STATUS='KEEP') 
+    
     
     if(.not.QCDinput_IsInitialized()) then
       if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
@@ -522,17 +539,10 @@ implicit none
   !the resummed version of rapidity anomalous dimension taken from 1208.1281 (0,1,2-loop)
 ! 3-loops calculated in Math file.
 ! IT has natural counting
-! so far only quarks
  function Dresum(mu,b,f)
     real*8::Dresum,mu,b
     integer::f
     real*8:: X,alpha,lX
-    
-    if(f==0) then
-    write(*,*) 'ERROR: arTeMiDe.TMDR. Resummed version of D is made only for quark'
-    write(*,*) 'Evaluation stop'
-    stop
-    end if
     
     alpha=As(mu)
     If(mu<mCHARM) then !! nf=3
@@ -540,24 +550,30 @@ implicit none
     X=18d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
     
-    !last check (30.09.2018)
+    !last check (30.09.2018)+(12.06.2019)
     Dresum=-8d0/27d0*lX
     
     if(orderDresum>=1) then
-    !last check (30.09.2018)
+    !last check (30.09.2018)+(12.06.2019)
     Dresum=Dresum+alpha/(1d0-X)*(0.5983065149035645d0*X - 512d0*lX/243d0)    
       if(orderDresum>=2) then
-	!last check (30.09.2018)
+	!last check (30.09.2018)+(12.06.2019)
         Dresum=Dresum+((alpha/(1d0-X))**2)*(&
         -15.75963102138173d0 - 19.23770595326028d0*lX +16384d0*lX**2/2187d0&
         + 15.108120124066376d0*X - 4.447521424630353d0*X**2)
         !!!!!4-loop
         if(orderDresum>=3) then
-	  !last check (30.09.2018)
+	  !last check (30.09.2018) error?
+! 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
+! 	  -260.5342569653865d0 - 20.10001091244974d0*lX + 190.07464445795534d0*lX**2 &
+! 	  -35.51545326762519d0*lX**3 + 146.58790833901065d0*X - 44.18188284306254d0*lX*X &
+! 	  +11.703452376448753d0*X**2 - 37.75565322877677d0*X**3)
+
+	  !(12.06.2019) difference in polynomial part
 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
-	  -260.5342569653865d0 - 20.10001091244974d0*lX + 190.07464445795534d0*lX**2 &
-	  -35.51545326762519d0*lX**3 + 146.58790833901065d0*X - 44.18188284306254d0*lX*X &
-	  +11.703452376448753d0*X**2 - 37.75565322877677d0*X**3)
+	  -260.5342569653858d0 - 20.10001091244908d0*lX + 190.07464445795534d0*lX**2 &
+	  - 35.51545326762519d0*lX**3 + 191.81857011678846d0*X - 44.18188284306254d0*lX*X &
+	  - 33.52720940132923d0*X**2 - 22.678765969517485d0*X**3)
 	end if
       end if
     end if
@@ -566,23 +582,29 @@ implicit none
     X=50d0/3d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
     
-    !last check (30.09.2018)
+    !last check (30.09.2018)+(12.06.2019)
     Dresum=-8d0/25d0*lX
     if(orderDresum>=1) then
-        !last check (30.09.2018)
+        !last check (30.09.2018)+(12.06.2019)
         Dresum=Dresum+alpha/(1d0-X)*(0.5949710360958496d0*X - 1232d0*lX/625d0)
     if(orderDresum>=2) then
-	!last check (30.09.2018)
+	!last check (30.09.2018)+(12.06.2019)
         Dresum=Dresum+((alpha/(1d0-X))**2)*(&
-        -18.52506312014714d0 - 15.807613582350436d0*lX + 94864d0*lX**2/15625d0&
+        -18.52506312014714d0 - 15.807613582350436d0*lX + 94864d0*lX**2/15625d0 &
         + 9.962780902782157d0*X - 3.2507308958355225d0*X**2)
         !!!!!4-loop
         if(orderDresum>=3) then
-	  !last check (30.09.2018)
+	  !last check (30.09.2018) error?
+! 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
+! 	  -305.836516979261d0 + 69.4831476117966d0*lX + 134.7740830272787d0*lX**2 &
+! 	  -24.93278890666667d0*lX**3 + 42.43828293158347d0*X - 21.321725724444445d0*lX*X &
+! 	  +80.87368989899981d0*X**2 - 58.80945335817513d0*X**3)
+
+	  !(12.06.2019) difference in polynomial part
 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
-	  -305.836516979261d0 + 69.4831476117966d0*lX + 134.7740830272787d0*lX**2 &
-	  -24.93278890666667d0*lX**3 + 42.43828293158347d0*X - 21.321725724444445d0*lX*X &
-	  +80.87368989899981d0*X**2 - 58.80945335817513d0*X**3)
+	  -305.83651697926075d0 + 69.48314761179631d0*lX + 134.77408302727866d0*lX**2 &
+	  - 24.932788906666666d0*lX**3 + 100.03436997158337d0*X - 21.321725724444445d0*lX*X &
+	  + 23.277602858999842d0*X**2 - 39.61075767817519d0*X**3)
 	end if
     end if
     end if
@@ -590,26 +612,38 @@ implicit none
     X=46d0/3d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
     
+    !last check (12.06.2019)
     Dresum=-8d0/23d0*lX
     if(orderDresum>=1) then
-	!last check (30.09.2018)
+	!last check (30.09.2018)+(12.06.2019)
         Dresum=Dresum+alpha/(1d0-X)*(0.6485896055022099d0*X - 928d0*lX/529d0)
      if(orderDresum>=2) then
-	!last check (30.09.2018)
+	!last check (30.09.2018)+(12.06.2019)
         Dresum=Dresum+((alpha/(1d0-X))**2)*(&
         -21.2904952189126d0 - 12.118685999181197d0*lX + 53824d0*lX**2/12167d0&
         + 3.4818379050987946d0*X - 2.0609284500060885d0*X**2)
         !!!!4-loop
         if(orderDresum>=3) then
-	  !last check (30.09.2018)
+	  !last check (30.09.2018) error??
+! 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
+! 	  -342.0455323786137d0 + 136.0753964300541d0*lX + 83.43151323800433d0*lX**2 &
+! 	  -14.874122567219718d0*lX**3 - 69.48701186506418d0*X + 3.227921887389228d0*lX*X &
+! 	  +155.46041408237463d0*X**2 - 81.95172616030685d0*X**3)
+
+	  !(12.06.2019) difference in polynomial part
 	  Dresum=Dresum+((alpha/(1d0-X))**3)*(&
-	  -342.0455323786137d0 + 136.0753964300541d0*lX + 83.43151323800433d0*lX**2 &
-	  -14.874122567219718d0*lX**3 - 69.48701186506418d0*X + 3.227921887389228d0*lX*X &
-	  +155.46041408237463d0*X**2 - 81.95172616030685d0*X**3)
+	  -342.04553237861387d0 + 136.07539643005407d0*lX + 83.4315132380043d0*lX**2 &
+	  - 14.874122567219718d0*lX**3 + 22.601705526240153d0*X + 3.2279218873892277d0*lX*X &
+	  + 63.371696691070326d0*X**2 - 51.255487029872086d0*X**3)
 	end if
         
     end if
     end if
+    end if
+    
+    !! gluon case is (quark case)*9/4 (at all orders)
+    if(f==0) then
+     Dresum=Dresum*9d0/4d0
     end if
     
     if(ISNAN(Dresum)) then
@@ -618,6 +652,7 @@ implicit none
         write(*,*) 'Evaluation STOP'
         stop
     end if
+    
 
 !     write(*,*) X,Dresum
  end function Dresum
@@ -628,6 +663,7 @@ implicit none
  function zetaMUpert(mu,bt,f)
   real*8:: zetaMUpert,mu,bt,alpha,Lmu,val
   integer::f
+  
    val=0d0
       if(f==0) then !gluon
       
@@ -692,27 +728,22 @@ implicit none
 	end if
       end if
       end if
-
+      
       zetaMUpert=mu*C0_const/bT*EXP(-val)
  end function zetaMUpert
 
-    
+ !!!! the value of zeta-line resummed over log[b]
  function zetaMUresum(mu,b,f)
   real*8::zetaMUresum,mu,b
   integer::f
   real*8::X,val,lX,alpha,XlX
-  
-  if(f==0) then
-    write(*,*) 'ERROR: arTeMiDe.TMDR. Resummed version of zeta-line is made only for quark'
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  
+
   !val=g_0+a g_1+...
   
    alpha=As(mu)
-    
-    If(mu<mCHARM) then !! nf=3
+   
+   !----------------------------------------------------------QUARK----------------------------------------
+    If(mu<mCHARM) then !! ----------------------------------------nf=3
     X=18d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
     XlX=X/((1d0-X)*lX)
@@ -727,29 +758,44 @@ implicit none
     
     end if
     if(orderZETA>=2) then
-    !last check (30.09.2018)
+!     !last check (30.09.2018) ?Error?
+!     val=val+(alpha**2)*(&
+!     (-2.809327846364883d0*lX)/(X-1d0)&
+!     +(0.7344199383092869d0 + X*(0.5427459498748931d0 +1.5321619581807067d0*X))/(X-1d0)**2&
+!     +(2.4745769670392037d0 + lX*(3.8610071741320366d0 + (-5.9098616330181475d0+0.4533704191432824d0*X)/X**2)&
+!       - 5.9098616330181475d0/X - 1.6678205342363737d0*X + 0.4530566491853122d0*X/lX)*XlX**2)
+      
+    !(12.06.2019)
     val=val+(alpha**2)*(&
-    (-2.809327846364883d0*lX)/(X-1d0)&
-    +(0.7344199383092869d0 + X*(0.5427459498748931d0 +1.5321619581807067d0*X))/(X-1d0)**2&
-    +(2.4745769670392037d0 + lX*(3.8610071741320366d0 + (-5.9098616330181475d0+0.4533704191432824d0*X)/X**2)&
-      - 5.9098616330181475d0/X - 1.6678205342363737d0*X + 0.4530566491853122d0*X/lX)*XlX**2)
+    (-2.809327846364883*lX)/(-1 + X) + (0.734419938309286 + 0.54274594987489*X + 1.5321619581807064*X**2)/(-1 + X)**2 &
+    + ((5.909861633018146 - 0.45337041914327586*X - 3.86100717413203*X**2)*XlX)/((-1 + X)*X) &
+    + (2.474576967039215 - 5.909861633018147/X - 1.6678205342363828*X + (0.4530566491853128*X)/lX)*XlX**2)
     
     end if
     if(orderZETA>=3) then
-    !last check (30.09.2018)
+    !last check (30.09.2018) ?Error?
+!     val=val+(alpha**3)*(&
+!     (-9.988721231519586d0*lX**2)/(-1d0 + X)**2 &
+!     +(lX*(-25.650274604347043d0 + 38.96856957970649d0*X))/(-1d0 + X)**3 &
+!     +(-116.72083321043493d0 + 157.99440284791794d0*X - 104.75296305816975*X**2 &
+!     +32.15628667503184d0*X**3)/(-1d0 + X)**3 &
+!     +(13.21548593880104d0 + lX*(35.90538079987103d0 - 25.582672835245578d0/X**2 - 16.566763069323986d0/X &
+!     -14.158369960791271d0*X) - 23.8673838411903d0/X - 6.7356082664341095d0*X &
+!     +(0.9148502637943364d0*X)/lX + (lX**2*(-1.7152889940552896d0 + 138.17793148235785d0*X &
+!     -113.52541590924972d0*X**2 + 26.948941036555656d0*X**3))/X**3)*XlX**3)
+
+    !(12.06.2019)
     val=val+(alpha**3)*(&
-    (-9.988721231519586d0*lX**2)/(-1d0 + X)**2 &
-    +(lX*(-25.650274604347043d0 + 38.96856957970649d0*X))/(-1d0 + X)**3 &
-    +(-116.72083321043493d0 + 157.99440284791794d0*X - 104.75296305816975*X**2 &
-    +32.15628667503184d0*X**3)/(-1d0 + X)**3 &
-    +(13.21548593880104d0 + lX*(35.90538079987103d0 - 25.582672835245578d0/X**2 - 16.566763069323986d0/X &
-    -14.158369960791271d0*X) - 23.8673838411903d0/X - 6.7356082664341095d0*X &
-    +(0.9148502637943364d0*X)/lX + (lX**2*(-1.7152889940552896d0 + 138.17793148235785d0*X &
-    -113.52541590924972d0*X**2 + 26.948941036555656d0*X**3))/X**3)*XlX**3)
+    (-9.988721231519586*lX**2)/(-1 + X)**2 - (0.9148502637943364*X**4)/(lX**4*(-1 + X)**3) &
+    + (lX*(-25.650274604347043 + 38.96856957970649*X))/(-1 + X)**3 &
+    + (6.7356082664341095*X**2*(3.543463767055726 - 1.9620330363715506*X + X**2))/(lX**3*(-1 + X)**3) &
+    + (-116.72083321043495 + 157.9944028479179*X - 104.75296305816973*X**2 + 32.156286675031836*X**3)/(-1 + X)**3 &
+    + ((-1.7152889940552796 + 155.13942964902444*X - 138.9676631592496*X**2 + 35.42969011988898*X**3)*XlX)/((-1 + X)**2*X) &
+    + ((25.582672835245585 - 0.3947350973427885*X - 18.94388263320436*X**2 + 8.504537238569082*X**3)*XlX**2)/((-1 + X)*X))
     
     end if
     
-    else if(mu<mBOTTOM) then !! nf=4
+    else if(mu<mBOTTOM) then !! --------------------------------------- nf=4
     X=50d0/3d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
     XlX=X/((1d0-X)*lX)
@@ -762,33 +808,50 @@ implicit none
     !last check (30.09.2018)
     val=val+alpha*(-2.4623141385359437d0+231d0*lX/625d0-462d0*XlX/625d0+0.22311413853594375d0*X*XlX/lX)
     
+    
+    
     end if
     if(orderZETA>=2) then
     
-	!last check (30.09.2018)
-        val=val+(alpha**2)*(&
-        (-2.276736d0*lX)/(X-1d0)&
-        + (-0.07638842671474691d0 + (1.7423213067387915d0 + 0.6108031199759604d0*X)*X)/(X-1d0)**2 &
-	+ (0.9872766517804755d0 + lX*(7.523963912264815d0 + (-6.946898670055185d0 - 1.9514483355910248d0*X)/X**2)&
-	  - 6.946898670055185d0/X - 1.219024085938312d0*X + 0.41483265678863507d0*X/lX)*XlX**2)
+	!last check (30.09.2018) ?error?
+!         val=val+(alpha**2)*(&
+!         (-2.276736d0*lX)/(X-1d0)&
+!         + (-0.07638842671474691d0 + (1.7423213067387915d0 + 0.6108031199759604d0*X)*X)/(X-1d0)**2 &
+! 	+ (0.9872766517804755d0 + lX*(7.523963912264815d0 + (-6.946898670055185d0 - 1.9514483355910248d0*X)/X**2)&
+! 	  - 6.946898670055185d0/X - 1.219024085938312d0*X + 0.41483265678863507d0*X/lX)*XlX**2)
+
+	!(12.06.2019)
+	val=val+(alpha**2)*(&
+	(-2.276736*lX)/(-1 + X) + (-0.07638842671474769 + 1.742321306738789*X + 0.6108031199759592*X**2)/(-1 + X)**2 &
+	+ ((6.946898670055183 + 1.9514483355910373*X - 7.523963912264807*X**2)*XlX)/((-1 + X)*X) &
+	+ (0.9872766517804829 - 6.946898670055182/X - 1.2190240859383212*X + (0.4148326567886355*X)/lX)*XlX**2)
     end if
     
     if(orderZETA>=3) then
-    !last check (30.09.2018)
-    val=val+(alpha**3)*(&
-    (-7.01234688d0*lX**2)/(-1d0 + X)**2 &
-     +(lX*(-18.257793687614754d0 + 27.607589527614756d0*X))/(-1d0 + X)**3 &
-     +(-138.8607743573032d0 + 184.52451857767127d0*X - 100.23304496672974d0*X**2 &
-     +32.07840713113214d0*X**3)/(-1d0 + X)**3 &
-     +(6.226625493462215d0 + lX*(59.335199839722506d0 - 42.01916318769151d0/X**2 - 27.831158601204876d0/X &
-     -22.05354500931568d0*X) - 25.83252187109758d0/X - 4.533025146478245d0*X &
-     +(0.7712919237997766d0*X)/lX + (lX**2*(-16.186641316593924d0 + 177.02234836509135d0*X &
-     -111.05224763708378d0*X**2 + 21.725060882031794d0*X**3))/X**3)*XlX**3)
+    !last check (30.09.2018) ?error?
+!     val=val+(alpha**3)*(&
+!     (-7.01234688d0*lX**2)/(-1d0 + X)**2 &
+!      +(lX*(-18.257793687614754d0 + 27.607589527614756d0*X))/(-1d0 + X)**3 &
+!      +(-138.8607743573032d0 + 184.52451857767127d0*X - 100.23304496672974d0*X**2 &
+!      +32.07840713113214d0*X**3)/(-1d0 + X)**3 &
+!      +(6.226625493462215d0 + lX*(59.335199839722506d0 - 42.01916318769151d0/X**2 - 27.831158601204876d0/X &
+!      -22.05354500931568d0*X) - 25.83252187109758d0/X - 4.533025146478245d0*X &
+!      +(0.7712919237997766d0*X)/lX + (lX**2*(-16.186641316593924d0 + 177.02234836509135d0*X &
+!      -111.05224763708378d0*X**2 + 21.725060882031794d0*X**3))/X**3)*XlX**3)
+
+      !(12.06.2019)
+      val=val+(alpha**3)*(&
+      (-7.01234688*lX**2)/(-1 + X)**2 - (0.7712919237997766*X**4)/(lX**4*(-1 + X)**3) &
+      + (lX*(-18.257793687614754 + 27.607589527614756*X))/(-1 + X)**3 &
+      + (4.533025146478245*X**2*(5.698737826585219 - 1.3736137109893911*X + X**2))/(lX**3*(-1 + X)**3) &
+      + (-138.86077435730317 + 184.5245185776713*X - 100.23304496672974*X**2 + 32.07840713113214*X**3)/(-1 + X)**3 &
+      + ((-16.186641316593928 + 198.62088100509132*X - 143.45004659708377*X**2 + 32.524327202031785*X**3)*XlX)/((-1 + X)**2*X) &
+      + ((42.01916318769152 + 6.232625961204816*X - 37.736667199722454*X**2 + 14.854034129315712*X**3)*XlX**2)/((-1 + X)*X))
     
     end if
     
     
-    else !!! nf =5 
+    else !!! --------------------------------------- nf =5 
     
     X=46d0/3d0*alpha*Log(mu*b*C0_inv_const)
     lX=Log(1d0-X)
@@ -804,30 +867,69 @@ implicit none
     end if
     if(orderZETA>=2) then
 	
-	!last check (30.09.2018)
+! 	!last check (30.09.2018) ?error?
+! 	val=val+(alpha**2)*(&
+! 	(-1.658913454425906d0*lX)/(X-1d0)&
+! 	+ (-1.4666874639336553d0 + (3.9789482118726536d0 - 0.8533472935130869d0*X)*X)/(X-1d0)**2&
+! 	+ (-1.147671467270234d0 + lX*(12.41758546925291d0 + (-7.983935707092223d0-5.6603301030017965d0*X)/X**2)&
+! 	  - 7.983935707092223d0/X - 0.7728481687522705d0*X + (0.4535332010815679d0*X)/lX)*XlX**2)
+	  
+	!(12.06.2019)
 	val=val+(alpha**2)*(&
-	(-1.658913454425906d0*lX)/(X-1d0)&
-	+ (-1.4666874639336553d0 + (3.9789482118726536d0 - 0.8533472935130869d0*X)*X)/(X-1d0)**2&
-	+ (-1.147671467270234d0 + lX*(12.41758546925291d0 + (-7.983935707092223d0-5.6603301030017965d0*X)/X**2)&
-	  - 7.983935707092223d0/X - 0.7728481687522705d0*X + (0.4535332010815679d0*X)/lX)*XlX**2)
+	(-1.658913454425906*lX)/(-1 + X) + (-1.4666874639336558 + 3.978948211872648*X - 0.8533472935130866*X**2)/(-1 + X)**2 &
+	+ ((7.983935707092219 + 5.660330103001812*X - 12.417585469252895*X**2)*XlX)/((-1 + X)*X) &
+	+ (-1.1476714672702268 - 7.983935707092221/X - 0.7728481687522828*X + (0.45353320108156825*X)/lX)*XlX**2)
 
     end if
     
      if(orderZETA>=3) then
-    !last check (30.09.2018)
-    val=val+(alpha**3)*(&
-     (-4.183346972030546d0*lX**2)/(-1d0 + X)**2 &
-     +(lX*(-11.460061760095265d0 + 17.03785772280266d0*X))/(-1d0 + X)**3 &
-     +(-153.02822534041636d0 + 201.76779077125593d0*X - 95.24211018739625d0*X**2 &
-     +31.949115180427246d0*X**3)/(-1d0 + X)**3 &
-     +(-1.9927299189294243d0 + lX*(89.24835213177958d0 - 62.621068210206815d0/X**2 - 45.88349889123617d0/X &
-     -30.731897310115087d0*X) - 29.775211836053224d0/X - 2.8822524110838543d0*X &
-     +(0.8457011449184908d0*X)/lX + (lX**2*(-32.845856374153605d0 + 200.62114361461371d0*X &
-     - 92.74911411722383d0*X**2 + 12.506166030132125d0*X**3))/X**3)*XlX**3)
+    !last check (30.09.2018) ?error?
+!     val=val+(alpha**3)*(&
+!      (-4.183346972030546d0*lX**2)/(-1d0 + X)**2 &
+!      +(lX*(-11.460061760095265d0 + 17.03785772280266d0*X))/(-1d0 + X)**3 &
+!      +(-153.02822534041636d0 + 201.76779077125593d0*X - 95.24211018739625d0*X**2 &
+!      +31.949115180427246d0*X**3)/(-1d0 + X)**3 &
+!      +(-1.9927299189294243d0 + lX*(89.24835213177958d0 - 62.621068210206815d0/X**2 - 45.88349889123617d0/X &
+!      -30.731897310115087d0*X) - 29.775211836053224d0/X - 2.8822524110838543d0*X &
+!      +(0.8457011449184908d0*X)/lX + (lX**2*(-32.845856374153605d0 + 200.62114361461371d0*X &
+!      - 92.74911411722383d0*X**2 + 12.506166030132125d0*X**3))/X**3)*XlX**3)
+    
+    	!(12.06.2019)
+	val=val+(alpha**3)*(&
+	(-4.183346972030546*lX**2)/(-1 + X)**2 - (0.8457011449184908*X**4)/(lX**4*(-1 + X)**3) &
+	+ (lX*(-11.460061760095265 + 17.03785772280266*X))/(-1 + X)**3 &
+	+ (2.8822524110838543*X**2*(10.330535841188325 + 0.6913793917792482*X + X**2))/(lX**3*(-1 + X)**3) &
+	+ (-153.02822534041638 + 201.76779077125593*X - 95.24211018739621*X**2 + 31.949115180427235*X**3)/(-1 + X)**3 &
+	+ ((-32.845856374153605 + 235.15441263635282*X - 144.5490176498325*X**2 + 29.772800541001683*X**3)*XlX)/((-1 + X)**2*X) &
+	+ ((62.621068210206815 + 11.350229869497092*X - 54.715083110040446*X**2 + 19.22080763620205*X**3)*XlX**2)/((-1 + X)*X))
     
     end if
-    
     end if
+   
+   !!!! in the gluon case we add difference
+   if(f==0) then
+    if(mu<mCHARM) then !nf=3
+    
+    !if(orderZETA>=1) val=val+alpha*() !!! +0
+    if(orderZETA>=2) val=val+alpha**2*13.508464061376284d0*XlX
+    if(orderZETA>=3) val=val+alpha**3*((-96.06018888089804*(lX**2 + &
+	    lX*(0.007931353012306063 + 0.49603432349384596*X)*X - 0.2839618810968089*X**2)*XlX**2)/X**2)
+    
+    else if(mu<mBOTTOM) then  !nf=4
+    if(orderZETA>=1) val=val+alpha/9d0
+    if(orderZETA>=2) val=val+alpha**2*14.981629982484977d0*XlX
+    if(orderZETA>=3) val=val+alpha**3*((-92.28684069210746*(lX**2 + &
+	    lX*(0.007445441655734091 + 0.4962772791721318*X)*X - 0.3018318973700538*X**2)*XlX**2)/X**2)
+    
+    else  !nf=5
+    if(orderZETA>=1) val=val+alpha*2d0/9d0
+    if(orderZETA>=2) val=val+alpha**2*16.20788232334676*XlX
+    if(orderZETA>=3) val=val+alpha**3*((-81.74410215253148*(lX**2 + &
+	    lX*(-0.08375968910657726 + 0.5418798445532871*X)*X - 0.3697240315847729*X**2)*XlX**2)/X**2)
+    end if
+   
+   end if
+
     
     if(ISNAN(val)) then
         write(*,*) 'ERROR: arTeMiDe.TMDR: zetaMuResum is NaN. At mu=',mu,'b=',b
@@ -837,11 +939,30 @@ implicit none
     end if
     
     zetaMUresum=mu**2*Exp(-val/alpha)
-!     write(*,*) 'alpha=',alpha
 
  end function zetaMUresum
 
+ !!!!!!!!!! exact value of zeta-line at given b,mu expanded over as
+ function zetaSL(mu,b,f)
+  real*8::zetaSL,b,mu
+  integer::f
+  real*8::dd,alpha,GD
+  
+  if(b<1d-6) b=1d-6
+  
+  alpha=As(mu)
+  dd=DNP(mu,b,f)
+  if(f==0) then
+    GD=valueOfGD_type4_G(dd,alpha,mu)
+  else
+    GD=valueOfGD_type4_Q(dd,alpha,mu)
+  end if
+  
+  !write(*,*) '..........',b,dd,alpha,GD
+  
+  zetaSL=mu**2*exp(-GD/dd)
  
+ end function zetaSL
 !-------------------- R-kernels   full----------------------------------
 
 !-----------------------Improved D picture------------------------------
@@ -1096,9 +1217,27 @@ implicit none
    end if
    
  end function integral3_S
-
-
+  
+  
+ !!! general interface for evolutions to zeta-line types 2,3,4
+ function TMDR_R_typeZ(b,muf,zetaf,mui,zetai,f)
+  real*8::TMDR_R_typeZ,b,muf,zetaf,mui,zetai
+  integer::f
+  
+  SELECT CASE(EvolutionType)
+    CASE(2)
+      TMDR_R_typeZ=TMDR_R_type2(b,muf,zetaf,mui,zetai,f)
+    CASE(3)
+      TMDR_R_typeZ=TMDR_Rzeta_type3(b,muf,zetaf,f)/TMDR_Rzeta_type3(b,mui,zetai,f)
+    CASE(4)
+      TMDR_R_typeZ=TMDR_R_type4(b,muf,zetaf,mui,zetai,f)
+    CASE DEFAULT
+      TMDR_R_typeZ=TMDR_R_type4(b,muf,zetaf,mui,zetai,f)
+    end SELECT
+ 
+ end function TMDR_R_typeZ
 !-------------------- R-kernels   to-zeta-line----------------------------------
+ 
 
 !-----------------------Improved D picture------------------------------
 !!! Evolution exponent in the improved D-picture to zeta-line
@@ -1138,13 +1277,28 @@ implicit none
     write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor is TOOO HUGE check the formula'
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP,'mui=',mui
     write(*,*) 'int=',IntegralG3(muf,mui,b,f),'t1=',DNP(muf,b,f)*Log(muf**2/zetaf),'t2=',DNP(mui,b,f)*Log(mui**2/zetaP)
-    write(*,*) 'Evaluation contirune with R=10^6'
+    write(*,*) 'Evaluation continue with R=10^6'
     TMDR_Rzeta_type2=1d6
   end if
 
  end function TMDR_Rzeta_type2
  
-!!! Evolution exponent in the improved gamma-picture to zeta-line
+ !!! general interface for evolutions to zeta-line for case of 3 give scales (zetaf,muf,mui)
+ function TMDR_Rzeta_typeZ3(b,muf,zetaf,mui,f)
+  real*8::TMDR_Rzeta_typeZ3,b,muf,zetaf,mui
+  integer::f
+ 
+  SELECT CASE(EvolutionType)
+    CASE(2)
+      TMDR_Rzeta_typeZ3=TMDR_Rzeta_type2(b,muf,zetaf,mui,f)
+    CASE(4)
+      TMDR_Rzeta_typeZ3=TMDR_Rzeta_type4(b,muf,zetaf,mui,f)
+    CASE DEFAULT
+      TMDR_Rzeta_typeZ3=TMDR_Rzeta_type4(b,muf,zetaf,mui,f)
+  END SELECT
+ end function TMDR_Rzeta_typeZ3
+ 
+!!! Evolution exponent in the improved gamma-picture to zeta-line (defined by zetaNP)
  function TMDR_Rzeta_type3(b,muf,zetaf,f)
   real*8::TMDR_Rzeta_type3,b,muf,zetaf,zetaP
   integer::f
@@ -1155,20 +1309,269 @@ implicit none
   
   TMDR_Rzeta_type3=EXP(-DNP(muf,b,f)*Log(zetaf/zetaP))
   
-  !write(*,*) 'TMDR_Rzeta_type2: number of AD calls ',counter
+  !write(*,*) 'HERE'
   
   if(TMDR_Rzeta_type3>1d6) then
     write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor is TOOO HUGE check the formula'
-    write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP
-    write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP
+    write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP    
     write(*,*) 'DNP=',DNP(muf,b,f), 'log(zeta/zetamu)=',Log(zetaf/zetaP)
-    write(*,*) 'Evaluation contirune with R=10^6'
+    write(*,*) 'NPparameters= (',NPparam,')'
+    write(*,*) 'Evaluation continue with R=10^6'
     TMDR_Rzeta_type3=1d6
     stop
   end if
 
  end function TMDR_Rzeta_type3
 
+ !!! Evolution exponent in the exact solution to zeta-line (defined by zetaNP)
+ function TMDR_Rzeta_type4(b,muf,zetaf,mui,f)
+  real*8::TMDR_Rzeta_type4,b,muf,zetaf,mui,zetai
+  integer::f
+  real*8::dd1,alpha1,GD1 !!! at point f
+  real*8::dd2,alpha2,GD2 !!! at point i
+  
+  if(b<1d-6) b=1d-6
+    
+  zetai=zetaNP(mui,b,f)
+  
+  alpha1=As(muf)
+  dd1=DNP(muf,b,f)  
+  alpha2=As(mui)
+  dd2=DNP(mui,b,f)  
+  
+  if(f==0) then
+    GD1=valueOfGD_type4_G(dd1,alpha1,muf)
+    GD2=valueOfGD_type4_G(dd2,alpha2,mui)  
+  else
+    GD1=valueOfGD_type4_Q(dd1,alpha1,muf)
+    GD2=valueOfGD_type4_Q(dd2,alpha2,mui)
+  end if
+  
+  !write(*,*) '----> ',dd1,dd2,GD1,GD2
+  if(b>10d0 .and. GD1<GD2) GD2=GD1
+  
+  
+  TMDR_Rzeta_type4=EXP(-dd1*Log(zetaf/muf**2)-GD1+dd2*Log(zetai/mui**2)+GD2)
+  
+  !write(*,*) b,muf,zetaf,mui,zetai,TMDR_Rzeta_type4
+  
+  if(TMDR_Rzeta_type4>1d6) then
+    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor T4 (TMD_Rzeta) is TOOO HUGE check the formula'
+    write(*,*) 'b=',b,'ln zetaf=',log(zetaf) ,'muf=',muf,'ln zetaSL(f)=',log(muf**2)-GD1/dd1
+    write(*,*) 'DNP(f)=',dd1, 'g*dd(f)=',GD1
+    write(*,*) 'b=',b,'ln zetai=',log(zetai),'mui=',mui,'ln zetaSL(i)=',log(mui**2)-GD2/dd2
+    write(*,*) 'DNP(i)=',dd2, 'g*dd(i)=',GD2
+    write(*,*) 'NPparameters= (',NPparam,')'
+    write(*,*) 'Evaluation continue with R=10^6'
+    TMDR_Rzeta_type4=1d6
+    stop
+  end if
+
+ end function TMDR_Rzeta_type4
+ 
+ !!! Evolution exponent in the exact solution from point to point
+ function TMDR_R_type4(b,muf,zetaf,mui,zetai,f)
+  real*8::TMDR_R_type4,b,muf,zetaf,mui,zetai
+  integer::f
+  real*8::dd1,alpha1,GD1 !!! at point f
+  real*8::dd2,alpha2,GD2 !!! at point i
+  
+  if(b<1d-6) b=1d-6
+  
+  alpha1=As(muf)
+  dd1=DNP(muf,b,f)  
+  
+  alpha2=As(mui)
+  dd2=DNP(mui,b,f)
+  
+  if(f==0) then
+    GD1=valueOfGD_type4_G(dd1,alpha1,muf)
+    GD2=valueOfGD_type4_G(dd2,alpha2,mui)
+  else
+    GD1=valueOfGD_type4_Q(dd1,alpha1,muf)
+    GD2=valueOfGD_type4_Q(dd2,alpha2,mui)
+  end if
+  
+  
+  TMDR_R_type4=EXP(-dd1*Log(zetaf/muf**2)-GD1+dd2*Log(zetai/mui**2)+GD2)
+  
+  !write(*,*) b,muf,zetaf,mui,zetai,TMDR_R_type4
+  
+  if(TMDR_R_type4>1d6) then
+    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor T4 (TMD_R) is TOOO HUGE check the formula'
+    write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf
+    write(*,*) 'DNP(f)=',dd1, 'g*dd(f)=',GD1
+    write(*,*) 'b=',b,'zetai=',zetai,'mui=',mui
+    write(*,*) 'DNP(i)=',dd2, 'g*dd(i)=',GD2
+    write(*,*) 'NPparameters= (',NPparam,')'
+    write(*,*) 'Evaluation continue with R=10^6'
+    TMDR_R_type4=1d6
+    stop
+  end if
+
+ end function TMDR_R_type4
+ 
+ 
+ ! expression for G*D, at given D,alpha, and mu
+ ! evaluated for type4 evolution for Quark
+ function valueOfGD_type4_Q(dd,alpha,mu)
+  real*8::valueOfGD_type4_Q,dd,alpha,mu
+  real*8::val,p,ee
+  
+  !!p=2 beta0 d /Gamma0
+  !!val=dd*g
+  
+    !---------Nf=3-------------
+  if(mu<mCHARM) then
+    p=27d0*dd/8d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*8d0/243d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.06647850165595162*(1d0-ee) - 0.510922946100396d0*p - 0.11705532693187014d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(-1.3616080333159475d0+ 1.7886575769140867d0/ee - 0.4270495435981395d0*ee + 0.21760590764719615d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(2.7269428180833457d0 - 9.811304303151902d0/ee**2 + 3.6118084990477106d0/ee &
+      + 3.472552986020849d0*ee + 7.770743143365355d0*p)
+    end if
+    !---------Nf=4-------------
+  else if(mu<mBOTTOM) then
+    p=25d0*dd/8d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*24d0/625d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.071396524331502d0*(1-ee) - 0.551396524331502d0*p - 0.118272d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(-2.3832241553760207d0 + 2.706938637790099d0/ee - 0.32371448241407974d0*ee - 0.02444429654871905d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(1.344164561788757d0 - 11.814572956005321d0/ee**2 + 5.032969018668324d0/ee &
+      + 5.4374393755482275d0*ee + 9.06362014286148d0*p)
+    end if
+   !---------Nf=5-------------
+   else
+    p=23d0*dd/8d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*24d0/529d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.08459864419594047d0*(1d0-ee) - 0.6063377746307231d0*p - 0.11440782444316594d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(-3.8090080018501724d0 + 3.9989494168802584d0/ee - 0.1899414150300844d0*ee - 0.5101521613682279d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(-0.07909327666015716d0 - 14.515461613202893d0/ee**2 + 7.456821446063274d0/ee &
+      + 7.137733443799741d0*ee + 10.43484998657383d0*p)
+    end if
+   end if
+   
+   valueOfGD_type4_Q=val/alpha
+ end function valueOfGD_type4_Q
+
+ ! expression for G*D, at given D,alpha, and mu
+ ! evaluated for type4 evolution for GLUON
+ function valueOfGD_type4_G(dd,alpha,mu)
+  real*8::valueOfGD_type4_G,dd,alpha,mu
+  real*8::val,p,ee
+  
+  !!p=2 beta0 d /Gamma0
+  !!val=dd*g
+  
+    !---------Nf=3-------------
+  if(mu<mCHARM) then
+    p=3d0*dd/2d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*2d0/27d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.14957662872589117d0*(1- ee) - 1.1495766287258913d0*p - 0.26337448559670784d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(5.94202463262331d0 - 4.9811631595274966d0/ee - 0.9608614730958139d0*ee + 0.48961329220619126d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(37.9017218781724d0 - 35.65658059748694d0/ee**2 - 10.058385499232372d0/ee &
+      + 7.81324421854691d0*ee + 17.484172072572047d0*p)
+    end if
+    !---------Nf=4-------------
+  else if(mu<mBOTTOM) then
+    p=25d0*dd/18d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*54d0/625d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.1606421797458795d0*(1-ee) - 1.1606421797458795d0*p - 0.266112d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(5.424519237793142d0 - 4.696161652361463d0/ee - 0.7283575854316795d0*ee - 0.05499966723461787d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(36.000271049515874d0 - 39.50300913206475d0/ee**2 - 8.731500512434682d0/ee &
+      + 12.234238594983513d0*ee + 20.393145321438325d0*p)
+    end if
+   !---------Nf=5-------------
+   else
+    p=23d0*dd/18d0
+    ee=Exp(-p)
+    val=(p-1d0+ee)*54d0/529d0
+    
+    if(orderZETA>=1) then
+      val=val+alpha*(0.19034694944086608d0*(1-ee) - 1.190346949440866d0*p - 0.25741760499712335d0*p**2)
+    end if
+    if(orderZETA>=2) then
+      val=val+alpha**2*(4.114161640195447d0 - 3.686793456377757d0/ee - 0.42736818381768993d0*ee - 1.1478423630785126d0*p)
+    end if
+    if(orderZETA>=3) then
+      val=val+alpha**3*(34.48806902386751d0 - 43.67322352127637d0/ee**2 - 6.874745751140516d0/ee &
+      + 16.059900248549415d0*ee + 23.47841246979112d0*p)
+    end if
+   end if
+   
+   valueOfGD_type4_G=val/alpha
+ end function valueOfGD_type4_G
+
+ 
+ 
+ !--------------------------------------------------------------------------------------------------------
+ !------------------------EVOLUTION TO SPECIAL LINE-------------------------------------------------------
+  !!! Evolution exponent in the exact solution to exact zeta-line
+ function TMDR_R_toSL(b,muf,zetaf,f)
+  real*8::TMDR_R_toSL,b,muf,zetaf
+  integer::f
+  real*8::dd,alpha,GD
+  
+  if(b<1d-6) b=1d-6
+  
+  alpha=As(muf)
+  dd=DNP(muf,b,f)
+  if(f==0) then
+    GD=valueOfGD_type4_G(dd,alpha,muf)
+  else
+    GD=valueOfGD_type4_Q(dd,alpha,muf)
+  end if
+  
+  TMDR_R_toSL=EXP(-dd*Log(zetaf/muf**2)-GD)
+  
+  
+  if(TMDR_R_toSL>1d6) then
+    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor N4 is TOOO HUGE check the formula'
+    write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf
+    write(*,*) 'DNP=',dd, 'g*dd=',GD
+    write(*,*) 'NPparameters= (',NPparam,')'
+    write(*,*) 'Evaluation continue with R=10^6'
+    TMDR_R_toSL=1d6
+    stop
+  end if
+
+ end function TMDR_R_toSL
+ 
+ 
  !! we search for the lowest avalible Q, under which the evolution is inverted (for quark)
   !! it is defined by Q^2<zeta_Q(b->infty)
   !! with variabtions it is Q^2<zeta_{c Q}(b->infty)
@@ -1266,6 +1669,6 @@ implicit none
   end if
  
  end function LowestQ
- 
+
 
 end module TMDR

@@ -9,6 +9,7 @@
 !	ver 1.4: release (AV, 23.12.2018)
 !	ver 1.41:release (AV, 23.12.2018)
 !	ver 2.00:release (AV, 29.03.2019)
+!	ver 2.01:release (AV, 08.06.2019)
 !
 !				A.Vladimirov (23.12.2018)
 !
@@ -18,13 +19,16 @@ module TMDs
   use TMDR
   use uTMDPDF
   use uTMDFF
+  use lpTMDPDF
   implicit none
 
   private
 !   public
  
  character (len=7),parameter :: moduleName="TMDs"
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.01"
+ !Last appropriate verion of constants-file
+  integer,parameter::inputver=3
  
 !------------------------------------------Physical and mathematical constants------------------------------------------
 !------------------------------------------Working variables------------------------------------------------------------
@@ -37,6 +41,7 @@ module TMDs
   integer::EvolutionType
   logical::include_uTMDPDF
   logical::include_uTMDFF
+  logical::include_lpTMDPDF
   
   
   !!!parameters for the uncertanty estimation
@@ -46,6 +51,7 @@ module TMDs
   public::TMDs_SetScaleVariations,TMDs_Initialize,TMDs_IsInitialized
   real*8,dimension(-5:5),public:: uTMDPDF_5,uTMDPDF_50
   real*8,dimension(-5:5),public:: uTMDFF_5,uTMDFF_50
+  real*8,dimension(-5:5),public:: lpTMDPDF_50
   
   public::uPDF_uPDF,uPDF_anti_uPDF
   
@@ -63,6 +69,10 @@ module TMDs
   
   interface uTMDFF_50
     module procedure uTMDFF_50_Ev,uTMDFF_50_optimal
+  end interface
+  
+  interface lpTMDPDF_50
+    module procedure lpTMDPDF_50_Ev,lpTMDPDF_50_optimal
   end interface
   
   contains 
@@ -94,6 +104,7 @@ module TMDs
     character(len=*),optional::prefix
     character(len=300)::path,line
     logical::initRequared
+    integer::FILEver
     
     if(started) return
     
@@ -108,6 +119,14 @@ module TMDs
     !!! Search for output level
     call MoveTO(51,'*0   ')
     call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEver
+    if(FILEver<inputver) then
+      write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '  '
+      stop
+    end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>2) write(*,*) '--------------------------------------------- '
@@ -133,6 +152,7 @@ module TMDs
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p2  ')
     read(51,*) EvolutionType
+    if(outputLevel>2) write(*,'(A,I3)') ' Evolution type =',EvolutionType
     
     !! uTMDPDF
     call MoveTO(51,'*4   ')
@@ -143,6 +163,11 @@ module TMDs
     call MoveTO(51,'*5   ')
     call MoveTO(51,'*p1  ')
     read(51,*) include_uTMDFF
+    
+    !! uTMDFF
+    call MoveTO(51,'*11   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_lpTMDPDF
     
     CLOSE (51, STATUS='KEEP')
     
@@ -179,6 +204,15 @@ module TMDs
 	call uTMDFF_Initialize(file,prefix)
       else
 	call uTMDFF_Initialize(file)
+      end if
+    end if
+    
+     if(include_lpTMDPDF .and. (.not.lpTMDPDF_IsInitialized())) then
+      if(outputLevel>1) write(*,*) '.. initializing lpTMDPDF (from ',moduleName,')'
+      if(present(prefix)) then
+	call lpTMDPDF_Initialize(file,prefix)
+      else
+	call lpTMDPDF_Initialize(file)
       end if
     end if
   
@@ -236,16 +270,18 @@ module TMDs
     real*8:: x,bt,muf,zetaf
     real*8:: mui,Rkernel
     integer::hadron
-    
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    END SELECT
     uTMDPDF_5_Ev=Rkernel*uTMDPDF_lowScale5(x,bT,hadron)
     
@@ -273,19 +309,25 @@ module TMDs
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-      mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
-      RkernelG=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),0)
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),0)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
-      RkernelG=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,0)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
       RkernelG=TMDR_Rzeta(bt,muf,zetaf,0)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bT,muf,zetaf,mui,1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
    END SELECT
-    uTMDPDF_50_Ev=Rkernel*uTMDPDF_lowScale50(x,bT,hadron)
-    uTMDPDF_50_Ev(0)=uTMDPDF_50_Ev(0)*RkernelG/Rkernel
+    !uTMDPDF_50_Ev=Rkernel*uTMDPDF_lowScale50(x,bT,hadron)
+    !uTMDPDF_50_Ev(0)=uTMDPDF_50_Ev(0)*RkernelG/Rkernel
+    uTMDPDF_50_Ev=uTMDPDF_lowScale50(x,bT,hadron)*&
+      (/Rkernel,Rkernel,Rkernel,Rkernel,Rkernel,RkernelG,Rkernel,Rkernel,Rkernel,Rkernel,Rkernel/)
     
     !!! forcefully set =0 below threshold
     if(muf<mBOTTOM) then
@@ -329,16 +371,18 @@ module TMDs
     real*8:: mui,Rkernel
     integer::hadron1,hadron2
     real*8,dimension(-5:5)::tmd1,tmd2,uPDF_uPDF
-    
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    END SELECT
    tmd1=uTMDPDF_lowScale5(x1,bT,hadron1)
    tmd2=uTMDPDF_lowScale5(x2,bT,hadron2)
@@ -367,13 +411,16 @@ module TMDs
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    END SELECT
    tmd1=uTMDPDF_lowScale5(x1,bT,hadron1)
    tmd2=uTMDPDF_lowScale5(x2,bT,hadron2)
@@ -404,13 +451,16 @@ module TMDs
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
    END SELECT
     uTMDFF_5_Ev=Rkernel*uTMDFF_lowScale5(x,bT,hadron)
     
@@ -438,19 +488,25 @@ module TMDs
     
    SELECT CASE(EvolutionType)
    CASE(1)!!!! improved D
-      mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),1)
-      RkernelG=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,c1_global*mu0(bt),0)
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),0)
    CASE(2)!!!! improved gamma
-       mui=mu_LOW(bt)
-      Rkernel=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,1)
-      RkernelG=TMDR_Rzeta(bt,muf,zetaf,c3_global*mui,0)
+       mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
    CASE(3)!!!! fixed mu
       Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
       RkernelG=TMDR_Rzeta(bt,muf,zetaf,0)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
    END SELECT
-    uTMDFF_50_Ev=Rkernel*uTMDFF_lowScale50(x,bT,hadron)
-    uTMDFF_50_Ev(0)=uTMDFF_50_Ev(0)*RkernelG/Rkernel
+    !uTMDFF_50_Ev=Rkernel*uTMDFF_lowScale50(x,bT,hadron)
+    !uTMDFF_50_Ev(0)=uTMDFF_50_Ev(0)*RkernelG/Rkernel
+    uTMDFF_50_Ev=uTMDFF_lowScale50(x,bT,hadron)*&
+      (/Rkernel,Rkernel,Rkernel,Rkernel,Rkernel,RkernelG,Rkernel,Rkernel,Rkernel,Rkernel,Rkernel/)
     
     !!! forcefully set =0 below threshold
     if(muf<mBOTTOM) then
@@ -483,5 +539,60 @@ module TMDs
     uTMDFF_50_optimal=uTMDFF_lowScale50(x,bT,hadron)
     
   end function uTMDFF_50_optimal
+  
+  
+  !!!!!!!!!!!!!!!!!!!lpTMDPDF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  
+  !!!!!!!! linearly polarized gluon TMDPDF
+  ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  ! all quark terms are zero!
+  function lpTMDPDF_50_Ev(x,bt,muf,zetaf,hadron)
+    real*8::lpTMDPDF_50_Ev(-5:5)
+    real*8:: x,bt,muf,zetaf
+    real*8:: mui,RkernelG   
+    integer::hadron
+    
+   SELECT CASE(EvolutionType)
+   CASE(1)!!!! improved D
+      mui=c3_global*mu_LOW(bt)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),0)
+   CASE(2)!!!! improved gamma
+      mui=c3_global*mu_LOW(bt)      
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
+   CASE(3)!!!! fixed mu
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,0)
+   CASE(4)!!!! exact solution via zeta-line
+      mui=c3_global*mu_LOW(bt)
+      RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
+   END SELECT
+    lpTMDPDF_50_Ev=RkernelG*lpTMDPDF_lowScale50(x,bT,hadron)
+    
+    !!! forcefully set=0 all quarks
+!     glTMDPDF_50_Ev(5)=0d0
+!     glTMDPDF_50_Ev(4)=0d0
+!     glTMDPDF_50_Ev(3)=0d0
+!     glTMDPDF_50_Ev(2)=0d0
+!     glTMDPDF_50_Ev(1)=0d0
+!     glTMDPDF_50_Ev(-1)=0d0
+!     glTMDPDF_50_Ev(-2)=0d0
+!     glTMDPDF_50_Ev(-3)=0d0
+!     glTMDPDF_50_Ev(-4)=0d0
+!     glTMDPDF_50_Ev(-5)=0d0
+    
+  end function lpTMDPDF_50_Ev
+  
+    !!!!!!!! linearly polarized gluon TMDPDF OPTIMAL
+  ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  ! all quark terms are zero!
+  function lpTMDPDF_50_optimal(x,bt,hadron)
+    real*8::lpTMDPDF_50_optimal(-5:5)
+    real*8:: x,bt
+    integer::hadron
+    
+    lpTMDPDF_50_optimal=lpTMDPDF_lowScale50(x,bT,hadron)
+    
+  end function lpTMDPDF_50_optimal
+  
+  
   
 end module TMDs
