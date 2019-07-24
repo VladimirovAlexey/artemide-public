@@ -1,0 +1,114 @@
+------------------------------------------------------------------------
+--------	Description of model-sets for artemide.		--------
+------------------------------------------------------------------------
+--
+-- 1) Order is chronological
+-- 2) In principle, models for older artemide versions could be incompatible.
+--	Check that all files requred by current version are included.
+--	Copy absent files from any modern model (it should not affect older files).
+-- 3) Inside of each model directory, there is a ``constants-file'' that is needed 
+--	to run this model. It contains references to parameters of artemide used to 
+--	build a model, references to used LHAPDF sets.
+-- 4) In case of problems, contact me (Aalexey Vladimirov, vladimirov.aleksey@gmail.com )
+--
+--
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+---------------------------------1--------------------------------------
+NAME:		1706.01473_Model1
+TMDs:		uTMDPDF (proton), DNP
+Date:		06.2017
+Reference: 	[1706.01473]
+Num.of replicas: --
+Comments: 	Old model. This was extracted by artemide 1.2(?). 
+		Does not run on modern versions of artemide.
+
+------------------------------------------------------------------------
+---------------------------------2--------------------------------------
+NAME:		BSV19.bFIT
+TMDs:		uTMDPDF (proton), DNP
+Date:		17.01.2019
+Reference: 	[1902.08474]
+Num.of replicas:300
+Comments: 	Extracted from full data set, BNP is fitted. 
+
+------------------------------------------------------------------------
+---------------------------------3--------------------------------------
+NAME:		BSV19.bFIT.noLHC
+TMDs:		uTMDPDF (proton), DNP
+Date:		17.01.2019
+Reference: 	[1902.08474]
+Num.of replicas:100
+Comments: 	Extracted from data set without LHC data, BNP is fitted. 
+
+------------------------------------------------------------------------
+---------------------------------4--------------------------------------
+NAME:		BSV19.bFIX
+TMDs:		uTMDPDF (proton), DNP
+Date:		20.02.2019
+Reference: 	[1902.08474]
+Num.of replicas:100
+Comments: 	Extracted from full data set, BNP=2.5 is fixed. 
+
+------------------------------------------------------------------------
+---------------------------------5--------------------------------------
+NAME:		BSV19.bFIX.noLHC
+TMDs:		uTMDPDF (proton), DNP
+Date:		20.02.2019
+Reference: 	[1902.08474]
+Num.of replicas:100
+Comments: 	Extracted from data set without LHC data, BNP=2.5 is fixed. 
+
+------------------------------------------------------------------------
+---------------------------------6--------------------------------------
+NAME:		Vpion19
+TMDs:		uTMDPDF (proton, h=1; pion^-, h=2), DNP
+Date:		11.07.2019
+Reference: 	[1907.????]
+Num.of replicas:100
+Comments: 	Proton uTMDPDF and DNP are from BSV19.HERA20PDF.
+
+------------------------------------------------------------------------
+---------------------------------7--------------------------------------
+NAME:		BSV19.HERA20PDF
+TMDs:		uTMDPDF (proton, h=1), DNP
+Date:		16.07.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:100
+Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
+		Zeta-line exactly match non-pertrubative one.
+		Uses HERA20PDF as input
+		
+------------------------------------------------------------------------
+---------------------------------8--------------------------------------
+NAME:		BSV19.NNPDF31
+TMDs:		uTMDPDF (proton, h=1), DNP
+Date:		18.07.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:100
+Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
+		Zeta-line exactly match non-pertrubative one.
+		Uses NNPDF3.1 as input
+
+------------------------------------------------------------------------
+---------------------------------9--------------------------------------
+NAME:		BSV19.CT14
+TMDs:		uTMDPDF (proton, h=1), DNP
+Date:		22.07.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:100
+Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
+		Zeta-line exactly match non-pertrubative one.
+		Uses CT14 as input
+
+------------------------------------------------------------------------
+---------------------------------10-------------------------------------
+NAME:		BSV19.MMHT14
+TMDs:		uTMDPDF (proton, h=1), DNP
+Date:		24.07.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:100
+Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
+		Zeta-line exactly match non-pertrubative one.
+		Uses MMHT14 as input
