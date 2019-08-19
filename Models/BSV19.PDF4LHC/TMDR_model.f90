@@ -83,9 +83,9 @@
  integer::rep
  real*8::ReplicaParameters(1:2)
  real,parameter,dimension(1:206)::replicas=(/ &
-  1.19266,  0.03655,& !!! mean
+  1.9266,  0.03655,& !!! mean
   2.3256,  0.0281,&  !!! best
-  1.19266,  0.03655,&!!! mean
+  1.9266,  0.03655,&!!! mean
   2.2206,    0.0257 ,&
   2.0664,    0.0306 ,&
   2.2733,    0.0265 ,&
