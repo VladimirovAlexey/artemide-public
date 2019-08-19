@@ -112,3 +112,14 @@ Num.of replicas:100
 Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
 		Zeta-line exactly match non-pertrubative one.
 		Uses MMHT14 as input
+
+------------------------------------------------------------------------
+---------------------------------11-------------------------------------
+NAME:		BSV19.PDF4LHC
+TMDs:		uTMDPDF (proton, h=1), DNP
+Date:		19.08.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:100
+Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
+		Zeta-line exactly match non-pertrubative one.
+		Uses PDF4LHC15 as input
