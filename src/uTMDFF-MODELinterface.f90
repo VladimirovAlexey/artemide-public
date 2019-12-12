@@ -13,11 +13,15 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
 module uTMDFF_model
+use IO_functions
 implicit none
 
 private
   character(50)::name='NONAME'
-  character (len=5),parameter :: version="v2.00"
+  character (len=5),parameter :: version="v2.02"
+  character (len=*),parameter :: moduleName="uTMDFF-model"
+  character(256)::replicaFILE
+  logical::usereplicaFILE=.false.
   
   integer::lengthNP
 

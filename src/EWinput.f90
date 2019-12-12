@@ -10,7 +10,7 @@
 
 
 module EWinput
-
+use IO_functions
 implicit none
 
 private
@@ -48,17 +48,6 @@ contains
   
   EWinput_IsInitialized=started 
  end function EWinput_IsInitialized
- 
-  !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
  
  subroutine EWinput_Initialize(file,prefix)
   character(len=*)::file

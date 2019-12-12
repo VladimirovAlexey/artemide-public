@@ -123,3 +123,13 @@ Num.of replicas:100
 Comments: 	Extracted from full data set [1902.08474], BNP is fitted.
 		Zeta-line exactly match non-pertrubative one.
 		Uses PDF4LHC15 as input
+
+------------------------------------------------------------------------
+---------------------------------12-------------------------------------
+NAME:		SV19
+TMDs:		uTMDPDF (proton, h=1), DNP, uTMDFF (pion h=1,kaon h=2)
+Date:		15.11.2019
+Reference: 	[1902.08474] + [19??.????]
+Num.of replicas:>=100
+Comments: 	Collections of extraction for SV19 fit of DY, SIDIS, DY+SIDIS
+		Incorporate models 7-11 from this list. Contains separate constants files, andreplicas.

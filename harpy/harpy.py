@@ -41,7 +41,7 @@ def setNPparameters_TMDR(l):
                 (integer)        = loads replica
                 (array)          = set array on NP parameters
     """
-    if isinstance(l,list):
+    if isinstance(l,list) or isinstance(l,numpy.ndarray):
         artemide.harpy.setlambda_tmdr(numpy.asfortranarray(l))
     else:
         artemide.harpy.setreplica_tmdr(int(l))
@@ -53,7 +53,7 @@ def setNPparameters_uTMDPDF(l):
                 (integer)        = loads replica
                 (array)          = set array on NP parameters
     """
-    if isinstance(l,list):
+    if isinstance(l,list) or isinstance(l,numpy.ndarray):
         artemide.harpy.setlambda_utmdpdf(numpy.asfortranarray(l))
     else:
         artemide.harpy.setreplica_utmdpdf(int(l))
@@ -66,7 +66,7 @@ def setNPparameters_uTMDFF(l):
                 (integer)        = loads replica
                 (array)          = set array on NP parameters
     """
-    if isinstance(l,list):
+    if isinstance(l,list) or isinstance(l,numpy.ndarray):
         artemide.harpy.setlambda_utmdff(numpy.asfortranarray(l))
     else:
         artemide.harpy.setreplica_utmdff(int(l))
@@ -396,11 +396,11 @@ class SIDIS:
                 x               = (x-Min,x-Max) boundaries of bin in x
                 Q               = (Q-Min,Q-Max) boundaries of bin in Q                
                 includeCuts     = True/False to include leptonic cuts
-                CutParameters   = (real,real,real) must be if includeCuts=True (see definition in artemide manual)
+                CutParameters   = (real,real,real,real) must be if includeCuts=True (see definition in artemide manual)
                 """
                 
                 if not includeCuts:
-                        cc=[0,0,0]
+                        cc=[0,0,0,100]
                 else:
                         cc=CutParameters
                 

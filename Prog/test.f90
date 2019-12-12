@@ -29,8 +29,8 @@ implicit none
   ! call SetCuts(.true.,20d0,-2.4d0,2.4d0)
   ! call TMDX_DY_XSetup(8000d0**2,91d0,0.01d0)
 !   call TMDX_DY_SetNPParameters(0)
-  call artemide_SetReplica_uTMDPDF(0)
-  call artemide_SetReplica_TMDR(0)
+  !call artemide_SetReplica_uTMDPDF(0)
+  !call artemide_SetReplica_TMDR(0)
  
   do j=1,3
   pt(j)=2*REAL(j)

@@ -13,13 +13,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
 module uTMDPDF_model
+use IO_functions
 implicit none
 
 private
   character(50)::name='NONAME'
-  character (len=5),parameter :: version="v2.00"
+  character (len=5),parameter :: version="v2.02"
+  character (len=*),parameter :: moduleName="uTMDPDF-model"
   
   integer::lengthNP
+  
 
 public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters,TestbSTAR,bSTAR
 

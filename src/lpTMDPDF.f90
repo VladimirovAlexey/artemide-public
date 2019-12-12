@@ -9,6 +9,7 @@
 !				A.Vladimirov (13.06.2016)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module lpTMDPDF
+use IO_functions
 use QCDinput
 use lpTMDPDF_model
 
@@ -19,7 +20,7 @@ implicit none
  
   !Current version of module
  character (len=8),parameter :: moduleName="lpTMDPDF"
- character (len=5),parameter :: version="v2.01" 
+ character (len=5),parameter :: version="v2.02" 
  !Last appropriate verion of constants-file
   integer,parameter::inputver=3
  
@@ -104,16 +105,6 @@ implicit none
   logical::lpTMDPDF_IsInitialized
   lpTMDPDF_IsInitialized=started
   end function lpTMDPDF_IsInitialized
- !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
 
    !! Initialization of the package
   subroutine lpTMDPDF_Initialize(file,prefix)
@@ -219,6 +210,12 @@ implicit none
     stop
     end if
     
+    allocate(lambdaNP(1:lambdaNPlength))
+    call MoveTO(51,'*p2  ')
+    do i=1,lambdaNPlength
+      read(51,*) lambdaNP(i)
+    end do
+    
     !-------------Numeric parameters
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
@@ -275,13 +272,7 @@ implicit none
     allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
     allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
     
-    
-    allocate(lambdaNP(1:lambdaNPlength))
     allocate(lambdaNP_grid(1:lambdaNPlength))
-    
-    do i=1,lambdaNPlength
-      lambdaNP(i)=1d0
-    end do
     
     c4_global=1d0
     

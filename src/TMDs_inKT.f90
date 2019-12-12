@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDs_inKT
+  use IO_functions
   use TMDs
   implicit none
   
@@ -78,17 +79,6 @@ contains
   logical::TMDs_inKT_IsInitialized
   TMDs_inKT_IsInitialized=started
  end function TMDs_inKT_IsInitialized
-
-!!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
 
    !! Initialization of the package
   subroutine TMDs_inKT_Initialize(file,prefix)

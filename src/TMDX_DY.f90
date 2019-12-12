@@ -13,7 +13,7 @@
 !	ver 2.01: Added Higgs xSec, piresum option, and coefficient function moved to separate file (AV, 17.06.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_DY
-
+use IO_functions
 use TMDF
 use LeptonCutsDY
 use QCDinput
@@ -24,7 +24,7 @@ implicit none
   
    !Current version of module
  character (len=7),parameter :: moduleName="TMDX-DY"
- character (len=5),parameter :: version="v2.01"
+ character (len=5),parameter :: version="v2.02"
  !Last appropriate verion of constants-file
   integer,parameter::inputver=6
   
@@ -120,23 +120,12 @@ contains
   TMDX_DY_IsInitialized=started
  end function TMDX_DY_IsInitialized
 
-!!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
-
    !! Initialization of the package
   subroutine TMDX_DY_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared,dummyLogical
+    logical::initRequared,dummyLogical,TMDPDFgrid
     character(len=8)::orderMain
     integer::i,FILEver
     !$ integer:: omp_get_thread_num
@@ -172,6 +161,7 @@ contains
     call MoveTO(51,'*p1  ')
     read(51,*) hc2
     
+    !!! go to section TMD-DY
     call MoveTO(51,'*9   ')
     call MoveTO(51,'*p1  ')
     read(51,*) initRequared
@@ -196,9 +186,11 @@ contains
       CASE ("NNLO")
 	orderH_global=2
       CASE ("NNLO+")
+	orderH_global=2
+      CASE ("NNNLO")
 	orderH_global=3
       CASE DEFAULT
-	if(outputLevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_DY:try to set unknown order. Switch to NLO.'
+	if(outputLevel>0) write(*,*)  WarningString('try to set unknown order. Switch to NLO.',moduleName)
 	orderH_global=1
      END SELECT
      if(outputLevel>2) write(*,*) '	artemide.TMDX_DY: the used order is ',trim(orderMain)
@@ -287,7 +279,7 @@ contains
     if(outputLevel>1) write(*,*) 'TMDX_DY: c2 scale reset:',c2_in
     
     if(c2_in<0.1d0 .or. c2_in>10.d0) then
-    if(outputLevel>0) write(*,*) 'TMDX_DY WARNING: variation in c2 is enourmous. c2 is set to 2'
+    if(outputLevel>0) write(*,*) WarningString('variation in c2 is enourmous. c2 is set to 2',moduleName)
      c2_global=2d0
     else
     c2_global=c2_in
@@ -546,7 +538,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-  !---------------------------------INTEGRATED------------------------------------------------------------------
+  !---------------------------------UNINTEGRATED------------------------------------------------------------------
   
   !!! this is help function which evaluate xSec at single qt (without lists) with only prefactor 2
   !!!! this is extended (and default) version of xSec, which include all parameters
@@ -558,13 +550,18 @@ contains
     real*8,dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
     GlobalCounter=GlobalCounter+1
-   
+    
+    if(TMDF_IsconvergenceLost()) then 
+      xSec=1d9
+      return
+    end if
+    
     x1=var(5)*var(7)
     x2=var(5)/var(7)
-   
+  
     FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))
-    xSec=PreFactor2(var,process,incCut,CutParam)*FF
     
+    xSec=PreFactor2(var,process,incCut,CutParam)*FF    
   end function xSec
   
   !---------------------------------INTEGRATED over Y---------------------------------------------------------------
@@ -588,8 +585,10 @@ contains
             end if
         end do
     end if
-    if(outputlevel>1) write(*,*) 'arTeMiDe_DY:WARNING! Fail to automatically determine number of Pt-section for a bin. &
-                                                Possibly Pt-bin is too large', dPT
+    if(outputlevel>1) then
+	write(*,*) WarningString('Fail to automatically determine number of Pt-section for a bin.',moduleName)
+	write(*,*) '  ... Possibly Pt-bin is too large', dPT
+    end if
     NumPT_auto=NumPTdefault+12
     
   end function NumPT_auto
@@ -610,7 +609,11 @@ contains
     real*8 :: ymin, ymax,ymin_in,ymax_in
     real*8 :: ymin_Check,ymax_Check
     integer,dimension(1:3),intent(in)::process
-  
+    
+    if(TMDF_IsconvergenceLost()) then 
+      Xsec_Yint=1d9
+      return
+    end if
     
     !!! evaluate correspnding y's
     !!! in the case process=2 the integral is over xF
@@ -737,6 +740,11 @@ contains
     real*8:: Xsec_Qint
     real*8:: Q_min,Q_max
     
+    if(TMDF_IsconvergenceLost()) then 
+      Xsec_Qint=1d9
+      return
+    end if
+    
     Xsec_Qint=integralOverQpoint_S(var,process,incCut,CutParam,Q_min,Q_max)
   end function Xsec_Qint
   
@@ -832,7 +840,12 @@ contains
    real*8 :: X1,X2,X3,X4,X5
    real*8 :: yMin_in,yMax_in,QMin_in,QMax_in
    real*8::valueMax,Q2,Q3,Q4,deltaQ
-    
+   
+    if(TMDF_IsconvergenceLost()) then 
+      Xsec_Qint_Yint=1d9
+      return
+    end if
+   
     deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
    Q3=QMin_in+deltaQ/2d0
@@ -906,6 +919,11 @@ contains
     real*8:: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
     integer :: Num
     
+    if(TMDF_IsconvergenceLost()) then 
+      Xsec_PTint_Qint_Yint=1d9
+      return
+    end if
+    
     if(qt_min<1d-3) then
       var=kinematicArray(1d-3,s_in,(Q_min+Q_max)/2d0,(ymin_in+ymax_in)/2d0)
     else
@@ -974,7 +992,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!INTERFACES TO CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
-  !---------------------------------INTEGRATED------------------------------------------------------------------
+  !---------------------------------UN-INTEGRATED------------------------------------------------------------------
   
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)

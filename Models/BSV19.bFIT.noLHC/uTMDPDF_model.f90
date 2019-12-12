@@ -1,14 +1,6 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !			Model for unpolarized TMD PDF  (without LHC data points)
 !
-!			corresponds to model 1
-!			FNP=Cosh((l1/l2-l1/2)b)/Cosh((l1/l2+l1/2)b)
-!			muOPE=C0/b+2
-!
-!			Model for unpolarized TMD evolution for BSV19.bFIT.noLHC [1902.08474]
-!
-!			corresponds to bb* model
-!
 !			Requres six NP parameters (initated by best values values)
 !			Uses NNPDF31_nnlo_as_0118 PDF set (replica 0)
 !				A.Vladimirov (15.01.2019)

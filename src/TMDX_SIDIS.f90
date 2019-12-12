@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.41
+!			arTeMiDe 2.02
 !
 !	Evaluation of the TMD cross-section for SIDIS-like cross-sections
 !	
@@ -7,9 +7,10 @@
 !
 !	ver 1.2: release (AV, 15.12.2017)
 !	ver 1.32: part of functions migrated to TMDF, rest updated (AV, 16.08.2018)
+!	ver 2.02:							(AV,16.08.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_SIDIS
-
+use IO_functions
 use TMDF
 use QCDinput
 use EWinput
@@ -19,9 +20,9 @@ implicit none
   
    !Current version of module
  character (len=10),parameter :: moduleName="TMDX-SIDIS"
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.02"
  !Last appropriate verion of constants-file
-  integer,parameter::inputver=1
+  integer,parameter::inputver=9
   
   
   logical::started=.false.
@@ -38,8 +39,8 @@ implicit none
   integer,dimension(1:3)::process_global
   !! cut prarameters
   logical::includeCuts_global
-  !! (yMin,yMax,W2)
-  real*8,dimension(1:3)::CutParameters_global
+  !! (yMin,yMax,Wmin,Wmax)
+  real*8,dimension(1:4)::CutParameters_global
     !!! Target mass of target (squared)
   real*8:: M2_target_global=0.939d0**2
   !!! Produced mass (squared)
@@ -48,10 +49,11 @@ implicit none
   !!other global parameters, which are defined upon initialization
   integer:: orderH_global
   !!inclusion of power corrections to the definition
-  !! corrQT ~ qT/Q
+  !! corrQT ~ qT/Q in cross-section
   !! corrM1 ~ M1/Q
   !! corrM2 ~ M2/Q
-  logical:: corrQT,corrM1,corrM2 !!!if true include
+  !! corrQTinX1Z1 ~ qT/Q in x1,z1
+  logical:: corrQT,corrM1,corrM2,corrQTinX1Z1 !!!if true include
   
   
   
@@ -64,9 +66,15 @@ implicit none
   integer::GlobalCounter
   integer::CallCounter
   
-  
-  
-  
+  !!!------------------------------Global Integration definitions-------------------
+  !-integration over Z
+  real*8 :: toleranceZ=0.0005d0
+  !!! SA = adaptive simpson, S5 = Simpson with 5-points
+  character(len=4)::methodZ='SA'
+  !-integration over X
+  real*8 :: toleranceX=0.0005d0
+  !!! SA = adaptive simpson, S5 = Simpson with 5-points
+  character(len=4)::methodX='SA'
   
   
   public::TMDX_SIDIS_setProcess,TMDX_SIDIS_ShowStatistic,TMDX_SIDIS_Initialize,&
@@ -75,11 +83,9 @@ implicit none
   public::CalcXsec_SIDIS,CalcXsec_SIDIS_Zint_Xint_Qint,CalcXsec_SIDIS_PTint_Zint_Xint_Qint,xSec_SIDIS,xSec_SIDIS_List,&
 	  xSec_SIDIS_List_forharpy
   
-  
   interface TMDX_SIDIS_setProcess
     module procedure TMDX_setProcess1,TMDX_setProcess3,TMDX_setProcess30
   end interface
-  
   
   interface CalcXsec_SIDIS
     module procedure CalcXsecLIST_SIDIS,CalcXsecSINGLE_SIDIS
@@ -101,18 +107,7 @@ contains
   TMDX_SIDIS_IsInitialized=started
  end function TMDX_SIDIS_IsInitialized
 
-!!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
-
-   !! Initialization of the package
+ !! Initialization of the package
   subroutine TMDX_SIDIS_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
@@ -153,7 +148,7 @@ contains
     call MoveTO(51,'*p1  ')
     read(51,*) hc2
     
-    call MoveTO(51,'*9   ')
+    call MoveTO(51,'*10   ')
     call MoveTO(51,'*p1  ')
     read(51,*) initRequared
     if(.not.initRequared) then
@@ -178,30 +173,54 @@ contains
 	orderH_global=2
       CASE ("NNLO+")
 	orderH_global=3
+      CASE ("NNNLO")
+	orderH_global=3
       CASE DEFAULT
-	if(outputLevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS:try to set unknown order. Switch to NLO.'
+	if(outputLevel>0) write(*,*) WarningString('try to set unknown order. Switch to NLO.',moduleName)
 	orderH_global=1
      END SELECT
      if(outputLevel>2) write(*,*) '	artemide.TMDX_SIDIS: the used order is ',trim(orderMain)
      
-     !! kineamtica corrections
+     !! qT correction in kinematics
      call MoveTO(51,'*p2   ')
      read(51,*) corrQT
      if(outputLevel>2 .and. corrQT) write(*,*) '	artemide.TMDX_SIDIS: qT/Q corrections in kinematics are included.'
-     !! kineamtica corrections
+     !! Target mass corrections
      call MoveTO(51,'*p3   ')
      read(51,*) corrM1
      if(outputLevel>2 .and. corrM1) write(*,*) '	artemide.TMDX_SIDIS: target mass corrections in kinematics are included.'
-     !! kineamtica corrections
+     !! produced mass corrections
      call MoveTO(51,'*p4   ')
      read(51,*) corrM2
      if(outputLevel>2 .and. corrM2) write(*,*) '	artemide.TMDX_SIDIS: product mass corrections in kinematics are included.'
+     !! qT correction in x1 z1
+     call MoveTO(51,'*p5   ')
+     read(51,*) corrQTinX1Z1
+     if(outputLevel>2 .and. corrQTinX1Z1) write(*,*) '	artemide.TMDX_SIDIS: qT/Q corrections in x1,z1 are included.'
      
      call MoveTO(51,'*B   ')
      call MoveTO(51,'*p1  ')
      read(51,*) tolerance
      call MoveTO(51,'*p2  ')
      read(51,*) NumPTdefault
+     call MoveTO(51,'*p3  ')
+     read(51,*) toleranceZ
+     call MoveTO(51,'*p4  ')
+     read(51,*) methodZ
+     if((.not.(methodZ=='SA'.or.methodZ=='S5')).and.outputLevel>0) then
+      write(*,*) ErrorString(' method for z-bin-integration is unknow: '//methodZ,moduleName)
+      write(*,*) color('switching to Adaptive-Simpson',c_red)
+      methodZ='SA'
+     end if
+     call MoveTO(51,'*p5  ')
+     read(51,*) toleranceX
+     call MoveTO(51,'*p6  ')
+     read(51,*) methodX
+     if((.not.(methodX=='SA'.or.methodX=='S5')).and.outputLevel>0) then
+      write(*,*) ErrorString(' method for x-bin-integration is unknow: '//methodX,moduleName)
+      write(*,*) color('switching to Adaptive-Simpson',c_red)
+      methodX='SA'
+     end if
      
 !$    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: parallel evaluation of cross-sections is to be used'
 !$    call MoveTO(51,'*C   ')
@@ -266,7 +285,7 @@ contains
     if(outputLevel>1) write(*,*) 'TMDX_SIDIS: scale variation constant c2 reset:',c2_in
     
     if(c2_in<0.1d0 .or. c2_in>10.d0) then
-    if(outputLevel>0) write(*,*) 'TMDX_SIDIS WARNING: variation in c2 is enourmous. c2 is set to 2'
+    if(outputLevel>0) write(*,*) WarningString('variation in c2 is enourmous. c2 is set to 2',moduleName)
      c2_global=2d0
     else
     c2_global=c2_in
@@ -303,7 +322,7 @@ contains
     integer,dimension(1:3)::processArrayFromInteger
     SELECT CASE(p)
       case default
-	write(*,*) 'ERROR: arTeMiDe_SIDIS: unknown process is called. p=',p
+	write(*,*) color('ERROR: arTeMiDe_SIDIS: unknown process is called. p=',c_red_bold),p
 	write(*,*) 'Evaluation stop'
 	stop
       end SELECT
@@ -318,7 +337,7 @@ contains
    real*8,optional::mTARGET,mPRODUCT
     
     if(.not.started) then
-    write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS is not initialized. Evaluation terminated'
+    write(*,*) ErrorString('module is not initialized. Evaluation terminated',moduleName)
     stop
     end if
     
@@ -349,8 +368,8 @@ contains
   ! 6 = y 	=Q^2/x(s-M^2)
   ! 7 = epsilon	= (1-y-gamma2 y^2/4)/(1-y+y^2/2+gamma2 y^2/4)
   ! 8 = gamma2	= (2 x M/Q)^2
-  ! 9=rho2	= (m/z/Q)^2
-  ! 10=rhoT2	= (m^2+pt^2)/(z Q)^2
+  ! 9=rho2*gamma2	= (m/z/Q)^2*gamma2
+  ! 10=rhoT2*gamma2	= (m^2+pt^2)/(z Q)^2*gamma2
   ! 11=sM2	= s-M^2
   ! 12=M2-target
   ! 13=M2-product
@@ -375,14 +394,14 @@ contains
   
   if(corrM2) then
     M2product=M2product_in
-    rho2=M2product/Q2/z**2
+    rho2=gamma2*M2product/Q2/z**2
   else
     M2product=0d0
     rho2=0d0
   end if
   
   if(corrQT) then
-    rhoPEPR2=rho2+(pT/z/Q)**2
+    rhoPEPR2=rho2+gamma2*(pT/z/Q)**2
   else
     rhoPEPR2=rho2
   end if
@@ -417,13 +436,17 @@ contains
   real*8,dimension(1:13),intent(in)::var
   real*8::fac1
   
-  qT=var(1)/var(5)*Sqrt((1d0+var(8))/(1d0-var(8)*var(9)))
+  qT=var(1)/var(5)*Sqrt((1d0+var(8))/(1d0-var(9)))
   
   !!fac1 appears in definition of x1, and z1
   if(corrM1 .and. var(8)>0) then
-    fac1=-2d0/var(8)*(1d0-sqrt(1d0+var(8)*(1d0-(qT/var(2))**2)))
+    if(corrQTinX1Z1) then
+      fac1=-2d0/var(8)*(1d0-sqrt(1d0+var(8)*(1d0-(qT/var(2))**2)))
+    else
+      fac1=-2d0/var(8)*(1d0-sqrt(1d0+var(8)))
+    end if
   else
-    if(corrQT) then
+    if(corrQTinX1Z1) then
       fac1=(1d0-(qT/var(2))**2)
     else
       fac1=1d0
@@ -432,20 +455,20 @@ contains
   
   x1=var(4)*fac1
   
-  if (corrQT) then
-      z1=var(5)*fac1*(1d0+sqrt(1d0-var(8)*var(9)))/(2d0*(1d0-(qT/var(2))**2))
+   if (corrQTinX1Z1) then
+      z1=var(5)*fac1*(1d0+sqrt(1d0-var(9)))/(2d0*(1d0-(qT/var(2))**2))
     else
-      z1=var(5)*fac1*(1d0+sqrt(1d0-var(8)*var(9)))*0.5d0
+      z1=var(5)*fac1*(1d0+sqrt(1d0-var(9)))*0.5d0
     end if
   end subroutine CalculateX1Z1qT
   
   !!!! update a given kinematic array with new value of x.
   subroutine SetX(x,var)
   real*8,dimension(1:13)::var
-  real*8::x
+  real*8::x,g2
   
 !   var=kinematicArray(var(1),var(11)+var(12),var(5),x,var(2),var(12),var(13))
-  
+  g2=var(8)!old gamma2
    var(4)=x
   !!!Q2 same
   !!!sM2 same
@@ -456,8 +479,14 @@ contains
   !!epsilon
   var(7)=(1d0-var(6)-var(6)**2*var(8)*0.25d0)/(1d0-var(6)+var(6)**2*(0.5d0+0.25d0*var(8)))
   
-  !!!rho same
-  !!!rho perp same
+  !! rescale rho'2 with new gamma
+  if(g2>0) then
+    var(9)=var(9)*var(8)/g2
+    var(10)=var(10)*var(8)/g2
+  else
+    var(9)=0d0
+    var(10)=0d0
+  end if
   
   !!!masses same
   end subroutine SetX
@@ -495,11 +524,11 @@ contains
   !!varepsilon same
   
   !!rho2 new
-  var(9)=var(13)/var(3)/z**2
+  var(9)=var(8)*var(13)/var(3)/z**2
   
   !!rhoPerp new
   if(corrQT) then
-    var(10)=var(9)+(var(1)/z/var(2))**2
+    var(10)=var(9)+var(8)*(var(1)/z/var(2))**2
   else
     var(10)=var(9)
   end if
@@ -521,7 +550,7 @@ contains
   
   !!!rho perp new
   if(corrQT) then
-    var(10)=var(9)+(var(1)/var(5)/var(2))**2
+    var(10)=var(9)+var(8)*(var(1)/var(5)/var(2))**2
   else
     var(10)=var(9)
   end if
@@ -532,6 +561,7 @@ contains
 
   !!! hard coefficeint taken from 1004.3653 up to 2-loop
   !!! it takes global values of Q,order
+  !!! NOTE it uses Nf=3(fixed)
   function HardCoefficientSIDIS(mu)
     real*8::HardCoefficientSIDIS,mu,alpha,LQ!=Log[Q^2/mu^2]=-2Log[c1]
     
@@ -545,6 +575,11 @@ contains
       HardCoefficientSIDIS=HardCoefficientSIDIS+alpha**2*&
       (-116.50054911601637d0 + 46.190372772820254d0*LQ + 16.843858371984233d0*LQ**2&
 	  -13.333333333333334d0*LQ**3 + 3.5555555555555554d0*LQ**4)
+    if(orderH_global>=3) then
+       HardCoefficientSIDIS=HardCoefficientSIDIS+alpha**3*&
+       (-4820.715927678687 + 2492.274201933993*LQ + 44.19495641116441*LQ**2 - 237.22228827339313*LQ**3 + &
+         43.33848430014775*LQ**4 + 7.111111111111111*LQ**5 -3.1604938271604937*LQ**6)
+    end if
     end if  
     end if
   end function HardCoefficientSIDIS
@@ -558,10 +593,10 @@ contains
   end function PreFactor1
   
     !!!!! Prefactor 2 is (universal part) x H
-  function PreFactor2(var,process)
+  function PreFactor2(var,process,x1,z1,qT)
     real*8,dimension(1:13),intent(in)::var
     integer,dimension(1:3),intent(in)::process
-    real*8::PreFactor2,uniPart,phasePart
+    real*8::PreFactor2,uniPart,phasePart,x1,z1,qT,fac1
     
    !!!! universal part
 
@@ -569,19 +604,34 @@ contains
     case(-10221191)
 	uniPart=1d0
     CASE(1)
-	!2 pi aEm^2/Q^4 y^2/(1-epsilon)*(1+varepsilon...)
+	!2 pi aEm^2/Q^4 y^2/(1-epsilon)*z1/z(1+varepsilon...)
 	! prefactor for unpolarized expression
-	uniPart=6.283185307179586d0*alphaEM(var(2))**2/(var(3)**2)*(var(6)**2/(1d0-var(7)))*&
-	    (1d0+(var(7)-0.5d0*var(8))*(var(10)-var(9))/(1-var(8)*var(9)))/sqrt(1+var(8)*var(10))*&	    
+	
+	!!! this is 1+qT^2/Q^2(e-gamma^2/2)/(1+gamma^2)
+	if(corrQT) then
+	  fac1=(1d0+(qT**2/var(3))*(var(7)-0.5d0*var(8))/(1+var(8)))/sqrt(1-var(10))
+	else
+	  fac1=1d0
+	end if
+	uniPart=6.283185307179586d0*alphaEM(var(2))**2/(var(3)**2)*(var(6)**2/(1d0-var(7)))*(z1/var(5))*&
+	    fac1*&
 	    HardCoefficientSIDIS(var(2))*&
 	    hc2*1d9!from GeV to mbarn
+
     CASE(2)
 	! prefactor for FUU,T
+	!!! this is 1+qT^2/Q^2(e-gamma^2/2)/(1+gamma^2)
+	if(corrQT) then
+	  fac1=(1d0+(qT**2/var(3))*(var(7)-0.5d0*var(8))/(1+var(8)))/sqrt(1-var(10))
+	else
+	  fac1=1d0
+	end if
 	uniPart=0.3183098861837907d0*var(4)/(1d0+0.5d0*var(8)/var(4))*&
-	    (1d0+(var(7)-0.5d0*var(8))*(var(10)-var(9))/(1-var(8)*var(9)))/sqrt(1+var(8)*var(10))*&
+	    fac1*&
 	    HardCoefficientSIDIS(var(2))
     CASE DEFAULT 
-      write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS: unknown process p2=',process(2),' .Evaluation stop.'
+      write(*,*) ErrorString(' unknown process p2=',moduleName),&
+	      process(2),color(' .Evaluation stop.',c_red_bold)
       stop
   END SELECT
   
@@ -604,169 +654,121 @@ contains
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! CUTS RELATED FUNCTIONS !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!The cuts are ymin<y<ymax, W^2>W2
-  subroutine TMDX_SIDIS_SetCuts(inc,yMin,yMax,W2)
+  !!The cuts are ymin<y<ymax,Wmin<W2<Wmax
+  subroutine TMDX_SIDIS_SetCuts(inc,yMin,yMax,Wmin,Wmax)
     logical::inc
-    real*8::yMin,yMax,W2
-    real*8::y0,y1,W0
+    real*8::yMin,yMax,Wmin,Wmax
+    real*8::y0,y1,W0,W1
     includeCuts_global=inc
     
+    if(.not.inc) return
+    
     if(yMin<0d0) then 
-       if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: yMin<0. Set to 0'
+       if(outputlevel>0) write(*,*) WarningString('SetCuts: yMin<0. Set to 0',moduleName)
 	y0=0d0
       else if(ymin>1d0) then
-	if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: yMin>1. Set to 1'
+	if(outputlevel>0) write(*,*) WarningString('SetCuts: yMin>1. Set to 1',moduleName)
 	y0=1d0
       else
 	y0=yMin
       end if
       if(yMax<0d0) then 
-       if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: yMax<0. Set to 0'
+       if(outputlevel>0) write(*,*) WarningString('SetCuts: yMax<0. Set to 0',moduleName)
 	y1=0d0
       else if(ymax>1d0) then
-	if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: yMax>1. Set to 1'
+	if(outputlevel>0) write(*,*)  WarningString('SetCuts: yMax>1. Set to 1',moduleName)
 	y1=1d0
       else
 	y1=yMax
     end if
     
-    if(W2>0) then
-      W0=W2
+    if(Wmin>0) then
+      W0=Wmin
     else
-      if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: W2<0. Set to 0'
+      if(outputlevel>0) write(*,*) WarningString('SetCuts: Wmin<0. Set to 0',moduleName)
       W0=0d0
+    end if
+    if(Wmax>0) then
+      W1=Wmax
+    else
+      if(outputlevel>0) write(*,*) WarningString('SetCuts: Wmax<0. Set to 0',moduleName)
+      W1=0d0
     end if
     
     if(y0<=y1) then
-      CutParameters_global=(/y0,y1,W0/)
+      if(W0<=W1) then
+	CutParameters_global=(/y0,y1,W0,W1/)
+      else
+	if(outputlevel>0) write(*,*) WarningString('SetCuts: WMin>WMax. Values exchanged',moduleName)
+	CutParameters_global=(/y0,y1,W1,W0/)
+      end if
     else
-      if(outputlevel>0) write(*,*) 'WARNING arTeMiDe.TMDX_SIDIS_SetCuts: yMin>yMax. Values exchanged'
-      CutParameters_global=(/y1,y0,W0/)
+      if(outputlevel>0) write(*,*) WarningString('SetCuts: yMin>yMax. Values exchanged',moduleName)
+      if(W0<=W1) then
+	CutParameters_global=(/y1,y0,W0,W1/)
+      else
+	if(outputlevel>0) write(*,*) WarningString('SetCuts: WMin>WMax. Values exchanged',moduleName)
+	CutParameters_global=(/y1,y0,W1,W0/)
+      end if
     end if
     
   end subroutine TMDX_SIDIS_SetCuts
   
   !!! checks the value of x against cut constaints from below and return the maximal allowed value
+  !!! argument xmin is xmin vs. which we compare cuts.
   function xMinWithCuts(xmin,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmin,x1,xMinWithCuts
-!   xMinWithCuts=xmin
-  x1=var(3)/cutParam(2)/var(11)
-   
-  if(x1>xmin) then
-    xMinWithCuts=x1
-  else
-    xMinWithCuts=xmin
-     
-  end if  
-  
-  
+    real*8,dimension(1:13),intent(in)::var
+    real*8,dimension(1:4),intent(in)::cutParam
+    real*8::xmin,x1,x2,xMinWithCuts
+    
+    x1=var(3)/cutParam(2)/var(11)
+    x2=var(3)/(var(3)+cutParam(4)-var(12))
+    
+    xMinWithCuts=max(xmin,x1,x2)
   end function xMinWithCuts
   
   !!! checks the value of x against cut constaints from above and return the minimal allowed value
+  !!! argument xmax is xmin vs. which we compare cuts.
   function xMaxWithCuts(xmax,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmax,x1,x2,xMaxWithCuts
-!   xMaxWithCuts=xmax
-  x1=var(3)/cutParam(1)/var(11)
-  x2=var(3)/(var(3)+cutParam(3)-var(12))
-  
-  if(xmax<x1) then
-    if(xmax<x2) then 
-      xMaxWithCuts=xmax
-    else
-      xMaxWithCuts=x2
-    end if
-  else
-    if(x1<x2) then
-      xMaxWithCuts=x1
-    else
-      xMaxWithCuts=x2
-    end if
-  end if  
+    real*8,dimension(1:13),intent(in)::var
+    real*8,dimension(1:4),intent(in)::cutParam
+    real*8::xmax,x1,x2,xMaxWithCuts
+    x1=var(3)/cutParam(1)/var(11)
+    x2=var(3)/(var(3)+cutParam(3)-var(12))
+    
+    xMaxWithCuts=min(xmax,x1,x2)
   end function xMaxWithCuts
   
-    !!! checks the value of Q against cut constaints from below and return the maximal allowed value
-  function QMaxWithCuts(xmax,Qmax,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmax,Qmax,Q1,QMaxWithCuts
-  
-  Q1=Sqrt(xmax*cutParam(2)*var(11))
-  
-  if(Qmax<Q1) then
-    QMaxWithCuts=Qmax
-  else
-    QMaxWithCuts=Q1
-  end if  
-  end function QMaxWithCuts
-  
-  !!! checks the value of x against cut constaints from above and return the minimal allowed value
+    !!! checks the value of x against cut constaints from above and return the minimal allowed value
+  !!! argument Qmin is Qmin vs. which we compare cuts.
+  !!! argument xmin is xmin vs. which we compare cuts.
   function QMinWithCuts(xmin,Qmin,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmin,Q1,Q2,Qmin,QMinWithCuts
-  
-  Q1=sqrt(xmin*cutParam(1)*var(11))
-  Q2=sqrt(xmin*(cutParam(3)-var(12))/(1d0-xmin))
-  
-  if(Qmin>Q1) then
-    if(Qmin>Q2) then 
-      QMinWithCuts=Qmin
-    else
-      QMinWithCuts=Q2
-    end if
-  else
-    if(Q1>Q2) then
-      QMinWithCuts=Q1
-    else
-      QMinWithCuts=Q2
-    end if
-  end if  
+    real*8,dimension(1:13),intent(in)::var
+    real*8,dimension(1:4),intent(in)::cutParam
+    real*8::xmin,Q1,Q2,Qmin,QMinWithCuts
+    
+    Q1=sqrt(xmin*cutParam(1)*var(11))
+    Q2=sqrt(xmin*(cutParam(3)-var(12))/(1d0-xmin))
+    
+    QMinWithCuts=max(Qmin,Q1,Q2)
   end function QMinWithCuts
   
-      !!! checks the value of Q2 against cut constaints from below and return the maximal allowed value
-  function Q2MaxWithCuts(xmax,Q2max,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmax,Q2max,Q1,Q2MaxWithCuts
+  !!! checks the value of Q against cut constaints from below and return the maximal allowed value
+  !!! argument Qmax is Qmax vs. which we compare cuts.
+  !!! argument xmax is xmax vs. which we compare cuts.
+  function QMaxWithCuts(xmax,Qmax,var,cutParam)
+    real*8,dimension(1:13),intent(in)::var
+    real*8,dimension(1:4),intent(in)::cutParam
+    real*8::xmax,Qmax,Q1,Q2,QMaxWithCuts
+    
+    Q1=Sqrt(xmax*cutParam(2)*var(11))
+    Q2=sqrt(xmax*(cutParam(4)-var(12))/(1d0-xmax))
+    
+    QMaxWithCuts=min(Qmax,Q1,Q2)
+  end function QMaxWithCuts
   
-  Q1=xmax*cutParam(2)*var(11)
-  
-  if(Q2max<Q1) then
-    Q2MaxWithCuts=Q2max
-  else
-    Q2MaxWithCuts=Q1
-  end if  
-  end function Q2MaxWithCuts
-  
-  !!! checks the value of Q2 against cut constaints from above and return the minimal allowed value
-  function Q2MinWithCuts(xmin,Q2min,var,cutParam)
-  real*8,dimension(1:13),intent(in)::var
-  real*8,dimension(1:3),intent(in)::cutParam
-  real*8::xmin,Q1,Q2,Q2min,Q2MinWithCuts
-  
-  Q1=xmin*cutParam(1)*var(11)
-  Q2=xmin*(cutParam(3)-var(12))/(1d0-xmin)
-  
-  if(Q2min>Q1) then
-    if(Q2min>Q2) then 
-      Q2MinWithCuts=Q2min
-    else
-      Q2MinWithCuts=Q2
-    end if
-  else
-    if(Q1>Q2) then
-      Q2MinWithCuts=Q1
-    else
-      Q2MinWithCuts=Q2
-    end if
-  end if  
-  end function Q2MinWithCuts
-  
-  
+
+
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -786,12 +788,9 @@ contains
     call CalculateX1Z1qT(x1,z1,qT,var)
    
     FF=TMDF_F(var(3),qT,x1,z1,var(2)*c2_global,var(3),var(3),process(3))
-    xSec=PreFactor2(var,process)*FF  
+    xSec=PreFactor2(var,process,x1,z1,qT)*FF  
     
-!     write(*,*) 'thread',OMP_get_thread_num(),'Q2,pT,x,z=',var(4),var(2),xx1,zz1,'>',xSec
-!     
-!     if(GlobalCounter>100) stop
-    
+    !write(7,*) var(3),x1,z1
   end function xSec
   
     
@@ -811,11 +810,11 @@ contains
     if(doZ) then
       
       if(zmax > 1d0) then
-	  if(outputlevel>1) write(*,*) 'WARNING: arTeMiDe.TMDX_SIDIS: upper limit of z-integration is >1. It is set to 1.'
+	  if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
 	  zmax=1d0
       end if
       if(zmin < 0.000001d0) then
-	  write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS: lower limit of z-integration is < 10^{-6}. Evaluation stop.'
+	  write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
 	  stop
       end if
       
@@ -828,11 +827,11 @@ contains
       ! no integration over Z
       
       if(zmax > 1d0) then
-	 if(outputlevel>1) write(*,*) 'WARNING: arTeMiDe.TMDX_SIDIS: upper limit of z-integration is >1. It is set to 1.'
+	 if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
 	  zmin=1d0
       end if
       if(zmin < 0.000001d0) then
-	  write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS: lower limit of z-integration is < 10^{-6}. Evaluation stop.'
+	  write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
 	  stop
       end if
       
@@ -874,8 +873,14 @@ contains
    !!approximate integral value
    valueMax=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   integralOverZpoint_S=IntegralOverZpoint_S_Rec(var,process,yMin_in,y3,X1,X2,X3,valueMax)+&
+   if(methodZ=='SA') then
+    integralOverZpoint_S=IntegralOverZpoint_S_Rec(var,process,yMin_in,y3,X1,X2,X3,valueMax)+&
 	  IntegralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMax)
+   else if(methodZ=='S5') then
+    integralOverZpoint_S=valueMax !!!! 5-point integration
+   else
+    write(*,*) ErrorString(' integralOverZpoint_S incorrect method. Check methodZ variable and initialization',moduleName)
+   end if
   end function integralOverZpoint_S
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
@@ -903,7 +908,7 @@ contains
    valueAB=deltay*(X1+4d0*X3+X5)/6d0
    valueACB=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
+   If(ABS((valueACB-valueAB)/valueMax)>toleranceZ) then
     interX=integralOverZpoint_S_Rec(var,process,yMin_in,y3,X1,X2,X3,valueMaxNew)&
 	  +integralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMaxNew)
    else
@@ -917,11 +922,11 @@ contains
   !!!
   !!! the variable doX check should the integration over x be performed
   !!! if doX=true, the integration is done
-  !!! if doX=facle the single value (at xMin) is returned
+  !!! if doX=false the single value (at xMin) is returned
   function Xsec_Zint_Xint(var,process,doZ,zMin,zMax,doX,Xmin_in,Xmax_in,doCut,Cuts)
     real*8,dimension(1:13),intent(in) :: var
     logical::doX,doZ,doCut
-    real*8,dimension(1:3),intent(in)::Cuts
+    real*8,dimension(1:4),intent(in)::Cuts
     real*8 :: Xsec_Zint_Xint
     real*8 :: xmin, xmax,xmin_in,xmax_in,zMin,zMax
     integer,dimension(1:3),intent(in)::process
@@ -930,7 +935,7 @@ contains
       !!!Integration is requared
       
       !!! in the case process=3 the input is y, which is to be transformed to X
-      !!! evaluate correspnding y's
+      !!! evaluate corresponding y's
       if(process(1)==3) then
 	xmin=XfromSYQ2(var(11),xmin_in,var(3))
 	xmax=XfromSYQ2(var(11),xmax_in,var(3))
@@ -940,11 +945,11 @@ contains
       end if
     
       if(xmax > 1d0) then
-	  if(outputlevel>1) write(*,*) 'WARNING: arTeMiDe.TMDX_SIDIS: upper limit of x-integration is >1. It is set to 1.'
+	  if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
 	  xmax=1d0
       end if
       if(xmin < 0.000001d0) then
-	  write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS: lower limit of x-integration is < 10^{-6}. Evaluation stop.'
+	  write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
 	  stop
       end if
       
@@ -970,11 +975,11 @@ contains
       end if
       
       if(xmin > 1d0) then
-	  if(outputlevel>1) write(*,*) 'WARNING: arTeMiDe.TMDX_SIDIS: upper limit of x-integration is >1. It is set to 1.'
+	  if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
 	  xmin=1d0
       end if
       if(xmin < 0.000001d0) then
-	  write(*,*) 'ERROR: arTeMiDe.TMDX_SIDIS: upper limit of x-integration is < 10^{-6}. Evaluation stop.'
+	  write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
 	  stop
       end if
       
@@ -1027,8 +1032,16 @@ contains
    !!approximate integral value
    valueMax=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   integralOverXpoint_S=IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,y3,X1,X2,X3,valueMax)+&
+   if(methodX=='SA') then
+    integralOverXpoint_S=IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,y3,X1,X2,X3,valueMax)+&
 	  IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMax)
+   else if(methodX=='S5') then
+    integralOverXpoint_S=valueMax !!!! 5-point integration
+   else
+    write(*,*) ErrorString(' integralOverXpoint_S incorrect method. Check methodX variable and initialization',moduleName)
+   end if
+   
+   
   end function integralOverXpoint_S
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
@@ -1058,7 +1071,7 @@ contains
    valueAB=deltay*(X1+4d0*X3+X5)/6d0
    valueACB=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
+   If(ABS((valueACB-valueAB)/valueMax)>toleranceX) then
     interX=integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,y3,X1,X2,X3,valueMaxNew)&
 	  +integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMaxNew)
    else
@@ -1076,7 +1089,7 @@ contains
   function Xsec_Zint_Xint_Qint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin_in,Qmax_in,doCut,Cuts)
     real*8,dimension(1:13),intent(in) :: var
     logical::doX,doQ,doCut,doZ
-    real*8,dimension(1:3),intent(in)::Cuts
+    real*8,dimension(1:4),intent(in)::Cuts
     real*8 :: Xsec_Zint_Xint_Qint
     real*8 :: Qmin, Qmax,Qmin_in,Qmax_in,xMin,xMax,zMin,zMax
     integer,dimension(1:3),intent(in)::process
@@ -1155,7 +1168,7 @@ contains
    real*8 :: yMin_in,yMax_in
    real*8::valueMax
    logical::doX,doCut,doZ
-   real*8,dimension(1:3),intent(in)::Cuts
+   real*8,dimension(1:4),intent(in)::Cuts
    real*8::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
@@ -1191,7 +1204,7 @@ contains
    real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
    real*8::valueMax,valueMaxNew,vv
    logical::doX,doCut,doZ
-   real*8,dimension(1:3),intent(in)::Cuts
+   real*8,dimension(1:4),intent(in)::Cuts
    real*8::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
@@ -1235,7 +1248,7 @@ contains
    real*8 :: yMin_in,yMax_in
    real*8::valueMax
    logical::doX,doCut,doZ
-   real*8,dimension(1:3),intent(in)::Cuts
+   real*8,dimension(1:4),intent(in)::Cuts
    real*8::xMin,xMax,zMin,zMax
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1270,7 +1283,7 @@ contains
    real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
    real*8::valueMax,valueMaxNew,vv
    logical::doX,doCut,doZ
-   real*8,dimension(1:3),intent(in)::Cuts
+   real*8,dimension(1:4),intent(in)::Cuts
    real*8::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
@@ -1320,8 +1333,10 @@ contains
             end if
         end do
     end if
-    if(outputlevel>1) write(*,*) 'arTeMiDe_SIDIS:WARNING! Fail to automatically determine number of Pt-section for a bin. &
-                                                Possibly Pt-bin is too large', dPT
+    if(outputlevel>1) then
+	write(*,*) WarningString('Fail to automatically determine number of Pt-section for a bin.',moduleName)
+	write(*,*) '>>  Possibly Pt-bin is too large', dPT
+    end if
     NumPT_auto=NumPTdefault+12
     
   end function NumPT_auto
@@ -1331,7 +1346,7 @@ contains
   !!! if doZ=facle the single value (at xMin) is returned
   function Xsec_Zint_Xint_Qint_PTint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,doPT,ptMin_in,ptMax_in,doCut,Cuts,Num)
     real*8,dimension(1:13),intent(in) :: var
-    real*8,dimension(1:3),intent(in) :: Cuts
+    real*8,dimension(1:4),intent(in) :: Cuts
     logical::doX,doQ,doZ,doPT,doCut
     real*8 :: Xsec_Zint_Xint_Qint_PTint
     real*8 :: Qmin,Qmax,xMin,xMax,zMin,zMax,ptMin,ptMax,pT_cur,deltaPT,inter,ptMax_in,ptMin_in
@@ -1350,7 +1365,7 @@ contains
     if(doPT) then
       
       if(mod(num,2)>0) then 
-	write(*,*) 'ERROR: arTeMiDe_SIDIS: number of Simpson sections is odd. Evaluation stop.'
+	write(*,*) ErrorString('number of Simpson sections is odd. Evaluation stop.',moduleName)
 	stop
       end if
       !!!!!!!!!!!!!!!!!!!fixed number Simpsons
@@ -1419,7 +1434,7 @@ contains
     length=size(pt_list)
     
     if(size(X_list)/=length) then
-      write(*,*) 'ERROR:  arTeMiDe_SIDIS: CalcXsecLIST_SIDIS: sizes of X_list and pt_list are not equal.'
+      write(*,*) ErrorString('CalcXsecLIST_SIDIS: sizes of X_list and pt_list are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1455,7 +1470,7 @@ contains
     length=size(pt_list)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!sizes checks
     if(size(X_list)/=length) then
-      write(*,*) 'ERROR:  arTeMiDe_SIDIS: CalcXsecLIST_SIDIS_Zint_Qint_Xint: sizes of X_list and pt_list are not equal.'
+      write(*,*) ErrorString('CalcXsecLIST_SIDIS_Zint_Qint_Xint: sizes of X_list and pt_list are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1504,12 +1519,13 @@ contains
     length=size(ptMin_list)
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!sizes checks
     if(size(X_list)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of X_list and ptMin_list are not equal.'
+      write(*,*) ErrorString('CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of X_list and ptMin_list are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(ptMax_list)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of ptMax_list and ptMin_list are not equal.'
+      write(*,*) ErrorString('CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of ptMax_list and ptMin_list are not equal.'&
+		,moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1533,7 +1549,7 @@ contains
     length=size(pt_list)-1
     !!!!!!!!!!!!!!!!!!!!!!!!!!!!sizes checks
     if(size(X_list)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of X_list and ptMin_list are not equal.'
+      write(*,*) ErrorString('CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of X_list and ptMin_list are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1562,7 +1578,7 @@ contains
     real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
     real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
     logical,intent(in)::doCut					!triger cuts
-    real*8,intent(in),dimension(1:3)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2)
     real*8,intent(in),dimension(1:2),optional::masses		!(mass_target,mass-product)GeV
     real*8,intent(out)::xx
     integer :: i,length
@@ -1605,72 +1621,72 @@ contains
     
     !!! cheking sizes
     if(size(xx)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of xSec and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of xSec and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(process,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of process and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of process and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(pT,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of pT and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of pT and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(x,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of x and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of x and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Q,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of Q and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of Q and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(z,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of z and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of z and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(doCut)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of doCut and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of doCut and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Cuts,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of Cuts and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of Cuts and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(process,2)/=3) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: process list must be (:,1:3).'
+      write(*,*) ErrorString('xSec_SIDIS_List: process list must be (:,1:3).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(pT,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: pt list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: pt list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(x,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: x list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: x list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Q,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: Q list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: Q list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(z,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: z list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: z list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
-    if(size(Cuts,2)/=3) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: cuts list must be (:,1:3).'
+    if(size(Cuts,2)/=4) then
+      write(*,*) ErrorString('xSec_SIDIS_List: cuts list must be (:,1:4).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1679,19 +1695,19 @@ contains
    if(PRESENT(masses)) then
    
    if(size(masses,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of masses and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of masses and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
         if(size(masses,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: mass list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: mass list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
    
    !$OMP PARALLEL DO DEFAULT(SHARED)
     do i=1,length
-    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:3),&
+    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
 		    masses(i,1)**2,masses(i,2)**2)
     end do
     !$OMP END PARALLEL DO
@@ -1700,7 +1716,7 @@ contains
     
     !$OMP PARALLEL DO DEFAULT(SHARED)
     do i=1,length
-    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:3),&
+    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
 		    M2_target_global,M2_product_global)
     end do
     !$OMP END PARALLEL DO
@@ -1729,72 +1745,72 @@ contains
     
     !!! cheking sizes
     if(size(xx)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of xSec and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of xSec and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(process,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of process and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of process and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(pT,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of pT and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of pT and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(x,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of x and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of x and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Q,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of Q and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of Q and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(z,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of z and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of z and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(doCut)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of doCut and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of doCut and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Cuts,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of Cuts and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of Cuts and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(process,2)/=3) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: process list must be (:,1:3).'
+      write(*,*) ErrorString('xSec_SIDIS_List: process list must be (:,1:3).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(pT,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: pt list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: pt list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(x,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: x list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: x list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(Q,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: Q list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: Q list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
     if(size(z,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: z list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: z list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
-    if(size(Cuts,2)/=3) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: cuts list must be (:,1:3).'
+    if(size(Cuts,2)/=4) then
+      write(*,*) ErrorString('xSec_SIDIS_List: cuts list must be (:,1:4).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1802,34 +1818,37 @@ contains
    CallCounter=CallCounter+length
    
    if(size(masses,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: sizes of masses and s lists are not equal.'
+      write(*,*) ErrorString('xSec_SIDIS_List: sizes of masses and s lists are not equal.',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
         if(size(masses,2)/=2) then
-      write(*,*) 'ERROR: arTeMiDe_SIDIS: xSec_SIDIS_List: mass list must be (:,1:2).'
+      write(*,*) ErrorString('xSec_SIDIS_List: mass list must be (:,1:2).',moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
    
    !$OMP PARALLEL DO DEFAULT(SHARED)
     do i=1,length
-    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:3),&
+    xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
 		    masses(i,1)**2,masses(i,2)**2)
     end do
     !$OMP END PARALLEL DO
-    
   end subroutine xSec_SIDIS_List_forharpy
   
   
   !!! helper to incapsulate PARALLEL variables
   function xSecFULL(proc,s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,doCut,Cuts,m1,m2)
-  real*8::s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,Cuts(1:3),xSecFULL,var(1:13),m1,m2
+  real*8::s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,Cuts(1:4),xSecFULL,var(1:13),m1,m2
   integer::proc(1:3),Num
   logical::doCut
   
   var=kinematicArray((ptmin+ptmax)/2d0,s,(zmin+zmax)/2d0,(xmin+xmax)/2d0,(Qmin+Qmax)/2d0,m1,m2)
   Num=NumPT_auto(real(ptmax-ptmin),real(var(2)))
+  
+!   write(*,*) 'aTMD:1  ',var
+!   write(*,*) 'aTMD:2  ',proc,m1,m2
+!   write(*,*) 'aTMD:3  ',.true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax
   
   xSecFULL=PreFactor1(proc(1))*Xsec_Zint_Xint_Qint_PTint(var,proc,&
 		    .true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax,doCut,Cuts,Num)

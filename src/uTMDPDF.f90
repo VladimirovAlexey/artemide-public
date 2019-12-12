@@ -11,6 +11,7 @@
 !				A.Vladimirov (19.04.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module uTMDPDF
+use IO_functions
 use QCDinput
 use uTMDPDF_model
 
@@ -20,7 +21,7 @@ implicit none
  private 
  
   !Current version of module
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.02"
  character (len=7),parameter :: moduleName="uTMDPDF"
  !Last appropriate verion of constants-file
   integer,parameter::inputver=1
@@ -107,18 +108,8 @@ implicit none
   logical::uTMDPDF_IsInitialized
   uTMDPDF_IsInitialized=started
   end function uTMDPDF_IsInitialized
- !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
 
-   !! Initialization of the package
+  !! Initialization of the package
   subroutine uTMDPDF_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
@@ -219,6 +210,12 @@ implicit none
 		    parameters should be >=1. Check the constants-file. Evaluation STOP'
     stop
     end if
+    allocate(lambdaNP(1:lambdaNPlength))
+    call MoveTO(51,'*p2  ')
+    do i=1,lambdaNPlength
+      read(51,*) lambdaNP(i)
+    end do
+    
     
     !-------------Numeric parameters
     call MoveTO(51,'*C   ')
@@ -273,12 +270,8 @@ implicit none
     allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
     
     
-    allocate(lambdaNP(1:lambdaNPlength))
-    allocate(lambdaNP_grid(1:lambdaNPlength))
     
-    do i=1,lambdaNPlength
-      lambdaNP(i)=1d0
-    end do
+    allocate(lambdaNP_grid(1:lambdaNPlength))
     
     c4_global=1d0
     

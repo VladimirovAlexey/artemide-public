@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDF
+  use IO_functions
   use TMDs
   use EWinput
   implicit none
@@ -56,17 +57,6 @@ module TMDF
   logical::TMDF_IsInitialized
   TMDF_IsInitialized=started
   end function TMDF_IsInitialized
-
-!!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
 
    !! Initialization of the package
   subroutine TMDF_Initialize(file,prefix)
@@ -167,7 +157,7 @@ module TMDF
   
   subroutine TMDF_convergenceISlost()  
   convergenceLost=.true.
-  if(outputLevel>1) write(*,*) 'arTeMiDe.TMDF: convergence triger set to be lost.'
+  if(outputLevel>1) write(*,*) WarningString('convergenceLOST trigger ON',moduleName)
   end subroutine TMDF_convergenceISlost
   
   subroutine TMDF_ShowStatistic()
@@ -241,11 +231,10 @@ module TMDF
   CallCounter=CallCounter+1
   integral=0d0
   
-  if(qT<0.0000001d0) then  
+  if(qT<0.0000001d0 .or. x1>=1d0 .or. x2>=1d0) then  
   integral=0d0
-  else
+  else if(TMDF_IsconvergenceLost()) then	
   !!!in the case of lost convergence we return huge number (divergent xSec)
-  if(TMDF_IsconvergenceLost()) then	
 	TMDF_F=1d10		
   else
   
@@ -284,7 +273,7 @@ module TMDF
 !     end if
   end do
   if(k>=Nmax) then	
-    if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDF: OGATA quadrature diverge. TMD decaing too slow? '
+    if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow? ',moduleName)
       if(outputlevel>1) then
       !write(*,*) 'Current set of NP parameters ------------'
       !write(*,*) currentNP
@@ -318,8 +307,8 @@ module TMDF
 !     end if
   end do
   if(k>=Nmax) then	
-    if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDF: OGATA quadrature diverge. TMD decaing too slow? '
-      if(outputlevel>1) then
+    if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow? ',moduleName)
+    if(outputlevel>1) then
       !write(*,*) 'Current set of NP parameters ------------'
       !write(*,*) currentNP
       write(*,*) 'Information over the last call ----------'
@@ -329,15 +318,15 @@ module TMDF
       write(*,*) '(x1,x2)=(',x1,',',x2,')'
       write(*,*) 'process =',process,' it is ',CallCounter,'call.'
       write(*,*) '------------------------------------------'
-      end if
+    end if
     call TMDF_convergenceISlost()
   end if
+  
   end if
   
   if(k>MaxCounter) MaxCounter=k-1
 !   write(*,*) 'Integral=',integral
   TMDF_F=integral/(qT**(n+2)) 
-  end if 
   end if
   !write(*,*) 'Last call: ',k
  end function TMDF_F
@@ -355,7 +344,7 @@ module TMDF
   Integrand=0d0
   return
  end if
- 
+  
  SELECT CASE(process)
   !!!test case
   CASE(0,10000,20000,30000)
@@ -775,7 +764,7 @@ module TMDF
   !----------------------------------------------------------------------------------
   !-------------------------SIDIS----------------------------------------------------
   !----------------------------------------------------------------------------------
-    CASE (2001:2009) !p->hN where n=last number
+  CASE (2001:2009) !p->hN where n=last number
 	! e_q^2 *F_q(A)*F_q(B)
 	h=process-2000
 	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
@@ -790,30 +779,185 @@ module TMDF
 	  +FA(-3)*FB(-3)/9.d0&
 	  +FA(-4)*FB(-4)*4d0/9.d0&
 	  +FA(-5)*FB(-5)/9d0
+  !--------------------------------------------------------------------------------  
+  CASE (2011:2019) !d->hN where n=last number (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_q(B)
+	h=process-2010
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,h)
+	Integrand=(FA(1)+FA(2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(3)*FB(3)/9.d0&
+	  +FA(4)*FB(4)*4d0/9.d0&
+	  +FA(5)*FB(5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(-3)*FB(-3)/9.d0&
+	  +FA(-4)*FB(-4)*4d0/9.d0&
+	  +FA(-5)*FB(-5)/9d0
+  !--------------------------------------------------------------------------------  
+  CASE (2021:2029) !p->bar-hN where n=last number
+	! e_q^2 *F_q(A)*F_bar-q(B)
+	h=process-2020
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,h)
+	Integrand=FA(1)*FB(-1)/9.d0&
+	  +FA(2)*FB(-2)*4.d0/9.d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +FA(-1)*FB(1)/9.d0&
+	  +FA(-2)*FB(2)*4.d0/9.d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
+!--------------------------------------------------------------------------------  
+  CASE (2031:2039) !d->bar-hN where n=last number (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_bar-q(B)
+	h=process-2030
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,h)
+	Integrand=(FA(1)+FA(2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
+!--------------------------------------------------------------------------------  
+!--------------------------------------------------------------------------------  
+   CASE (2101) !p->h? where h?=h1+h2
+	! e_q^2 *F_q(A)*F_q(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)
+	Integrand=FA(1)*FB(1)/9.d0&
+	  +FA(2)*FB(2)*4.d0/9.d0&
+	  +FA(3)*FB(3)/9.d0&
+	  +FA(4)*FB(4)*4d0/9.d0&
+	  +FA(5)*FB(5)/9d0&
+	  +FA(-1)*FB(-1)/9.d0&
+	  +FA(-2)*FB(-2)*4.d0/9.d0&
+	  +FA(-3)*FB(-3)/9.d0&
+	  +FA(-4)*FB(-4)*4d0/9.d0&
+	  +FA(-5)*FB(-5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2102) !p->h? where h?=h1+h2+h3
+	! e_q^2 *F_q(A)*F_q(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)+uTMDFF_5(x2,b,mu,zeta2,3)
+	Integrand=FA(1)*FB(1)/9.d0&
+	  +FA(2)*FB(2)*4.d0/9.d0&
+	  +FA(3)*FB(3)/9.d0&
+	  +FA(4)*FB(4)*4d0/9.d0&
+	  +FA(5)*FB(5)/9d0&
+	  +FA(-1)*FB(-1)/9.d0&
+	  +FA(-2)*FB(-2)*4.d0/9.d0&
+	  +FA(-3)*FB(-3)/9.d0&
+	  +FA(-4)*FB(-4)*4d0/9.d0&
+	  +FA(-5)*FB(-5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2103) !d->h? where h?=h1+h2 (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_q(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)
+	Integrand=(FA(1)+FA(2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(3)*FB(3)/9.d0&
+	  +FA(4)*FB(4)*4d0/9.d0&
+	  +FA(5)*FB(5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(-3)*FB(-3)/9.d0&
+	  +FA(-4)*FB(-4)*4d0/9.d0&
+	  +FA(-5)*FB(-5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2104) !d->h? where h?=h1+h2+h3 (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_q(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)+uTMDFF_5(x2,b,mu,zeta2,3)
+	Integrand=(FA(1)+FA(2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(3)*FB(3)/9.d0&
+	  +FA(4)*FB(4)*4d0/9.d0&
+	  +FA(5)*FB(5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(-3)*FB(-3)/9.d0&
+	  +FA(-4)*FB(-4)*4d0/9.d0&
+	  +FA(-5)*FB(-5)/9d0
+!------------------------------------------------------------------------------------
+  CASE (2111) !p->bar h? where h?=h1+h2
+	! e_q^2 *F_q(A)*F_bq(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)
+	Integrand=FA(1)*FB(-1)/9.d0&
+	  +FA(2)*FB(-2)*4.d0/9.d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +FA(-1)*FB(1)/9.d0&
+	  +FA(-2)*FB(2)*4.d0/9.d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2112) !p->bar h? where h?=h1+h2+h3
+	! e_q^2 *F_q(A)*F_bq(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)+uTMDFF_5(x2,b,mu,zeta2,3)
+	Integrand=FA(1)*FB(-1)/9.d0&
+	  +FA(2)*FB(-2)*4.d0/9.d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +FA(-1)*FB(1)/9.d0&
+	  +FA(-2)*FB(2)*4.d0/9.d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2113) !d->bar h? where h?=h1+h2 (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_bq(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)
+	Integrand=(FA(1)+FA(2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
+!--------------------------------------------------------------------------------  
+    CASE (2114) !d->bar h? where h?=h1+h2+h3 (d=deutron=(p+n)/2)
+	! e_q^2 *F_q(A)*F_bq(B)
+	FA=uTMDPDF_5(x1,b,mu,zeta1,1)
+	FB=uTMDFF_5(x2,b,mu,zeta2,1)+uTMDFF_5(x2,b,mu,zeta2,2)+uTMDFF_5(x2,b,mu,zeta2,3)
+	Integrand=(FA(1)+FA(2))*(FB(-1)+4d0*FB(-2))/18d0&
+	  +FA(3)*FB(-3)/9.d0&
+	  +FA(4)*FB(-4)*4d0/9.d0&
+	  +FA(5)*FB(-5)/9d0&
+	  +(FA(-1)+FA(-2))*(FB(1)+4d0*FB(2))/18d0&
+	  +FA(-3)*FB(3)/9.d0&
+	  +FA(-4)*FB(4)*4d0/9.d0&
+	  +FA(-5)*FB(5)/9d0
   CASE DEFAULT
-    write(*,*) 'ERROR:arTeMiDe.TMDF: undefined process: ',process
-    write(*,*) 'Evaluation stop'
+    write(*,*) ErrorString('undefined process: ',moduleName),process
+    write(*,*) color('Evaluation stop',c_red_bold)
     stop
  END SELECT
  
   if(ISNAN(Integrand)) then
-   write(*,*) 'arTeMiDe TMDF: CRITICAL ERROR. Integrand evaluated to NaN'
+   write(*,*) ErrorString('Integrand evaluated to NaN',moduleName)
    write(*,*) 'bT=',b, 'x1,x2=',x1,x2,' process=',process
    write(*,*) 'mu=',mu, 'Q2=',Q2
    !write(*,*) 'Current set of NP parameters ------------'
    !write(*,*) currentNP
-   write(*,*) 'arTeMiDe: ConvergenceLOST trigger ON'
    call TMDF_convergenceISlost()
    Integrand=1d10
    end if
   
    if(Integrand>1d32) then
-   write(*,*) 'arTeMiDe TMDF: CRITICAL ERROR. Integrand evaluated to >10^32'
+   write(*,*) ErrorString('Integrand evaluated to >10^32',moduleName)
    write(*,*) 'bT=',b, 'x1,x2=',x1,x2,' process=',process
    write(*,*) 'mu=',mu, 'Q2=',Q2
    !write(*,*) 'Current set of NP parameters ------------'
    !write(*,*) currentNP
-   write(*,*) 'arTeMiDe: convergenceLOST trigger ON'
    call TMDF_convergenceISlost()
    Integrand=1d10
    end if

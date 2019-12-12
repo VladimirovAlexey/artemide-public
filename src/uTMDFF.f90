@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module uTMDFF
+use IO_functions
 use QCDinput
 use uTMDFF_model
 implicit none
@@ -19,7 +20,7 @@ implicit none
 private
 
   !Current version of module
- character (len=5),parameter :: version="v2.00"
+ character (len=5),parameter :: version="v2.02"
  character (len=7),parameter :: moduleName="uTMDFF"
  !Last appropriate verion of constants-file
   integer,parameter::inputver=1
@@ -108,18 +109,7 @@ private
   uTMDFF_IsInitialized=started
   end function uTMDFF_IsInitialized
 
-!!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
-
-   !! Initialization of the package
+  !! Initialization of the package
   subroutine uTMDFF_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
@@ -221,6 +211,13 @@ private
     stop
     end if
     
+    allocate(lambdaNP(1:lambdaNPlength))
+    call MoveTO(51,'*p2  ')
+    do i=1,lambdaNPlength
+      read(51,*) lambdaNP(i)
+    end do
+    
+    
     !-------------Numeric parameters
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
@@ -274,13 +271,8 @@ private
     allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
     
     
-    allocate(lambdaNP(1:lambdaNPlength))
     allocate(lambdaNP_grid(1:lambdaNPlength))
-    
-    do i=1,lambdaNPlength
-      lambdaNP(i)=1d0
-    end do
-    
+
     c4_global=1d0
     
     call ModelInit(outputLevel,lambdaNPlength)
@@ -476,8 +468,6 @@ private
   end subroutine uTMDFF_CurrentNPparameters
   
   
-
-  !!! here we add x^2 since it is needed by FF convolution
   function xf(x,Q,hadron)
       real*8 :: x,Q
       integer:: hadron
@@ -971,12 +961,11 @@ private
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Functions for calculation of convolution!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!! We evaluate the integral II=\int_z^1 dy/y  C(y)/y^2 fNP(z,y) d(z/y)
-!!
-!! to make sure that its definition is close to PDF definition we change d(x)->dd(x)/ and evaluate
-!! II=1/z**3 \int_z^1 dy  C(y) fNP(z,y) dd(z/y)
-!! where  1/z \int_z^1 dy  C(y) fNP(z,y) dd(z/y) is calculated in the common code.
-!! so we define dd with extra facto x^2, and here devide by extra factor x^2.
+!! We evaluate the integral II=\int_z^1 dy/y  C(z/y) fNP(z,y) d(z)/z^2
+!! to make sure that its definition is close to PDF definition we change d(x)->xd(x)/x and evaluate
+!! II=1/z**3 \int_z^1 dy  C(y) fNP(z,y) xd(z/y)
+!! where  1/z \int_z^1 dy  C(y) fNP(z,y) xd(z/y) is calculated in the common code.
+!! so in the end I devide by extra factor z^2.
 
 !---------------------------------------------------------------------
 !- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu

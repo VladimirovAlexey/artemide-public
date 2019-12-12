@@ -8,19 +8,22 @@
 !				A.Vladimirov (27.05.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module aTMDe_Setup
-
+use IO_functions
 implicit none
 
 private
 
-character (len=5),parameter :: version="v2.01"
+character (len=5),parameter :: version="v2.02"
+character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
-integer,parameter::inputVer=6
+integer,parameter::inputVer=11
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
 integer::messageTrigger
 
+!! if .true. uses the given NP arrays to initialize from aTMDe_control
+logical::initialize_NParrays
 
 !-----------------------physic parameters
 logical::include_EWinput
@@ -51,6 +54,7 @@ logical::include_TMDR
 character*8::TMDR_order
 integer::TMDR_evolutionType,TMDR_lambdaLength
 real*8::TMDR_tolerance
+real*8,allocatable::TMDR_lambdaNP_init(:)
 
 !-------------------- uTMDPDF parameters
 logical::include_uTMDPDF
@@ -61,6 +65,7 @@ character*8::uTMDPDF_order
 logical::uTMDPDF_makeGrid,uTMDPDF_withGluon
 real*8::uTMDPDF_grid_bMax,uTMDPDF_grid_xMin,uTMDPDF_grid_slope
 integer::uTMDPDF_grid_SizeX,uTMDPDF_grid_SizeB
+real*8,allocatable::uTMDPDF_lambdaNP_init(:)
 
 !-------------------- uTMDFF parameters
 logical::include_uTMDFF
@@ -71,8 +76,9 @@ character*8::uTMDFF_order
 logical::uTMDFF_makeGrid,uTMDFF_withGluon
 real*8::uTMDFF_grid_bMax,uTMDFF_grid_xMin,uTMDFF_grid_slope
 integer::uTMDFF_grid_SizeX,uTMDFF_grid_SizeB
+real*8,allocatable::uTMDFF_lambdaNP_init(:)
 
-!-------------------- uTMDPDF parameters
+!-------------------- lpTMDPDF parameters
 logical::include_lpTMDPDF
 integer::lpTMDPDF_lambdaLength
 real*8::lpTMDPDF_tolerance
@@ -81,6 +87,7 @@ character*8::lpTMDPDF_order
 logical::lpTMDPDF_makeGrid,lpTMDPDF_withGluon
 real*8::lpTMDPDF_grid_bMax,lpTMDPDF_grid_xMin,lpTMDPDF_grid_slope
 integer::lpTMDPDF_grid_SizeX,lpTMDPDF_grid_SizeB
+real*8,allocatable::lpTMDPDF_lambdaNP_init(:)
 
 !-------------------- TMDs parameters
 logical::include_TMDs
@@ -106,12 +113,13 @@ logical::include_TMDX_SIDIS
 character*8::TMDX_SIDIS_order
 real*8::TMDX_SIDIS_tolerance
 integer::TMDX_SIDIS_ptSECTION
-logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr
+logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_qTinX1Z1corr
 integer::TMDX_SIDIS_numProc
-
+real*8::TMDX_SIDIS_toleranceZ,TMDX_SIDIS_toleranceX
+character(len=4)::TMDX_SIDIS_methodZ,TMDX_SIDIS_methodX
 
 !---------------------------------------------------
-public::artemide_Setup_Default,artemide_Setup_fromFile,artemide_include,CreateConstantsFile,ReadConstantsFile
+public::artemide_Setup_Default,artemide_Setup_fromFile,artemide_include,CreateConstantsFile,ReadConstantsFile,CheckConstantsFile
 public::Set_uPDF,Set_uFF,Set_lpPDF,Set_quarkMasses,Set_EWparameters
 public::Set_TMDR_order,Set_TMDR_evolutionType,Set_TMDR_lengthNParray
 public::Set_uTMDPDF,Set_uTMDPDF_order,Set_uTMDPDF_gridEvaluation,Set_uTMDPDF_lengthNParray
@@ -159,6 +167,8 @@ contains
     outputLevel=2
     messageTrigger=6
     
+    initialize_NParrays=.false.
+    
     include_EWinput=.true.
     !-----------------------physic parameters
     mCHARM=1.400d0	!threashold mass for charm quark
@@ -179,7 +189,7 @@ contains
     
     alphaQED_MZ=127.955d0	!inverse alpha_QED at Z-boson mass
     
-    sW2=0.23122d0	!sin^2 theta_Winberg
+    sW2=0.23122d0	!sin^2 theta_Weinberg
     
     !CKM matrix
     Vckm_UD=0.97420d0
@@ -240,6 +250,7 @@ contains
     TMDR_order=trim(order)
     TMDR_evolutionType=3 !1 = improved D solution ,2 = improved gamma solution, 3 = fixed mu
     TMDR_lambdaLength=2
+    call ReNewInitializationArray(TMDR_lambdaNP_init,TMDR_lambdaLength)! initialization values of parameters
     TMDR_tolerance=0.0001d0	!tolerance of searching for saddle point, numerical integration etc.
     
    !-------------------- parameters for UTMDPDF
@@ -248,20 +259,22 @@ contains
     uTMDPDF_makeGrid=.true.
     uTMDPDF_withGluon=.false.
     uTMDPDF_lambdaLength=2
+    call ReNewInitializationArray(uTMDPDF_lambdaNP_init,uTMDPDF_lambdaLength)! initialization values of parameters
     uTMDPDF_tolerance=0.0001d0	!tolerance (i.e. relative integration tolerance -- in convolution integrals)
     uTMDPDF_maxIteration=10000	!maxIteration for adaptive integration
     uTMDPDF_grid_xMin=0.00001d0
     uTMDPDF_grid_bMax=100d0
     uTMDPDF_grid_SizeX=250
     uTMDPDF_grid_SizeB=750
-    uTMDPDF_grid_slope=10d0
+    uTMDPDF_grid_slope=10d0    
     
     !-------------------- parameters for UTMDFF
     include_uTMDFF=.false.!!! we do not initialize TMDFF by definition
     uTMDFF_order=trim(order)
     uTMDFF_makeGrid=.true.
     uTMDFF_withGluon=.false.
-    uTMDFF_lambdaLength=0
+    uTMDFF_lambdaLength=1
+    call ReNewInitializationArray(uTMDFF_lambdaNP_init,uTMDFF_lambdaLength)! initialization values of parameters
     uTMDFF_tolerance=0.0001d0	!tolerance (i.e. relative integration tolerance -- in convolution integrals)
     uTMDFF_maxIteration=10000	!maxIteration for adaptive integration
     uTMDFF_grid_xMin=0.05d0
@@ -270,13 +283,13 @@ contains
     uTMDFF_grid_SizeB=400
     uTMDFF_grid_slope=10d0
     
-    
     !-------------------- parameters for lpTMDPDF
     include_lpTMDPDF=.false. !!! we do not initialize lpTMDPDF by definition
     lpTMDPDF_order=trim(order)
     lpTMDPDF_makeGrid=.true.
     lpTMDPDF_withGluon=.true.
-    lpTMDPDF_lambdaLength=2
+    lpTMDPDF_lambdaLength=1
+    call ReNewInitializationArray(lpTMDPDF_lambdaNP_init,lpTMDPDF_lambdaLength)! initialization values of parameters
     lpTMDPDF_tolerance=0.0001d0	!tolerance (i.e. relative integration tolerance -- in convolution integrals)
     lpTMDPDF_maxIteration=10000	!maxIteration for adaptive integration
     lpTMDPDF_grid_xMin=0.00001d0
@@ -307,7 +320,7 @@ contains
     TMDX_DY_piResum=.false.
     TMDX_DY_numProc=8
     
-    !------------------ parameters for TMDX-DY
+    !------------------ parameters for TMDX-SIDIS
     include_TMDX_SIDIS=.false.
     TMDX_SIDIS_tolerance=0.001d0	!tolerance (i.e. relative integration tolerance -- in kinematic integrals;)
     TMDX_SIDIS_ptSECTION=4		!default number of sections for pt-bin integration
@@ -315,10 +328,46 @@ contains
     TMDX_SIDIS_qTcorr=.true.
     TMDX_SIDIS_M1corr=.true.
     TMDX_SIDIS_M2corr=.true.
+    TMDX_SIDIS_qTinX1Z1corr=.true.
     TMDX_SIDIS_numProc=8
+    TMDX_SIDIS_toleranceZ=TMDX_SIDIS_tolerance
+    TMDX_SIDIS_methodZ='SA'		!SA=Simpson adaptive, S5=Simpson 5-point
+    TMDX_SIDIS_toleranceX=TMDX_SIDIS_tolerance
+    TMDX_SIDIS_methodX='SA'		!SA=Simpson adaptive, S5=Simpson 5-point
   
   end subroutine SetupDefault	
 
+  !!! theck the file for compatibility with the current version
+  !!! true= ver.FILE>=current version
+  !!! false= ver.FILE<current version
+  function CheckConstantsFile(file,prefix)
+    character(len=*)::file
+    character(len=*),optional::prefix
+    character(len=516)::path
+    logical::CheckConstantsFile
+    integer::FILEversion
+    
+    if(present(prefix)) then
+      path=trim(adjustl(prefix))//trim(adjustr(file))
+    else
+      path=trim(adjustr(file))
+    end if
+  
+    !!!read the version of the file
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    call MoveTO(51,'*0   ')
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) FILEversion
+    CLOSE (51, STATUS='KEEP') 
+        
+    if(FILEversion<inputVer) then
+      CheckConstantsFile=.false.
+    else
+      CheckConstantsFile=.true.
+    end if
+    
+  end function CheckConstantsFile
   !-------------------------------------------------------CHANGE INITILIZATION PARAMETERS-------------------------------------
   subroutine Set_outputLevel(level,numMessages)
   integer::level
@@ -631,7 +680,7 @@ contains
   integer::num
   
   if(num<=0 .or. num>4) then
-    write(*,"('artemide_setup: error in Set_TMDR_evolutionType, type must be =1,2,3,4 but not ',I3)") TMDR_evolutionType
+    write(*,"(A,I3)") WarningString('Set_TMDR_evolutionType, type must be =1,2,3,4 but not',moduleName), TMDR_evolutionType
     TMDR_evolutionType=4
   else
     TMDR_evolutionType=num
@@ -804,7 +853,7 @@ contains
   subroutine CreateConstantsFile(file,prefix)
   character(len=*)::file
   character(len=*),optional::prefix
-  character(len=300)::path
+  character(len=516)::path
   
   integer::values(1:8),i
   
@@ -842,6 +891,10 @@ contains
     write(51,"('*p1  : Unit transformation constant (hc)^2 [GeV->mbarn]')")
     write(51,*) hc2
     write(51,"(' ')")
+    write(51,"('*C   : ---- aTMDe-control parameters ----')")
+    write(51,"('*p1  : initialize the modules by NP arrays')")
+    write(51,*) initialize_NParrays
+    write(51,"(' ')")
     
     
     write(51,"(' ')")
@@ -863,39 +916,39 @@ contains
     write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_uPDFs
     write(51,"('*p2  : reference number for hadrons')")
-    write(51,*) enumeration_of_uPDFs
+    call writeShortIntegerList(51,enumeration_of_uPDFs)    
     write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uPDFs
       write(51,*) trim(sets_of_uPDFs(i))
     end do
     write(51,"('*p4  : list of initialization replicas')")
-    write(51,*) replicas_of_uPDFs
+    call writeShortIntegerList(51,replicas_of_uPDFs)
     
     write(51,"(' ')")
     write(51,"('*C   : ---- uFF sets----')")
     write(51,"('*p1  : total number of FFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_uFFs
     write(51,"('*p2  : reference number for hadrons')")
-    write(51,*) enumeration_of_uFFs
+    call writeShortIntegerList(51,enumeration_of_uFFs)
     write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uFFs
       write(51,*) trim(sets_of_uFFs(i))
     end do
     write(51,"('*p4  : list of initialization replicas')")
-    write(51,*) replicas_of_uFFs
+    call writeShortIntegerList(51,replicas_of_uFFs)
     
     write(51,"(' ')")
     write(51,"('*D   : ----lpPDF sets----')")
     write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_lpPDFs
     write(51,"('*p2  : reference number for hadrons')")
-    write(51,*) enumeration_of_lpPDFs
+    call writeShortIntegerList(51,enumeration_of_lpPDFs)
     write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_lpPDFs
       write(51,*) trim(sets_of_lpPDFs(i))
     end do
     write(51,"('*p4  : list of initialization replicas')")
-    write(51,*) replicas_of_lpPDFs
+    call writeShortIntegerList(51,replicas_of_lpPDFs)
     
     
     write(51,"(' ')")
@@ -950,6 +1003,11 @@ contains
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) TMDR_lambdaLength
+    write(51,"('*p2  : Initialization parameters (in column)')")
+    do i=1,TMDR_lambdaLength
+      write(51,*) TMDR_lambdaNP_init(i)
+    end do
+    write(51,*)
     write(51,"('*C   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
     write(51,*) TMDR_tolerance
@@ -969,10 +1027,14 @@ contains
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) uTMDPDF_lambdaLength
+    write(51,"('*p2  : Initialization parameters (in column)')")
+    do i=1,uTMDPDF_lambdaLength
+      write(51,*) uTMDPDF_lambdaNP_init(i)
+    end do
     write(51,"('*C   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
     write(51,*) uTMDPDF_tolerance
-    write(51,"('*p2  : Maximum number of iterations (for adaptive integration))')")
+    write(51,"('*p2  : Maximum number of iterations (for adaptive integration)')")
     write(51,*) uTMDPDF_maxIteration
     write(51,"('*D   : ---- Grid preparation options ----')")
     write(51,"('*p1  : Prepare grid')")
@@ -982,7 +1044,7 @@ contains
     write(51,"('*p3  : total number of PDFs added to the grid (by default it coincides with number of initialized PDFs)')")
     write(51,*) number_of_uPDFs
     write(51,"('*p4  : reference numbers for hadrons (by default it coincides with references for PDFs)')")
-    write(51,*) enumeration_of_uPDFs
+    call writeShortIntegerList(51,enumeration_of_uPDFs)
     write(51,"('*E   : ---- Parameters of grid ----')")
     write(51,"('*p1  : xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough)')")
     write(51,*) uTMDPDF_grid_xMin
@@ -1011,10 +1073,14 @@ contains
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) uTMDFF_lambdaLength
+    write(51,"('*p2  : Initialization parameters (in column)')")
+    do i=1,uTMDFF_lambdaLength
+      write(51,*) uTMDFF_lambdaNP_init(i)
+    end do
     write(51,"('*C   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
     write(51,*) uTMDFF_tolerance
-    write(51,"('*p2  : Maximum number of iterations (for adaptive integration))')")
+    write(51,"('*p2  : Maximum number of iterations (for adaptive integration)')")
     write(51,*) uTMDFF_maxIteration
     write(51,"('*D   : ---- Grid preparation options ----')")
     write(51,"('*p1  : Prepare grid')")
@@ -1024,7 +1090,7 @@ contains
     write(51,"('*p3  : total number of FFs added to the grid (by default it coincides with number of initialized FFs)')")
     write(51,*) number_of_uFFs
     write(51,"('*p4  : reference numbers for hadrons (by default it coincides with references for FFs)')")
-    write(51,*) enumeration_of_uFFs
+    call writeShortIntegerList(51,enumeration_of_uFFs)
     write(51,"('*E   : ---- Parameters of grid ----')")
     write(51,"('*p1  : xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough)')")
     write(51,*) uTMDFF_grid_xMin
@@ -1094,11 +1160,11 @@ contains
     write(51,"('*p3  : Use resummation of pi^2-corrections in hard coefficient')")
     write(51,*) TMDX_DY_piResum
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
-    write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration))')")
+    write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
     write(51,*) TMDX_DY_tolerance
     write(51,"('*p2  : Minimal number of sections for pt-integration')")
     write(51,*) TMDX_DY_ptSECTION
-    write(51,"('*C   : ---- Parameters for parrallel evaluation (used only if compiled with openMP) ----')")
+    write(51,"('*C   : ---- Parameters for parallel evaluation (used only if compiled with openMP) ----')")
     write(51,"('*p1  : Maximum number of processors to use')")
     write(51,*) TMDX_DY_numProc
     
@@ -1120,12 +1186,22 @@ contains
     write(51,*) TMDX_SIDIS_M1corr
     write(51,"('*p4  : Use product mass corrections in kinematics')")
     write(51,*) TMDX_SIDIS_M2corr
+    write(51,"('*p5  : Use transverse momentum corrections in x1 and z1')")
+    write(51,*) TMDX_SIDIS_qTinX1Z1corr
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
-    write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration))')")
+    write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
     write(51,*) TMDX_SIDIS_tolerance
     write(51,"('*p2  : Minimal number of sections for pt-integration')")
     write(51,*) TMDX_SIDIS_ptSECTION
-    write(51,"('*C   : ---- Parameters for parrallel evaluation (used only if compiled with openMP) ----')")
+    write(51,"('*p3  : Tolerance for Z-integration (relative tolerance for Z-bin-integration routines)')")
+    write(51,*) TMDX_SIDIS_toleranceZ
+    write(51,"('*p4  : Method for Z-bin integration (see manual)')")
+    write(51,*) TMDX_SIDIS_methodZ
+    write(51,"('*p5  : Tolerance for X-integration (relative tolerance for X-bin-integration routines)')")
+    write(51,*) TMDX_SIDIS_toleranceX
+    write(51,"('*p6  : Method for X-bin integration (see manual)')")
+    write(51,*) TMDX_SIDIS_methodX
+    write(51,"('*C   : ---- Parameters for parallel evaluation (used only if compiled with openMP) ----')")
     write(51,"('*p1  : Maximum number of processors to use')")
     write(51,*) TMDX_SIDIS_numProc
     
@@ -1145,10 +1221,14 @@ contains
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) lpTMDPDF_lambdaLength
+    write(51,"('*p2  : Initialization parameters (in column)')")
+    do i=1,lpTMDPDF_lambdaLength
+      write(51,*) lpTMDPDF_lambdaNP_init(i)
+    end do
     write(51,"('*C   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
     write(51,*) lpTMDPDF_tolerance
-    write(51,"('*p2  : Maximum number of iterations (for adaptive integration))')")
+    write(51,"('*p2  : Maximum number of iterations (for adaptive integration)')")
     write(51,*) lpTMDPDF_maxIteration
     write(51,"('*D   : ---- Grid preparation options ----')")
     write(51,"('*p1  : Prepare grid')")
@@ -1158,7 +1238,7 @@ contains
     write(51,"('*p3  : total number of PDFs added to the grid (by default it coincides with number of initialized PDFs)')")
     write(51,*) number_of_lpPDFs
     write(51,"('*p4  : reference numbers for hadrons (by default it coincides with references for PDFs)')")
-    write(51,*) enumeration_of_lpPDFs
+    call writeShortIntegerList(51,enumeration_of_lpPDFs)
     write(51,"('*E   : ---- Parameters of grid ----')")
     write(51,"('*p1  : xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough)')")
     write(51,*) lpTMDPDF_grid_xMin
@@ -1173,26 +1253,15 @@ contains
     
   CLOSE (51, STATUS='KEEP') 
     
-    if(outputLevel>1) write(*,*) 'aTMDe_setup: Constans file is written.'
+    if(outputLevel>1) write(*,*) 'aTMDe_setup: Constans file is made.'
   
   end subroutine CreateConstantsFile
   
- !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    !write(*,*) 'SEARCH FOR ====> ',pos
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
   
   subroutine ReadConstantsFile(file,prefix)
   character(len=*)::file
   character(len=*),optional::prefix
-  character(len=300)::path
+  character(len=516)::path
   !!!! this is version of input file. it is read first and then result is compared with the current ID
   !!!! It suppose to make compatibility betwen versions
   integer::FILEversion
@@ -1205,7 +1274,7 @@ contains
   else
     path=trim(adjustr(file))
   end if
-  if(outputLevel>1) write(*,*) '       path:',path
+  if(outputLevel>1) write(*,*) '       path:',trim(path)
   
   OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
     !# ----                           GLOBAL PARAMETERS                      -----
@@ -1219,7 +1288,7 @@ contains
       if(outputLevel>0) write(*,*) 'aTMDe_setup: UPDATE ARTEMIDE!'
       if(outputLevel>0) write(*,*) 'aTMDe_setup: Attempt to load...'
     else if(FILEversion<inputVer) then
-      if(outputLevel>0) write(*,*) 'aTMDe_setup: Version of input file older then the current version of code'
+      if(outputLevel>0) write(*,*) color('aTMDe_setup: Version of input file older then the current version of code',c_red_bold)
       if(outputLevel>0) write(*,*) 'aTMDe_setup: Attempt to load...'
     end if
     
@@ -1231,6 +1300,12 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) hc2
+    
+    if(FILEversion>=11) then
+      call MoveTO(51,'*C   ')
+      call MoveTO(51,'*p1  ')
+      read(51,*) initialize_NParrays
+    end if
     
     !# ----                           PARAMETERS OF QCDinput                 -----
     call MoveTO(51,'*1   ')
@@ -1358,6 +1433,13 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDR_lambdaLength
+    call ReNewInitializationArray(TMDR_lambdaNP_init,TMDR_lambdaLength)!!!!we need to redo (and reallocate) the initialization of the NP-array
+    if(FILEversion>=10) then
+      call MoveTO(51,'*p2  ')      
+      do i=1,TMDR_lambdaLength
+	read(51,*) TMDR_lambdaNP_init(i)
+      end do
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDR_tolerance
@@ -1373,6 +1455,13 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDPDF_lambdaLength
+    call ReNewInitializationArray(uTMDPDF_lambdaNP_init,uTMDPDF_lambdaLength)!!!!we need to redo (and reallocate) the initialization of the NP-array
+    if(FILEversion>=10) then
+      call MoveTO(51,'*p2  ')      
+      do i=1,uTMDPDF_lambdaLength
+	read(51,*) uTMDPDF_lambdaNP_init(i)
+      end do
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDPDF_tolerance
@@ -1414,6 +1503,13 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_lambdaLength
+    call ReNewInitializationArray(uTMDFF_lambdaNP_init,uTMDFF_lambdaLength)!!!!we need to redo (and reallocate) the initialization of the NP-array
+    if(FILEversion>=10) then
+      call MoveTO(51,'*p2  ')      
+      do i=1,uTMDFF_lambdaLength
+	read(51,*) uTMDFF_lambdaNP_init(i)
+      end do
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_tolerance
@@ -1507,11 +1603,27 @@ contains
     read(51,*) TMDX_SIDIS_M1corr
     call MoveTO(51,'*p4  ')
     read(51,*) TMDX_SIDIS_M2corr
+    if(FILEversion>=9) then
+      call MoveTO(51,'*p5  ')
+      read(51,*) TMDX_SIDIS_qTinX1Z1corr
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_SIDIS_tolerance
     call MoveTO(51,'*p2  ')
     read(51,*) TMDX_SIDIS_ptSECTION
+    if(FILEversion>=7) then
+      call MoveTO(51,'*p3  ')
+      read(51,*) TMDX_SIDIS_toleranceZ
+      call MoveTO(51,'*p4  ')
+      read(51,*) TMDX_SIDIS_methodZ
+    end if
+    if(FILEversion>=8) then
+      call MoveTO(51,'*p5  ')
+      read(51,*) TMDX_SIDIS_toleranceX
+      call MoveTO(51,'*p6  ')
+      read(51,*) TMDX_SIDIS_methodX
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_SIDIS_numProc
@@ -1527,6 +1639,13 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) lpTMDPDF_lambdaLength
+    call ReNewInitializationArray(lpTMDPDF_lambdaNP_init,lpTMDPDF_lambdaLength)!!!!we need to redo (and reallocate) the initialization of the NP-array
+    if(FILEversion>=10) then
+      call MoveTO(51,'*p2  ')      
+      do i=1,lpTMDPDF_lambdaLength
+	read(51,*) lpTMDPDF_lambdaNP_init(i)
+      end do
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) lpTMDPDF_tolerance
@@ -1563,9 +1682,21 @@ contains
     
   CLOSE (51, STATUS='KEEP') 
     
-    if(outputLevel>1) write(*,*) 'aTMDe_setup: constants-file readed loaded sucessfully.'
+    if(outputLevel>1) write(*,*) color('aTMDe_setup: constants-file loaded sucessfully.',c_green_bold)
   
   end subroutine ReadConstantsFile
   
-  
+  !--------------------------------------------------------------
+  !!!! this subtroutine kill re allocate the array, and sets its values as (2,0,0,0,...)
+  !!!! used for empty initialization arrays
+  subroutine ReNewInitializationArray(arr,n)
+    real*8,allocatable,intent(out)::arr(:)
+    integer::n,i
+    if(allocated(arr)) deallocate(arr)
+    allocate(arr(1:n))
+    arr(1)=2d0
+    do i=2,n
+	arr(i)=0d0
+    end do
+  end subroutine ReNewInitializationArray
 end module aTMDe_Setup

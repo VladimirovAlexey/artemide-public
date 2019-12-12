@@ -240,7 +240,7 @@ contains
     real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
     real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
     logical,intent(in)::doCut					!triger cuts
-    real*8,intent(in),dimension(1:3)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2min,W2max)
     real*8::SIDIS_xSec_Single
     
     call xSec_SIDIS(SIDIS_xSec_Single,process,s,pT,z,x,Q,doCut,Cuts)
@@ -255,7 +255,7 @@ contains
     real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
     real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
     logical,intent(in)::doCut					!triger cuts
-    real*8,intent(in),dimension(1:3)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2min,W2max)
     real*8,intent(in),dimension(1:2)::masses			!(mTARGET,mPRODUCT)
     real*8::SIDIS_xSec_Single_withMasses
     
@@ -272,7 +272,7 @@ contains
     real*8,intent(in),dimension(:,:)::x				!(xmin,xmax)
     real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
     logical,intent(in),dimension(:)::doCut			!triger cuts
-    real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
+    real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2min,W2max)
     real*8,intent(in),dimension(:,:)::masses			!(mTARGET,mPRODUCT)
     real*8,dimension(1:ListLength)::SIDIS_xSec_List
     

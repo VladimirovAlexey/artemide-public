@@ -15,6 +15,7 @@
 !				Added gluon evolution A.Vladimirov (12.06.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDR
+use IO_functions
 use QCDinput
 
 implicit none
@@ -23,11 +24,14 @@ implicit none
 !   public
  
  !Current version of module
- character (len=5),parameter :: version="v2.01"
+ character (len=5),parameter :: version="v2.02"
  character (len=7),parameter :: moduleName="TMDR"
  !Last appropriate verion of constants-file
   integer,parameter::inputver=2
- 
+
+  character(256)::replicaFILE
+  logical::usereplicaFILE=.false.
+  character(50)::name
 !------------------------------------------Physical and mathematical constants------------------------------------------
   
   INCLUDE 'Tables/NumConst.f90'
@@ -175,17 +179,7 @@ implicit none
   logical::TMDR_IsInitialized
   TMDR_IsInitialized=started
   end function TMDR_IsInitialized
-   
- !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
+
    
 !!! Initializing routing
 !!! Filles the prebuiled arrays
@@ -322,8 +316,9 @@ implicit none
     
     !!allocating number of NP input
     allocate(NPparam(1:NPlength))
+    call MoveTO(51,'*p2  ')
     do i=1,NPlength
-    NPparam(i)=0d0
+      read(51,*) NPparam(i)
     end do
     
     !--------------------------
@@ -346,7 +341,7 @@ implicit none
     end if
     
     if(outputLevel>2) write(*,*) 'Model initialization..'
-    call ModelInitialization()
+    call ModelInitialization(NPparam)
     
     started=.true.
     counter=0
@@ -1140,7 +1135,7 @@ implicit none
   !write(*,*) 'TMDR_R_type2: number of AD calls ',counter
   
   if(TMDR_R_type2>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor (type2-1) is TOO HUGE check the formula',moduleName)
     write(*,*) 'NP parameters =', NPparam
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetai=',zetai,'mui=',mui
     write(*,*) 'int=',IntegralG3(muf,mui,b,f),'t1=',DNP(muf,b,f)*Log(muf**2/zetaf),'t2=',DNP(mui,b,f)*Log(mui**2/zetai)
@@ -1274,7 +1269,7 @@ implicit none
   !write(*,*) 'TMDR_Rzeta_type2: number of AD calls ',counter
   
   if(TMDR_Rzeta_type2>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor (type2-2) is TOO HUGE check the formula',moduleName)
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP,'mui=',mui
     write(*,*) 'int=',IntegralG3(muf,mui,b,f),'t1=',DNP(muf,b,f)*Log(muf**2/zetaf),'t2=',DNP(mui,b,f)*Log(mui**2/zetaP)
     write(*,*) 'Evaluation continue with R=10^6'
@@ -1312,7 +1307,7 @@ implicit none
   !write(*,*) 'HERE'
   
   if(TMDR_Rzeta_type3>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor(type3) is TOO HUGE check the formula',moduleName)
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf,'zetaP=',zetaP    
     write(*,*) 'DNP=',DNP(muf,b,f), 'log(zeta/zetamu)=',Log(zetaf/zetaP)
     write(*,*) 'NPparameters= (',NPparam,')'
@@ -1330,7 +1325,7 @@ implicit none
   real*8::dd1,alpha1,GD1 !!! at point f
   real*8::dd2,alpha2,GD2 !!! at point i
   
-  if(b<1d-6) b=1d-6
+  if(b<1d-6) b=1d-6  
     
   zetai=zetaNP(mui,b,f)
   
@@ -1356,7 +1351,7 @@ implicit none
   !write(*,*) b,muf,zetaf,mui,zetai,TMDR_Rzeta_type4
   
   if(TMDR_Rzeta_type4>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor T4 (TMD_Rzeta) is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor T4 (TMD_Rzeta) is TOO HUGE check the formula',moduleName)
     write(*,*) 'b=',b,'ln zetaf=',log(zetaf) ,'muf=',muf,'ln zetaSL(f)=',log(muf**2)-GD1/dd1
     write(*,*) 'DNP(f)=',dd1, 'g*dd(f)=',GD1
     write(*,*) 'b=',b,'ln zetai=',log(zetai),'mui=',mui,'ln zetaSL(i)=',log(mui**2)-GD2/dd2
@@ -1398,7 +1393,7 @@ implicit none
   !write(*,*) b,muf,zetaf,mui,zetai,TMDR_R_type4
   
   if(TMDR_R_type4>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor T4 (TMD_R) is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor T4 (TMD_R) is TOO HUGE check the formula',moduleName)
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf
     write(*,*) 'DNP(f)=',dd1, 'g*dd(f)=',GD1
     write(*,*) 'b=',b,'zetai=',zetai,'mui=',mui
@@ -1421,6 +1416,10 @@ implicit none
   !!p=2 beta0 d /Gamma0
   !!val=dd*g
   
+  !!!!
+  !!!! At NNNLO I use NNLO solution. The reason is the negative values of constants at large-d. It is unphysical
+  !!!! To be solved...
+  !!!!
     !---------Nf=3-------------
   if(mu<mCHARM) then
     p=27d0*dd/8d0
@@ -1433,10 +1432,10 @@ implicit none
     if(orderZETA>=2) then
       val=val+alpha**2*(-1.3616080333159475d0+ 1.7886575769140867d0/ee - 0.4270495435981395d0*ee + 0.21760590764719615d0*p)
     end if
-    if(orderZETA>=3) then
-      val=val+alpha**3*(2.7269428180833457d0 - 9.811304303151902d0/ee**2 + 3.6118084990477106d0/ee &
-      + 3.472552986020849d0*ee + 7.770743143365355d0*p)
-    end if
+!     if(orderZETA>=3) then
+!       val=val+alpha**3*(2.7269428180833457d0 -9.811304303151902d0/ee**2 + 3.6118084990477106d0/ee &
+!       + 3.472552986020849d0*ee + 7.770743143365355d0*p)
+!     end if
     !---------Nf=4-------------
   else if(mu<mBOTTOM) then
     p=25d0*dd/8d0
@@ -1449,10 +1448,10 @@ implicit none
     if(orderZETA>=2) then
       val=val+alpha**2*(-2.3832241553760207d0 + 2.706938637790099d0/ee - 0.32371448241407974d0*ee - 0.02444429654871905d0*p)
     end if
-    if(orderZETA>=3) then
-      val=val+alpha**3*(1.344164561788757d0 - 11.814572956005321d0/ee**2 + 5.032969018668324d0/ee &
-      + 5.4374393755482275d0*ee + 9.06362014286148d0*p)
-    end if
+!     if(orderZETA>=3) then
+!       val=val+alpha**3*(1.344164561788757d0 - 11.814572956005321d0/ee**2 + 5.032969018668324d0/ee &
+!       + 5.4374393755482275d0*ee + 9.06362014286148d0*p)
+!     end if
    !---------Nf=5-------------
    else
     p=23d0*dd/8d0
@@ -1465,10 +1464,10 @@ implicit none
     if(orderZETA>=2) then
       val=val+alpha**2*(-3.8090080018501724d0 + 3.9989494168802584d0/ee - 0.1899414150300844d0*ee - 0.5101521613682279d0*p)
     end if
-    if(orderZETA>=3) then
-      val=val+alpha**3*(-0.07909327666015716d0 - 14.515461613202893d0/ee**2 + 7.456821446063274d0/ee &
-      + 7.137733443799741d0*ee + 10.43484998657383d0*p)
-    end if
+!     if(orderZETA>=3) then
+!       val=val+alpha**3*(-0.07909327666015716d0 - 14.515461613202893d0/ee**2 + 7.456821446063274d0/ee &
+!       + 7.137733443799741d0*ee + 10.43484998657383d0*p)
+!     end if
    end if
    
    valueOfGD_type4_Q=val/alpha
@@ -1560,7 +1559,7 @@ implicit none
   
   
   if(TMDR_R_toSL>1d6) then
-    write(*,*) 'arTeMiDe.TMDR: ERROR -- Evolution factor N4 is TOOO HUGE check the formula'
+    write(*,*) ErrorString('Evolution factor N4 is TOO HUGE check the formula',moduleName)
     write(*,*) 'b=',b,'zetaf=',zetaf,'muf=',muf
     write(*,*) 'DNP=',dd, 'g*dd=',GD
     write(*,*) 'NPparameters= (',NPparam,')'

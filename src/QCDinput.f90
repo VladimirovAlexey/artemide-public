@@ -11,7 +11,7 @@
 
 
 module QCDinput
-
+use IO_functions
 implicit none
 
 private
@@ -52,18 +52,8 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   logical::QCDinput_IsInitialized
   QCDinput_IsInitialized=started 
  end function QCDinput_IsInitialized
- 
- !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
- 
+
+
  !------------------------------Functions below are to be changed by user (if needed)
  subroutine QCDinput_Initialize(file,prefix)
   character(len=*)::file
@@ -318,6 +308,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       
       xPDF=inputPDF(-5:5)
       
+      
   end function xPDF
   
     !!!! return x*F(x,mu)
@@ -335,6 +326,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       call evolvePDFM(index_of_uFF(hadron),x,Q,inputFF)
       
       xFF=inputFF(-5:5)
+      
   end function xFF
  
   !!!!array of x times PDF(x,Q) for hadron 'hadron'

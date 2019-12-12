@@ -15,6 +15,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDs
+  use IO_functions
   use QCDinput
   use TMDR
   use uTMDPDF
@@ -83,18 +84,7 @@ module TMDs
   logical::TMDs_IsInitialized
   TMDs_IsInitialized=started
   end function TMDs_IsInitialized
-  
-   !!! move CURRET in streem to the next line that starts from pos (5 char)
- subroutine MoveTO(streem,pos)
- integer,intent(in)::streem
- character(len=5)::pos
- character(len=300)::line
-    do
-    read(streem,'(A)') line    
-    if(line(1:5)==pos) exit
-    end do
- end subroutine MoveTO
-   
+
 !!! Initializing routing
 !!! Filles the prebuiled arrays
 !!! orderAD, is order of anomalous dimension for evolution
