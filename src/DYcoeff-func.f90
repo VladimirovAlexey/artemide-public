@@ -13,8 +13,8 @@
 !!! hard coefficeint taken from 1004.3653 up to 3-loop
 !!! it is evaluated at mu=Q
 function HardCoefficientDY(mu)
-    real*8::HardCoefficientDY,mu,LQ!=Log[Q^2/mu^2]=-2Log[c1]
-    real*8::alpha
+    real(dp)::HardCoefficientDY,mu,LQ!=Log[Q^2/mu^2]=-2Log[c1]
+    real(dp)::alpha
     
     If(usePiresum) then 
     
@@ -67,8 +67,8 @@ end function HardCoefficientDY
 !!! factor for resummed pi^2 contributions for DY-process
 !!! see [0808.3008]
 function PiResumFactor_q(alpha)
-  real*8::PiResumFactor_q
-  real*8::alpha,aa,ArcT,LogA,UU
+  real(dp)::PiResumFactor_q
+  real(dp)::alpha,aa,ArcT,LogA,UU
   
   ! Nf=5 everywhere
   
@@ -98,8 +98,8 @@ end function PiResumFactor_q
 !!! mu is scale of coupling
 !!! coeff-function is taken at mu=mT (and Nf=5 or 6) and evolved to the scale mu 
 function EffCouplingHFF(mu)
-  real*8::mu,EffCouplingHFF
-  real*8::alphaT,alphaMU,betaT,betaMU
+  real(dp)::mu,EffCouplingHFF
+  real(dp)::alphaT,alphaMU,betaT,betaMU
   
   alphaT=As(mTOP)
   alphaMU=As(c2_global*mu)
@@ -107,10 +107,8 @@ function EffCouplingHFF(mu)
   !!! we consider only two situations mu<mTOP (Nf=5) and mu >mTOP (Nf=6)
   !!! for mu<mBOTTOM we do nothing (this situation posible never appears)
   if(mu<=mTOP) then
-    if(mu<mBOTTOM .and. messageCounter<=messageTrigger) then
-      write(*,*) 'artemide.',modulename,': no threashold mathing for Higgs-DY for mu<mBOTTOM' 
-	messageCounter=messageCounter+1
-    end if
+    if(mu<mBOTTOM) call Warning_Raise('no threashold matching for Higgs-DY for mu<mBOTTOM',&
+                            messageCounter,messageTrigger,modulename)
   
   
   !!betaT is beta-function at mT  it is normalized to be 1 at LO
@@ -130,10 +128,9 @@ function EffCouplingHFF(mu)
       EffCouplingHFF=EffCouplingHFF+alphaT**2*98.44444444444444d0
       
   if(orderH_global>=3) then
-      if(messageCounter<=messageTrigger) then
-	write(*,*) 'artemide.',modulename,': no NNNLO inplementation of Higgs coefficeint function (so far). Continue NNLO' 
-	messageCounter=messageCounter+1
-      end if
+    call Warning_Raise(&
+            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
+            messageCounter,messageTrigger,modulename)
   end if
   end if
   end if
@@ -157,10 +154,9 @@ function EffCouplingHFF(mu)
       EffCouplingHFF=EffCouplingHFF+alphaT**2*87.27777777777777d0
       
   if(orderH_global>=3) then
-      if(messageCounter<=messageTrigger) then
-	write(*,*) 'artemide.',modulename,': no NNNLO inplementation of Higgs coefficeint function (so far). Continue NNLO' 
-	messageCounter=messageCounter+1
-      end if
+      call Warning_Raise(&
+            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
+            messageCounter,messageTrigger,modulename)
   end if
   end if
   end if
@@ -177,8 +173,8 @@ end function EffCouplingHFF
 !!! hard coefficeint taken from 1004.3653 up to 3-loop
 !!! it is evaluated at mu=Q
 function HardCoefficientHIGGS(mu)
-    real*8::HardCoefficientHIGGS,mu,LQ!=Log[Q^2/mu^2]=-2Log[c1]
-    real*8::alpha
+    real(dp)::HardCoefficientHIGGS,mu,LQ!=Log[Q^2/mu^2]=-2Log[c1]
+    real(dp)::alpha
     
    !Nf=5 here!
     
@@ -195,10 +191,9 @@ function HardCoefficientHIGGS(mu)
       (-23.720599432600856d0 -56.83020488600443d0*LQ -100.66666666666666d0*LQ**2&
 	+ 15.333333333333334d0*LQ**3 + 18d0*LQ**4)
     if(orderH_global>=3) then
-      if(messageCounter<=messageTrigger) then
-	write(*,*) 'artemide.',modulename,': no NNNLO inplementation of Higgs coefficeint function (so far). Continue NNLO' 
-	messageCounter=messageCounter+1
-      end if
+        call Warning_Raise(&
+            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
+            messageCounter,messageTrigger,modulename)
     end if
     end if
     end if
@@ -217,10 +212,9 @@ function HardCoefficientHIGGS(mu)
       (2723.1832155557718d0 -510.83200733611494d0*LQ - 455.9724251058836d0*LQ**2&
 	+ 15.333333333333334d0*LQ**3 + 18d0*LQ**4)
     if(orderH_global>=3) then
-      if(messageCounter<=messageTrigger) then
-	write(*,*) 'artemide.',modulename,': no NNNLO implementation of Higgs coefficeint function (so far). Continue NNLO' 
-	messageCounter=messageCounter+1
-      end if
+     call Warning_Raise(&
+            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
+            messageCounter,messageTrigger,modulename)
     end if
     end if
     end if
@@ -233,8 +227,8 @@ end function HardCoefficientHIGGS
 !!! factor for resummed pi^2 contributions for HIGGS-process
 !!! see [0808.3008]
 function PiResumFactor_g(alpha)
-  real*8::PiResumFactor_g
-  real*8::alpha,aa,ArcT,LogA,UU
+  real(dp)::PiResumFactor_g
+  real(dp)::alpha,aa,ArcT,LogA,UU
   
   ! Nf=5 everywhere
   

@@ -13,20 +13,19 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
 module uTMDPDF_model
+use aTMDe_Numerics
 use IO_functions
 implicit none
 
 private
   character(50)::name='NONAME'
-  character (len=5),parameter :: version="v2.02"
+  character (len=5),parameter :: version="v2.03"
   character (len=*),parameter :: moduleName="uTMDPDF-model"
   
   integer::lengthNP
   
 
-public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters,TestbSTAR,bSTAR
-
-  INCLUDE 'Tables/NumConst.f90'
+public::ModelInit,FNP,mu_OPE,TestFNP,TestMU,GiveReplicaParameters,TestbSTAR,bSTAR,GetCompositionArray
 
 contains
 
@@ -47,11 +46,11 @@ contains
   !!! test FNP for z-dependance
   function TestFNP(hadronsInGRID,lambdaNPlength)
   logical::TestFNP
-  real*8::xR,bR
-  real*8,dimension(-5:5)::test1,test2
+  real(dp)::xR,bR
+  real(dp),dimension(-5:5)::test1,test2
   integer::h,numberOfHadrons,i,j,lambdaNPlength
   integer,intent(in)::hadronsInGRID(:)
-  real*8,allocatable::lambdaNP(:)
+  real(dp),allocatable::lambdaNP(:)
   
   allocate(lambdaNP(1:lambdaNPlength))
   
@@ -90,8 +89,8 @@ contains
   !!! test MU for x-dependance
   function TestMU()
   logical::TestMU
-  real*8::xR,bR
-  real*8::test1,test2
+  real(dp)::xR,bR
+  real(dp)::test1,test2
   integer::i,j
   TestMU=.false.
     do i=1,10
@@ -122,8 +121,8 @@ contains
   function TestbSTAR(lambdaNPlength)
     integer::lambdaNPlength,i,j,k
     logical::TestbSTAR
-    real*8::bT,dummy1,dummy2
-    real*8,allocatable::lambdaNP(:)
+    real(dp)::bT,dummy1,dummy2
+    real(dp),allocatable::lambdaNP(:)
     
     allocate(lambdaNP(1:lambdaNPlength))
     TestbSTAR=.false.
@@ -149,13 +148,13 @@ contains
   
   !!! transfer the replica paramters to main function
   function GiveReplicaParameters(num)
-  real*8::GiveReplicaParameters(1:lengthNP)
+  real(dp)::GiveReplicaParameters(1:lengthNP)
   integer::num,i,ss
   ss=size(ReplicaParameters(num))
   
   if(lengthNP<ss) then
-   write(*,*) 'ERROR: arTeMiDe.uTMDPDF_MODEL: number of non-pertrubative parameters for model ',name,&
-		    ' should be >= ',ss
+   write(*,*) ErrorString('number of non-pertrubative parameters for model '//trim(name)//&
+		    ' should be >= ',moduleName),ss
    write(*,*) 'EVALUATION STOP'
    stop
   else if(lengthNP==ss) then

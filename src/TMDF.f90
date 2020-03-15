@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDF
+  use aTMDe_Numerics
   use IO_functions
   use TMDs
   use EWinput
@@ -21,13 +22,13 @@ module TMDF
 !   public
  
  character (len=7),parameter :: moduleName="TMDF"
- character (len=5),parameter :: version="v2.01"
+ character (len=5),parameter :: version="v2.03"
  !Last appropriate verion of constants-file
  integer,parameter::inputver=1
 
 !------------------------------------------Tables-----------------------------------------------------------------------
-    integer,parameter::Nmax=200
-    INCLUDE 'Tables/BesselZero.f90'
+    integer,parameter::Nmax=1000
+    INCLUDE 'Tables/BesselZero1000.f90'
 !------------------------------------------Working variables------------------------------------------------------------
   
   integer::outputLevel=2
@@ -37,11 +38,20 @@ module TMDF
   
   logical:: convergenceLost=.false.
   
-  real*8::hOGATA,tolerance
+  !!!!! I split the qT over runs qT<qTSegmentationBoundary
+  !!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
+  !!!!! It helps to convergen integrals, since h(optimal) ~ qT
+  integer,parameter::hSegmentationNumber=5
+  real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.001d0,0.01d0,0.1d0,1d0,5d0/)
+  real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,1d0,50d0/)
+  
+  real(dp)::hOGATA,tolerance
   !!!weights of ogata quadrature
-  real*8,dimension(0:3,1:Nmax)::ww,ww0
+  real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww,ww0
   !!!nodes of ogata quadrature
-  real*8,dimension(0:3,1:Nmax)::bb,bb0
+  real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb,bb0
+  
+  
   
   integer::GlobalCounter
   integer::CallCounter
@@ -143,7 +153,7 @@ module TMDF
       
       
       started=.true.
-      if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDF ',version,': .... initialized'
+      if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDF '//trim(version)//': .... initialized',c_green)
       if(outputLevel>1) write(*,*) ' '
     
   end subroutine TMDF_Initialize
@@ -188,32 +198,36 @@ module TMDF
 
  !!!Prepare tables for Ogata quadrature with given h
  subroutine PrepareTables()
-  real*8,parameter::piHalf=1.5707963267948966d0
-  real*8,parameter::pi=3.141592653589793d0
-  integer::i,k
-  real*8::t!=h*xi
-  real*8::psiPart!=tanh[pi/2 Sinh[h xi]]
-  
+  integer::i,k,j
+  real(dp)::hS!=h*hSegmentationWeight
+  real(dp)::xi,qqq
+   
+  do j=1,hSegmentationNumber
   do k=0,3
   do i=1,Nmax
-    t=hOGATA*JZero(k,i)
-    psiPart=Tanh(piHalf*Sinh(t))
-      bb(k,i)=JZero(k,i)*psiPart
-      ww(k,i)=BESSEL_JN(k,bb(k,i))/JZero(k,i)/(BESSEL_JN(k+1,JZero(k,i))**2)*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
-!      write(*,*) psiPart,b(k,i),w(k,i)
+    
+    hS=hOGATA*hSegmentationWeight(j)    
+    xi=JZero(k,i)
+    
+!     ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)&
+! 	    *(pi*xi*hS*Cosh(xi*hS)+Sinh(pi*Sinh(xi*hS)))/(1d0+Cosh(pi*Sinh(xi*hS)))
+    
+    !!! if we too far away in xI*hS, the double exponential grow rapidly.
+    !!! and for >6, it generates term 10^{300} and exceed the presision
+
+    if(xi*hS>6.d0) then
+        bb(j,k,i)=xi*Tanh(piHalf*Sinh(xi*hS))
+        ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)
+        
+    else
+        bb(j,k,i)=xi*Tanh(piHalf*Sinh(xi*hS))
+        ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)&
+        *(pi*xi*hS*Cosh(xi*hS)/(2d0*Cosh(piHalf*Sinh(xi*hS))**2)+Tanh(piHalf*Sinh(xi*hS)))
+    end if
+
   end do
   end do
-  
-  !!these are tables for the step h=h*0.05, they are used in the case of small q_T
-  do k=0,3
-  do i=1,Nmax
-    t=hOGATA*JZero(k,i)*0.05d0
-    psiPart=Tanh(piHalf*Sinh(t))
-    bb0(k,i)=JZero(k,i)*psiPart
-    ww0(k,i)=BESSEL_JN(k,bb0(k,i))/JZero(k,i)/(BESSEL_JN(k+1,JZero(k,i))**2)*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
-  end do
-  end do
- 
+  end do 
  end subroutine PrepareTables
  
  !!!This is the defining module function
@@ -221,15 +235,33 @@ module TMDF
  !!!  int_0^infty   b db/2  Jn(b qT) zff F1 F2
  !!!
  function TMDF_F(Q2,qT,x1,x2,mu,zeta1,zeta2,process)
-  real*8::TMDF_F
-  real*8::qT,x1,x2,mu,zeta1,zeta2,Q2
+  real(dp)::TMDF_F
+  real(dp)::qT,x1,x2,mu,zeta1,zeta2,Q2
   integer::process
-  real*8::integral,eps
-  real*8::v1,v2,v3,v4
-  integer::k,n
+  real(dp)::integral,eps,delta
+  real(dp)::v1,v2,v3,v4
+  integer::k,n,j,Nsegment
   
   CallCounter=CallCounter+1
   integral=0d0
+  
+! ! !   do k=1,60
+! ! !     write(*,'("{",F6.2,",",F20.16,"},")') 0.1d0*k,x1*x2*Integrand(Q2,0.1d0*k,x1,x2,mu,zeta1,zeta2,process)
+! ! !   end do
+  
+!   do k=1,200
+!     write(*,'("{",F6.2,",",F24.16,"},")') 0.01d0*k,x1*x2*Integrand(Q2,0.01d0*k,x1,x2,mu,zeta1,zeta2,process)
+!   end do
+!   
+!   do k=1,80
+!     write(*,'("{",F6.2,",",F24.16,"},")') 2d0+0.1d0*k,x1*x2*Integrand(Q2,2d0+0.1d0*k,x1,x2,mu,zeta1,zeta2,process)
+!   end do
+!   
+!   do k=1,180
+!     write(*,'("{",F6.2,",",F24.16,"},")') 10d0+0.5d0*k,x1*x2*Integrand(Q2,10d0+0.5d0*k,x1,x2,mu,zeta1,zeta2,process)
+!   end do
+!   
+!   stop
   
   if(qT<0.0000001d0 .or. x1>=1d0 .or. x2>=1d0) then  
   integral=0d0
@@ -254,33 +286,42 @@ module TMDF
   n=3
   end if
   
-  if(qT>1d0) then
+  !!! define segment of qT
+  do j=1,hSegmentationNumber
+    if(qT<qTSegmentationBoundary(j)) exit
+  end do
+  if(j>hSegmentationNumber) then
+    Nsegment=hSegmentationNumber
+  else
+    Nsegment=j
+  end if
+  !write(*,*) '>>>>',qT,hOGATA*hSegmentationWeight(j)
+  !!! sum over OGATA nodes
   do k=1,Nmax!!! maximum of number of bessel roots preevaluated in the head
-    eps=ww(n,k)*(bb(n,k)**(n+1))*Integrand(Q2,bb(n,k)/qT,x1,x2,mu,zeta1,zeta2,process)
+    eps=ww(Nsegment,n,k)*(bb(Nsegment,n,k)**(n+1))*Integrand(Q2,bb(Nsegment,n,k)/qT,x1,x2,mu,zeta1,zeta2,process)
     
+    v4=v3
+    v3=v2
+    v2=v1
+    v1=ABS(eps)
+    
+    delta=(v1+v2+v3+v4)
     integral=integral+eps
     
-!     write(*,*) k,bb(n,k)/qT,eps,integral
-    
-!     if(k>8) then
-      v4=v3
-      v3=v2
-      v2=v1
-      v1=ABS(eps)
-!       if(v1+v2+v3+v4>0.7d0*ABS(integral)) write(17,*) bb(n,k)/qT,x1,x2
-!       write(*,*) k, eps,ww(n,k),eps/ww(n,k)
-      if(v1+v2+v3+v4<=tolerance*ABS(integral)) exit
-!     end if
+    !write(*,*) k,integral,v1
+    !!! here we check that residual term is smaller than already collected integral
+    !!! also checking the zerothness of the integral. If already collected integral is null it is null
+    !!! Here is potential bug. If the first 10 points give zero (whereas some later points do not), the integral will be zero
+    if((delta<=tolerance*abs(integral) .or. abs(integral)<1d-32) .and. k>=10) exit
   end do
   if(k>=Nmax) then	
     if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow? ',moduleName)
       if(outputlevel>1) then
-      !write(*,*) 'Current set of NP parameters ------------'
-      !write(*,*) currentNP
       write(*,*) 'Information over the last call ----------'
-      write(*,*) 'bt/qT= ',bb(n,Nmax)/qT, 'qT=',qT
-      write(*,*) 'W=',Integrand(Q2,bb(n,Nmax)/qT,x1,x2,mu,zeta1,zeta2,process), 'eps/integral =', eps/integral
-      write(*,*) 'v1+v2+v3+v4=',v1+v2+v3+v4, '>',tolerance*ABS(integral)
+      write(*,*) 'bt/qT= ',bb(Nsegment,n,Nmax)/qT, 'qT=',qT, '| segmentation zone=',Nsegment,&
+	      ' ogata h=',hOGATA*hSegmentationWeight(Nsegment)
+      write(*,*) 'W=',Integrand(Q2,bb(Nsegment,n,Nmax)/qT,x1,x2,mu,zeta1,zeta2,process), 'eps/integral =', eps/integral
+      write(*,*) 'residual term=',delta, '>',tolerance
       write(*,*) '(x1,x2)=(',x1,',',x2,')'
       write(*,*) 'process =',process,' it is ',CallCounter,'call.'
       write(*,*) '------------------------------------------'
@@ -288,54 +329,20 @@ module TMDF
     call TMDF_convergenceISlost()
   end if
   
-  else !!! in the case of small q_T we use smaller step for ogata
-  do k=1,Nmax!!! maximum of number of bessel roots preevaluated in the head
-    eps=ww0(n,k)*(bb0(n,k)**(n+1))*Integrand(Q2,bb0(n,k)/qT,x1,x2,mu,zeta1,zeta2,process)
-    
-    integral=integral+eps
-    
-!     write(*,*) k,bb0(n,k)/qT,eps,integral
-    
-!     if(k>8) then
-      v4=v3
-      v3=v2
-      v2=v1
-      v1=ABS(eps)
-!       if(v1+v2+v3+v4>0.7d0*ABS(integral)) write(17,*) bb0(n,k)/qT,x1,x2
-!       write(*,*) k, eps,ww0(n,k),eps/ww0(n,k)
-      if(v1+v2+v3+v4<=tolerance*ABS(integral)) exit
-!     end if
-  end do
-  if(k>=Nmax) then	
-    if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow? ',moduleName)
-    if(outputlevel>1) then
-      !write(*,*) 'Current set of NP parameters ------------'
-      !write(*,*) currentNP
-      write(*,*) 'Information over the last call ----------'
-      write(*,*) 'bt/qT= ',bb0(n,Nmax)/qT, 'qT=',qT
-      write(*,*) 'W=',Integrand(Q2,bb0(n,Nmax)/qT,x1,x2,mu,zeta1,zeta2,process), 'eps/integral =', eps/integral
-      write(*,*) 'v1+v2+v3+v4=',v1+v2+v3+v4, '>',tolerance*ABS(integral)
-      write(*,*) '(x1,x2)=(',x1,',',x2,')'
-      write(*,*) 'process =',process,' it is ',CallCounter,'call.'
-      write(*,*) '------------------------------------------'
-    end if
-    call TMDF_convergenceISlost()
-  end if
-  
-  end if
-  
   if(k>MaxCounter) MaxCounter=k-1
 !   write(*,*) 'Integral=',integral
   TMDF_F=integral/(qT**(n+2)) 
   end if
   !write(*,*) 'Last call: ',k
+  
+!   write(*,'("{",F6.2,",",F18.16,"},")') qT,x1*x2*TMDF_F
  end function TMDF_F
  
  function Integrand(Q2,b,x1,x2,mu,zeta1,zeta2,process)
- real*8::Integrand
- real*8::b,x1,x2,mu,zeta1,zeta2,Q2
+ real(dp)::Integrand
+ real(dp)::b,x1,x2,mu,zeta1,zeta2,Q2
  integer::process,h
- real*8,dimension(-5:5)::FA,FB,FAB
+ real(dp),dimension(-5:5)::FA,FB,FAB
  
  !increment counter 
  GlobalCounter=GlobalCounter+1
@@ -349,6 +356,10 @@ module TMDF
   !!!test case
   CASE(0,10000,20000,30000)
     Integrand=Exp(-0.2d0*b)
+  CASE(9999,19999,29999,39999)
+    Integrand=Exp(-mu*b)*(1d0+x1*b**2+x2*b**4)
+  CASE(9998,19998,29998,39998)
+    Integrand=Exp(-mu*b**2)*(1d0+x1*b**2+x2*b**4)
 !--------------------------------------------------------------------------------
   CASE (1) !pp->gamma
 	! e_q^2 *F_q(A)*F_qbar(B)
@@ -447,7 +458,7 @@ module TMDF
 	 FB=uTMDPDF_5(x2,b,mu,zeta2,1)
 	 FAB=FA*(FB(5:-5:-1))
 	end if
-	
+		
 	Integrand=XIntegrandForDYwithZgamma(FAB,Q2)
 !--------------------------------------------------------------------------------  
   CASE (6) !ppbar->Z+gamma
@@ -968,25 +979,25 @@ module TMDF
 !-------------------------------------------------------------------------------------------------------------------------------------
 !!! The hadron tensonr for the DY icludes Z + gamma, evaluated at FA and FB 
 function XIntegrandForDYwithZgamma(FAB,Q2)
-     real*8::XIntegrandForDYwithZgamma,Q2
+     real(dp)::XIntegrandForDYwithZgamma,Q2
     !!cross-seciton parameters
-     real*8,dimension(-5:5):: FAB
+     real(dp),dimension(-5:5):: FAB
      
      !!!parameters of Z boson coupling
-!      real*8,parameter:: paramU=0.40329064872689d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=2/3
-!      real*8,parameter:: paramD=0.51983027428079d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
-!      real*8,parameter:: paramS=0.51983027428079d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
-!      real*8,parameter:: paramC=0.40329064872689d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=2/3
-!      real*8,parameter:: paramB=0.51983027428079d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
-!      real*8,parameter:: paramL=0.35358707798999d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1
+!      real(dp),parameter:: paramU=0.40329064872689d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=2/3
+!      real(dp),parameter:: paramD=0.51983027428079d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
+!      real(dp),parameter:: paramS=0.51983027428079d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
+!      real(dp),parameter:: paramC=0.40329064872689d0 !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=2/3
+!      real(dp),parameter:: paramB=0.51983027428079d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1/3
+!      real(dp),parameter:: paramL=0.35358707798999d0  !! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) for eq=1
      
      !!!parameters of Z-gamma boson coupling
-!      real*8,parameter:: paramMIXU=0.1515661518957d0 !! e(T3-2e sW^2)/2sWcW for eq=+2/3,, T3=+1/2
-!      real*8,parameter:: paramMIXD=0.1367184036034d0 !! e(T3-2e sW^2)/2sWcW for eq=-1/3,T3=-1/2
-!      real*8,parameter:: paramMIXS=0.1367184036034d0  !! e(T3-2e sW^2)/2sWcW for eq=-1/3, T3=-1/2
-!      real*8,parameter:: paramMIXC=0.1515661518957d0 !! e(T3-2e sW^2)/2sWcW for eq=+2/3,, T3=+1/2
-!      real*8,parameter:: paramMIXB=0.1367184036034d0  !! e(T3-2e sW^2)/2sWcW for eq=-1/3, T3=-1/2
-!      real*8,parameter:: paramMIXL=0.0445432448766d0  !! e(T3-2e sW^2)/2sWcW for eq=-1, T3=-1/2
+!      real(dp),parameter:: paramMIXU=0.1515661518957d0 !! e(T3-2e sW^2)/2sWcW for eq=+2/3,, T3=+1/2
+!      real(dp),parameter:: paramMIXD=0.1367184036034d0 !! e(T3-2e sW^2)/2sWcW for eq=-1/3,T3=-1/2
+!      real(dp),parameter:: paramMIXS=0.1367184036034d0  !! e(T3-2e sW^2)/2sWcW for eq=-1/3, T3=-1/2
+!      real(dp),parameter:: paramMIXC=0.1515661518957d0 !! e(T3-2e sW^2)/2sWcW for eq=+2/3,, T3=+1/2
+!      real(dp),parameter:: paramMIXB=0.1367184036034d0  !! e(T3-2e sW^2)/2sWcW for eq=-1/3, T3=-1/2
+!      real(dp),parameter:: paramMIXL=0.0445432448766d0  !! e(T3-2e sW^2)/2sWcW for eq=-1, T3=-1/2
      
      XIntegrandForDYwithZgamma=&
      (&!gamma-part

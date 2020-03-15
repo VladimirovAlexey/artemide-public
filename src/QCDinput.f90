@@ -11,6 +11,7 @@
 
 
 module QCDinput
+use aTMDe_Numerics
 use IO_functions
 implicit none
 
@@ -18,20 +19,21 @@ private
 
 
 
-public::QCDinput_Initialize,As,QCDinput_IsInitialized
+public::QCDinput_Initialize,QCDinput_IsInitialized
+public::As,activeNf
 public::xPDF,xFF,x_lp_PDF
 public:: QCDinput_SetPDFreplica
 
 character (len=8),parameter :: moduleName="QCDinput"
 !Current version of module
-character (len=5),parameter :: version="v2.01"
+character (len=5),parameter :: version="v2.03"
 !Last appropriate verion of constants-file
 integer,parameter::inputver=4
 !--- general
 logical:: started=.false.
 integer::outputLevel
 
-real*8,public::mCHARM,mBOTTOM,mTOP
+real(dp),public::mCHARM,mBOTTOM,mTOP
 
 !---uPDFs
 integer::num_of_uPDFs,startPDFindex
@@ -58,7 +60,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
  subroutine QCDinput_Initialize(file,prefix)
   character(len=*)::file
   character(len=*),optional::prefix
-  character(len=300)::path,line
+  character(len=300)::path
   character(len=64),allocatable::names(:)
   integer::i,FILEver
   integer,allocatable::replicas(:)
@@ -85,8 +87,8 @@ integer,allocatable::enumeration_of_lpPDFs(:)
     end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
-    if(outputLevel>2) write(*,*) '--------------------------------------------- '
-    if(outputLevel>2) write(*,*) 'artemide.QCDinput: initialization started ... '
+    if(outputLevel>1) write(*,*) '--------------------------------------------- '
+    if(outputLevel>1) write(*,*) 'artemide.QCDinput: initialization started ... '
     
     !!! Search for QCDinput initialization options
     call MoveTO(51,'*1   ')
@@ -125,9 +127,9 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       !!! actually initialization
       startPDFindex=0
       do i=1,num_of_uPDFs
-	call InitPDFsetByNameM(i+startPDFindex,names(i))
-	call InitPDFM(i+startPDFindex,replicas(i))
-	if(outputLevel>2) write(*,"('     uPDF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
+        call InitPDFsetByNameM(i+startPDFindex,names(i))
+        call InitPDFM(i+startPDFindex,replicas(i))
+        if(outputLevel>2) write(*,"('     uPDF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
 		    enumeration_of_uPDFs(i),trim(names(i)),replicas(i)
       end do
       
@@ -173,8 +175,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
      !!!---------------------------------------- Search for lpPDF initialization options
     call MoveTO(51,'*D   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) num_of_lpPDFs
-    write(*,*) '-------------------------------------------------',num_of_lpPDFs
+    read(51,*) num_of_lpPDFs    
     if(num_of_lpPDFs>0) then
       !! initialization of LHAPDF grids
       allocate(enumeration_of_lpPDFs(1:num_of_lpPDFs))
@@ -205,8 +206,9 @@ integer,allocatable::enumeration_of_lpPDFs(:)
     end if
  
   CLOSE (51, STATUS='KEEP') 
-  
-  if(outputLevel>2)	write(*,*)'QCDinput succesfully initialized.'
+     
+   if(outputLevel>0) write(*,*) color('----- arTeMiDe.QCDinput '//trim(version)//': .... initialized',c_green)
+   if(outputLevel>1) write(*,*) ' '
   started=.true.
  end subroutine QCDinput_Initialize
  
@@ -217,7 +219,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   integer::i
   
   if(num_of_uPDFs==0) then
-    write(*,*) 'artemide.QCDinput: CRITICAL ERROR: no uPDFs are initialized'
+    write(*,*) ErrorString('no uPDFs are initialized',moduleName)
     stop
   else
     do i=1,num_of_uPDFs
@@ -227,7 +229,8 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       end if
     end do
     !!! if we exit from the loop it means index is not found
-      write(*,"('artemide.QCDinput: ERROR: no uPDF for hadron ',I3,'is initialized. Set PDF for hadron (',I3,')')") &
+      write(*,*) ErrorString('uPDF is not found',moduleName)
+      write(*,"('no uPDF for hadron ',I3,' is initialized. Set PDF for hadron (',I3,')')") &
 		  hadron,enumeration_of_uPDFs(1)
       index_of_uPDF=1+startPDFindex
   end if
@@ -240,7 +243,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   integer::i
   
   if(num_of_uFFs==0) then
-    write(*,*) 'artemide.QCDinput: CRITICAL ERROR: no uFFs are initialized'
+    write(*,*) ErrorString('no uFFs are initialized',moduleName)
     stop
    else
     do i=1,num_of_uFFs
@@ -250,7 +253,8 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       end if
     end do
     !!! if we exit from the loop it means index is not found
-      write(*,"('artemide.QCDinput: ERROR: no uFF for hadron ',I3,'is initialized. Set FF for hadron (',I3,')')") &
+     write(*,*) ErrorString('uFF is not found',moduleName)
+      write(*,"('no uFF for hadron ',I3,' is initialized. Set FF for hadron (',I3,')')") &
 		  hadron,enumeration_of_uPDFs(1)
       index_of_uFF=1+startFFindex
   end if
@@ -263,7 +267,7 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   integer::i
   
   if(num_of_lpPDFs==0) then
-    write(*,*) 'artemide.QCDinput: CRITICAL ERROR: no lpPDFs are initialized'
+    write(*,*) ErrorString('no lpPDFs are initialized',moduleName)
     stop
   else
     do i=1,num_of_lpPDFs
@@ -273,7 +277,8 @@ integer,allocatable::enumeration_of_lpPDFs(:)
       end if
     end do
     !!! if we exit from the loop it means index is not found
-      write(*,"('artemide.QCDinput: ERROR: no lpPDF for hadron ',I3,'is initialized. Set PDF for hadron (',I3,')')") &
+    write(*,*) ErrorString('lpPDF is not found',moduleName)
+    write(*,"('no lpPDF for hadron ',I3,' is initialized. Set PDF for hadron (',I3,')')") &
 		  hadron,enumeration_of_lpPDFs(1)
       index_of_lpPDF=1+startlpPDFindex
   end if
@@ -285,13 +290,27 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   call InitPDFM(1,rep)
  end subroutine QCDinput_SetPDFreplica
  
+!!number of active flavor at given mu
+function activeNf(mu)
+  integer::activeNf
+  real(dp)::mu
+  
+  if(mu>mBOTTOM) then
+     activeNf=5
+    else if(mu>mCHARM) then
+     activeNf=4
+    else 
+     activeNf=3
+  end if
+end function activeNf
+ 
  !!!!alphas(Q)/4pi
  !!! NOT FORGET 4 PI !!!
  function As(Q)
- real*8::as,Q,alphasPDF
- real*8,parameter::Pi4=12.566370614359172d0
+ real(dp)::as,Q,alphasPDF
  
- As=alphasPDF(Q)/Pi4
+ As=alphasPDF(Q)/pix4
+!  as=1d0/(2d0*23d0/3d0*Log(Q/0.08782708014552364d0))  !!! Nf=5 LO solution
  
  end function As
 
@@ -299,10 +318,10 @@ integer,allocatable::enumeration_of_lpPDFs(:)
  !!! unpolarized PDF used in uTMDPDF
  !!!! array is (-5:5) (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
  function xPDF(x,Q,hadron)
-      real*8,intent(in) :: x,Q
+      real(dp),intent(in) :: x,Q
       integer,intent(in):: hadron
-      real*8, dimension(-5:5):: xPDF
-      real*8, dimension (-6:6)::inputPDF
+      real(dp), dimension(-5:5):: xPDF
+      real(dp), dimension (-6:6)::inputPDF
       
       call evolvePDFM(index_of_uPDF(hadron),x,Q,inputPDF)
       
@@ -319,9 +338,9 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   !!!! enumeration of hadrons 
   function xFF(x,Q,hadron)
       integer,intent(in) :: hadron
-      real*8,intent(in) :: x,Q
-      real*8,dimension(-5:5):: xFF
-      real*8, dimension (-6:6)::inputFF
+      real(dp),intent(in) :: x,Q
+      real(dp),dimension(-5:5):: xFF
+      real(dp), dimension (-6:6)::inputFF
       
       call evolvePDFM(index_of_uFF(hadron),x,Q,inputFF)
       
@@ -333,10 +352,10 @@ integer,allocatable::enumeration_of_lpPDFs(:)
   !!! unpolarized PDF used in lpTMDPDF
  !!!! array is (-5:5) (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
  function x_lp_PDF(x,Q,hadron)
-      real*8,intent(in) :: x,Q
+      real(dp),intent(in) :: x,Q
       integer,intent(in):: hadron
-      real*8, dimension(-5:5):: x_lp_PDF
-      real*8, dimension (-6:6)::inputPDF
+      real(dp), dimension(-5:5):: x_lp_PDF
+      real(dp), dimension (-6:6)::inputPDF
       
       call evolvePDFM(index_of_lpPDF(hadron),x,Q,inputPDF)
       

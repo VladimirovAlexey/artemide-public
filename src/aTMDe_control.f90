@@ -9,6 +9,7 @@
 !				A.Vladimirov (30.05.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module aTMDe_control
+use aTMDe_Numerics
 use IO_functions
 use QCDinput
 use EWinput
@@ -45,10 +46,10 @@ private
   integer::NPlength_TMDR,NPlength_uTMDPDF,NPlength_uTMDFF,NPlength_lpTMDPDF
   
   !!!! non-pertrubative parameters for individual modules
-  real*8,allocatable::lambdaNP_TMDR(:),lambdaNP_uTMDPDF(:),lambdaNP_uTMDFF(:),lambdaNP_lpTMDPDF(:)
+  real(dp),allocatable::lambdaNP_TMDR(:),lambdaNP_uTMDPDF(:),lambdaNP_uTMDFF(:),lambdaNP_lpTMDPDF(:)
   
   !!!! Saved values of scale-variation parameters
-  real*8::c1_saved,c2_saved,c3_saved,c4_saved
+  real(dp)::c1_saved,c2_saved,c3_saved,c4_saved
   
   public::artemide_Initialize
   public::artemide_SetNPparameters,artemide_SetNPparameters_TMDR,artemide_SetNPparameters_uTMDFF,artemide_SetNPparameters_uTMDPDF
@@ -325,8 +326,8 @@ contains
   
   !-------------------------------------------------------------- NP parameters ---------------------------
   subroutine artemide_SetNPparameters(lambdaNP)
-  real*8,intent(in)::lambdaNP(:)
-  real*8,dimension(1:NPlength_total)::lambda_cur
+  real(dp),intent(in)::lambdaNP(:)
+  real(dp),dimension(1:NPlength_total)::lambda_cur
   integer::ll,num
   
   ll=size(lambdaNP)
@@ -381,7 +382,7 @@ contains
   end subroutine artemide_SetNPparameters
   
   subroutine artemide_SetNPparameters_TMDR(lambdaNP)
-  real*8,intent(in)::lambdaNP(:)
+  real(dp),intent(in)::lambdaNP(:)
   integer::ll
 
   if(.not.include_TMDR) then
@@ -424,7 +425,7 @@ contains
   end subroutine artemide_SetNPparameters_TMDR
   
   subroutine artemide_SetNPparameters_uTMDPDF(lambdaNP)
-  real*8,intent(in)::lambdaNP(:)
+  real(dp),intent(in)::lambdaNP(:)
   integer::ll
   
   if(.not.include_uTMDPDF) then
@@ -467,7 +468,7 @@ contains
   end subroutine artemide_SetNPparameters_uTMDPDF
   
   subroutine artemide_SetNPparameters_uTMDFF(lambdaNP)
-  real*8,intent(in)::lambdaNP(:)
+  real(dp),intent(in)::lambdaNP(:)
   integer::ll
   
   if(.not.include_uTMDFF) then
@@ -511,7 +512,7 @@ contains
 
    
   subroutine artemide_SetNPparameters_lpTMDPDF(lambdaNP)
-  real*8,intent(in)::lambdaNP(:)
+  real(dp),intent(in)::lambdaNP(:)
   integer::ll
   
   if(.not.include_lpTMDPDF) then
@@ -680,7 +681,7 @@ contains
 
   !!! changes the scale variations
   subroutine artemide_SetScaleVariations(c1,c2,c3,c4)
-  real*8::c1,c2,c3,c4
+  real(dp)::c1,c2,c3,c4
   if(outputLevel>2) write(*,"('artemide.control: set scale variations (c1,c2,c3,c4)= (',F5.2,F5.2,F5.2,F5.2,')')") c1,c2,c3,c4
   
   if(include_uTMDPDF) call uTMDPDF_SetScaleVariation(c4)
@@ -694,7 +695,7 @@ contains
 
   !!!! generates some base array of NP parameters (2,0.02,0...,1,0...,etc)
   function BaseNPString()
-  real*8::BaseNPString(1:NPlength_total)
+  real(dp)::BaseNPString(1:NPlength_total)
   integer::i,j
   j=1
   if(include_TMDR) then
@@ -743,8 +744,8 @@ contains
   subroutine artemide_GetReplicaFromFile(file,rep,repString)
   character(len=*)::file
   integer::rep,i,k1,k2,numR,lenArray
-  real*8,allocatable,intent(out)::repString(:)
-  real*8,allocatable::ParametersTOread(:)
+  real(dp),allocatable,intent(out)::repString(:)
+  real(dp),allocatable::ParametersTOread(:)
   
   logical::file_exists
   

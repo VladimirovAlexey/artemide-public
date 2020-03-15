@@ -63,8 +63,25 @@
       mu_OPE=1000d0
     end if
   end function mu_OPE
+ 
+  !!!! if the option UseComposite TMD is OFF, this function is ignored
+  !!!! If the option UseComposite TMD is ON,
+  !!!! than the TMD for hardon is build as TMD(hadron)=Sum_c CA(h,c) TMD(c)
+  !!!! where h=hadron, CA=coefficientArray
+  !!!! coefficientArray real(dp) list of coefficeints
+  !!!! includeArray is logical array list (true=TMD(c) is computed, false TMD(c) ignored)
+  subroutine GetCompositionArray(hadron,lambdaNP,includeArray,coefficientArray)  
+  real(dp),intent(in)::lambdaNP(:)
+  integer::hadron
+  logical,allocatable,intent(out)::includeArray(:)
+  real(dp),allocatable,intent(out)::coefficientArray(:)
+   
+   allocate(includeArray(1:1))
+   allocate(coefficientArray(1:1))
+  end subroutine GetCompositionArray 
+ 
   
-   !!! this is the table of replica prameters extracted in fit BSV19.
+ !!! this is the table of replica prameters extracted in fit BSV19.
  !!! -2 is suggested for initialization replica
  !!! -1 is the best fit
  !!! 0 is the mean reaplics

@@ -7,7 +7,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module IO_functions
-
+  use aTMDe_numerics
   implicit none
   
   !!!! colors for colring of the ansi-output
@@ -26,6 +26,10 @@ module IO_functions
   character(len=*), parameter :: c_cyan = '36'
   character(len=*), parameter :: c_white = '37'
   character(len=*), parameter :: c_clear = c_start // '0' // c_end
+  
+  interface numToStr
+    module procedure intToStr,realToStr,real8ToStr
+  end interface numToStr
   
 contains
   
@@ -61,7 +65,29 @@ contains
     write(streem,"(I5)") list(size(list))
  end subroutine writeShortIntegerList
  
-  !!!Common format of Warning line in artemide
+ !--------------------convertation
+ !!! convert a real(dp) number to a string
+ function real8ToStr(num)
+ real(dp),intent(in)::num
+ character(len=16)::real8ToStr
+ write(real8ToStr,"(F16.10)") num 
+ end function real8ToStr
+
+ !!! convert a real number to a string
+ function realToStr(num)
+ real,intent(in)::num
+ character(len=12)::realToStr
+ write(realToStr,*) num 
+ end function realToStr
+ 
+ !!! convert an integer number to a string
+ function intToStr(num)
+ integer,intent(in)::num
+ character(len=8)::intToStr
+ write(intToStr,"(I8)") num 
+ end function intToStr
+ 
+ !!!Common format of Warning line in artemide
   function WarningString(str, moduleName) result(out)
     character(len=*), intent(in) :: str
     character(len=*), intent(in) :: moduleName
@@ -77,4 +103,24 @@ contains
     out = color('ERROR: artemide.'//trim(moduleName)//': '//trim(str),c_red_bold)
   end function ErrorString
 
+  !--------------------------- massage trigger counter functions
+  !!!! the routine shows a line of warning. and increase the counter
+  !!!! Use this one for WARNINGS
+  subroutine Warning_Raise(str,messageCounter,messageTrigger,moduleName)
+   integer::messageCounter
+   integer,intent(in)::messageTrigger
+   character(len=*), intent(in) :: moduleName
+   character(len=*), intent(in) :: str
+   
+   if(messageCounter<=messageTrigger) then
+    write(*,*) WarningString(str,moduleName)
+    messageCounter=messageCounter+1
+    if(messageCounter>messageTrigger) then
+     write(*,*) color('artemide.'//trim(moduleName)//&
+            ': number of warning massages hits the limit. Further warnings are suppressed',c_red)
+    end if
+   end if
+   
+  end subroutine Warning_Raise
+  
 end module IO_functions

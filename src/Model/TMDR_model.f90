@@ -20,7 +20,7 @@
   !!!!!! Write nessecery model intitialization.
   !!!!!! InitVar is the initial NP-array (in principle, any non-pathological NP-array)
   subroutine ModelInitialization(InitVar)  
-    real*8,dimension(1:NPlength):: InitVar
+    real(dp),dimension(1:NPlength):: InitVar
     integer::i,j,num_NP
     logical::file_exists    
     
@@ -39,12 +39,12 @@
   !!! Use function Dpert(mu,b,f) for D pertrubative, use Dresum for D resum
   !!! use non-pertrubative parameters NPparam(1...)
  function DNP(mu,b,f)
- real*8::DNP,mu,b
+ real(dp)::DNP,mu,b
  integer::f
- real*8::bSTAR
+ real(dp)::bSTAR
  
   bSTAR=b/SQRT(1+b**2/NPparam(1)**2)
-  DNP=Dresum(mu,bSTAR,1)+NPparam(2)*b*bSTAR!!!! D*+gK b b*, it smoother turns perturbative to b^2 assimptotic
+  DNP=Dresum(mu,bSTAR,1)+NPparam(2)*bSTAR*b!!!! D*+gK b b*, it smoother turns perturbative to b^2 assimptotic
   
  end function DNP
   
@@ -59,9 +59,9 @@
  !! Typical form of it is just zetaMUpert(mu,b,f), if b* is used then zetaMUpert(mu,b^*,f)
  !! The large-b deviation from the "true" line is the part of NP model :)
  function zetaNP(mu,b,f)
- real*8::zetaNP,mu,b
+ real(dp)::zetaNP,mu,b
  integer::f
- real*8::zz
+ real(dp)::zz
  
   zz=Exp(-b**2/NPparam(1)**2)
   zetaNP=zetaMUpert(mu,b,f)*zz+zetaSL(mu,b,f)*(1d0-zz)
@@ -73,7 +73,7 @@
  !!! 1 -- 100 replicas
  function ReplicaParameters(rep)
   integer::rep
- real*8::ReplicaParameters(1:NPlength)
+ real(dp)::ReplicaParameters(1:NPlength)
  integer::i
  
  write(*,*) warningstring("set model replica via artemide-control module",moduleName)

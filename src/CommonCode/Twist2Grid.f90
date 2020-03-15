@@ -22,16 +22,16 @@
 
 !!! this subroutine create grid. It is called only from the uTMDPDF_SetLambdaNP function.
 subroutine MakeGrid()
-  real*8:: x_local,b_local
+  real(dp):: x_local,b_local
   
   !!!size of grid is power of 2, to make it testable and reusable. order is the current power.
   integer:: iX,iB,j,h
   
-  real*8,dimension(-5:5)::checkValue,dummyfNP
-  real*8::maxValue,eps,epsB,epsX,B_BAD,x_BAD,eps_av,time1,time2
+  real(dp),dimension(-5:5)::checkValue,dummyfNP
+  real(dp)::maxValue,eps,epsB,epsX,B_BAD,x_BAD,eps_av,time1,time2
   integer::grid_size
-  real*8,dimension(0:GridSizeX,1:2,-5:5,1:numberOfHadrons)::smallGrid
-  real*8::v1_BAD,v2_BAD
+  real(dp),dimension(0:GridSizeX,1:2,-5:5,1:numberOfHadrons)::smallGrid
+  real(dp)::v1_BAD,v2_BAD
   
   if(numberOfHadrons==1 .and. hadronsInGRID(1)==0) return
   
@@ -92,13 +92,13 @@ subroutine MakeGrid()
       !!!! if fNP=0, here, we check is C x f fNP=0, if so, we save 1, otherwise exception
       do j=-5,5
 	if(dummyfNP(j)==0d0) then
-	  if(boundaryValues(iX,j,h)/=0d0 .and. outputLevel>0 .and. messageCounter<messageTrigger) then
-	    write(*,*) 'arTeMiDe',moduleName,'ERROR: in evaluation of boundary for grid: fNP=',dummyfNP(j),&
-		      'boundary=',boundaryValues(iX,j,h), 'for (h,f)=(',hadronsInGRID(h),j,')'
-	    write(*,*) 'Continue with value=1'
-	  messageCounter=messageCounter+1
-	  if(messageCounter>messageTrigger)&
-	      write(*,*) 'WARNING: arTeMiDe',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
+	  if(boundaryValues(iX,j,h)/=0d0 .and. outputLevel>0) then  
+            call Warning_Raise('error in evaluation of boundary for grid',messageCounter,messageTrigger,moduleName)
+            if(messageCounter<messageTrigger) then
+              write(*,*) '----- information on last call -----'
+              write(*,*) 'fNP=',dummyfNP(j),'boundary=',boundaryValues(iX,j,h), 'for (h,f)=(',hadronsInGRID(h),j,')'
+	      write(*,*) 'Continue with value=1'
+            end if
 	  end if
 	  boundaryValues(iX,j,h)=1d0
 	  
@@ -191,12 +191,12 @@ subroutine MakeGrid()
 end subroutine MakeGrid
   
 function ExtractFromGrid(x,bT,hadron)
-  real*8,dimension(-5:5)::ExtractFromGrid
-  real*8,dimension(0:3,-5:5):: interI
-  real*8,dimension(-5:5)::dummyfNP
-  real*8::x,bT,indexX,indexB,fX,fB
+  real(dp),dimension(-5:5)::ExtractFromGrid
+  real(dp),dimension(0:3,-5:5):: interI
+  real(dp),dimension(-5:5)::dummyfNP
+  real(dp)::x,bT,indexX,indexB,fX,fB
   integer::i,iX,iB,h,hadron
-  real*8::var1,var2,var3,var4 !!dummyvariables
+  real(dp)::var1,var2,var3,var4 !!dummyvariables
   
   !!!searching for hadron
   h=0
@@ -209,24 +209,24 @@ function ExtractFromGrid(x,bT,hadron)
   
   
   if(h==0) then
-    write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: the hadron ',hadron,' is not found in the grid'
+    write(*,*) ErrorString('the hadron '//numToStr(hadron)//' is not found in the grid',moduleName)
     write(*,*) 'arTeMiDe: evaluation STOP'
     stop
   end if
   
   if(x<xGrid_Min) then
-   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with x =',x,'is called. Current grid size is up to '&
-   ,xGrid_Min,'. Enlarge boundaries.'
+   write(*,*) ErrorString('The TMD with x ='//numToStr(x)//'is called. Current grid size is up to '//&
+   numToStr(xGrid_Min)//'. Enlarge boundaries.',moduleName)
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if
   if(x>1d0) then
-   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with x >1 (',x,') is called.' 
+   write(*,*) ErrorString('The TMD with x >1 ('//numToStr(x)//') is called.',moduleName)
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if
   if(bT<0d0) then
-   write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: The TMD with bT <0 (',bT,') is called.' 
+   write(*,*) ErrorString('The TMD with bT <0 ('//numToStr(bT)//') is called.',moduleName)
    write(*,*) 'arTeMiDe: evaluation STOP'
    stop
   end if
@@ -309,14 +309,13 @@ function ExtractFromGrid(x,bT,hadron)
   do i=-5,5
    if(ISNAN(ExtractFromGrid(i))) then
     
-    write(*,*) 'arTeMiDe.',moduleName,': CRITICAL ERROR:: grid extraction produced NaN. EVALUSTION STOP'
-    
-    write(*,*) 'here',bT,i,ExtractFromGrid(i)
-    
-    write(*,*) 'inter',interI(0:3,i)
+    write(*,*) ErrorString('grid extraction produced NaN. EVALUSTION STOP',moduleName)
+    write(*,*) '----- information on last call -----'
+    write(*,*) 'bT=',bT,' i=',i, ' extraction=',ExtractFromGrid(i)
+    write(*,*) 'interI=',interI(0:3,i)
     
     dummyfNP=FNP(x,x,bT,hadronsInGRID(h),lambdaNP_grid)
-    write(*,*) 'fNP', dummyfNP(i)
+    write(*,*) 'fNP=', dummyfNP(i)
     
     stop
    end if

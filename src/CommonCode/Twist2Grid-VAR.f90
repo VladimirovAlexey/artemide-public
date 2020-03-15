@@ -13,11 +13,11 @@
 !				A.Vladimirov (08.10.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  real*8::xGrid_Min=0.00001d0 !!!!min x in grid. if lower requared remake it
-  real*8::bGrid_Max=100d0 !!!max b in grid if higher requared, extrapolation is done
+  real(dp)::xGrid_Min=0.00001d0 !!!!min x in grid. if lower requared remake it
+  real(dp)::bGrid_Max=100d0 !!!max b in grid if higher requared, extrapolation is done
   integer::GridSizeX=250
   integer::GridSizeB=750
-  real*8 :: slope=10d0
-  real*8, dimension(:,:,:,:), allocatable :: gridMain !!!! THIS IS HUGE(!) matrix for the grid
-  real*8, dimension(:,:,:), allocatable :: boundaryValues !!!! for b>bGrid_Max we approximate by fNP. With prefactor given by boundary value/fNP(bMax)
-  real*8:: bFactor,slopeFactor !! some often used combinations
+  real(dp) :: slope=10d0
+  real(dp), dimension(:,:,:,:), allocatable :: gridMain !!!! THIS IS HUGE(!) matrix for the grid
+  real(dp), dimension(:,:,:), allocatable :: boundaryValues !!!! for b>bGrid_Max we approximate by fNP. With prefactor given by boundary value/fNP(bMax)
+  real(dp):: bFactor,slopeFactor !! some often used combinations

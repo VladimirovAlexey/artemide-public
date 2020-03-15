@@ -8,15 +8,16 @@
 !				A.Vladimirov (27.05.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module aTMDe_Setup
+use aTMDe_Numerics
 use IO_functions
 implicit none
 
 private
 
-character (len=5),parameter :: version="v2.02"
+character (len=5),parameter :: version="v2.03"
 character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
-integer,parameter::inputVer=11
+integer,parameter::inputVer=14
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
@@ -28,11 +29,12 @@ logical::initialize_NParrays
 !-----------------------physic parameters
 logical::include_EWinput
 !mass, and width parameters
-real*8::mCHARM,mBOTTOM,mTOP,mZ,mW,GammaZ,GammaW,mH,GammaH,vevH
+real(dp)::mCHARM,mBOTTOM,mTOP,mZ,mW,GammaZ,GammaW,mH,GammaH,vevH
+real(dp)::mELECTRON,mMUON,mTAU
 !other physical parameters
-real*8::hc2,alphaQED_MZ,sW2
+real(dp)::hc2,alphaQED_MZ,sW2,alphaQED_MTAU
 !CKM matrix
-real*8::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
+real(dp)::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 
 !--------------------- uPDF parameters
 integer::number_of_uPDFs
@@ -53,57 +55,60 @@ character(len=100),allocatable::sets_of_lpPDFs(:)
 logical::include_TMDR
 character*8::TMDR_order
 integer::TMDR_evolutionType,TMDR_lambdaLength
-real*8::TMDR_tolerance
-real*8,allocatable::TMDR_lambdaNP_init(:)
+real(dp)::TMDR_tolerance
+real(dp),allocatable::TMDR_lambdaNP_init(:)
 
 !-------------------- uTMDPDF parameters
 logical::include_uTMDPDF
 integer::uTMDPDF_lambdaLength
-real*8::uTMDPDF_tolerance
+real(dp)::uTMDPDF_tolerance
 integer::uTMDPDF_maxIteration
 character*8::uTMDPDF_order
 logical::uTMDPDF_makeGrid,uTMDPDF_withGluon
-real*8::uTMDPDF_grid_bMax,uTMDPDF_grid_xMin,uTMDPDF_grid_slope
+real(dp)::uTMDPDF_grid_bMax,uTMDPDF_grid_xMin,uTMDPDF_grid_slope
 integer::uTMDPDF_grid_SizeX,uTMDPDF_grid_SizeB
-real*8,allocatable::uTMDPDF_lambdaNP_init(:)
+real(dp),allocatable::uTMDPDF_lambdaNP_init(:)
+logical::uTMDPDF_IsComposite
 
 !-------------------- uTMDFF parameters
 logical::include_uTMDFF
 integer::uTMDFF_lambdaLength
-real*8::uTMDFF_tolerance
+real(dp)::uTMDFF_tolerance
 integer::uTMDFF_maxIteration
 character*8::uTMDFF_order
 logical::uTMDFF_makeGrid,uTMDFF_withGluon
-real*8::uTMDFF_grid_bMax,uTMDFF_grid_xMin,uTMDFF_grid_slope
+real(dp)::uTMDFF_grid_bMax,uTMDFF_grid_xMin,uTMDFF_grid_slope
 integer::uTMDFF_grid_SizeX,uTMDFF_grid_SizeB
-real*8,allocatable::uTMDFF_lambdaNP_init(:)
+real(dp),allocatable::uTMDFF_lambdaNP_init(:)
+logical::uTMDFF_IsComposite
 
 !-------------------- lpTMDPDF parameters
 logical::include_lpTMDPDF
 integer::lpTMDPDF_lambdaLength
-real*8::lpTMDPDF_tolerance
+real(dp)::lpTMDPDF_tolerance
 integer::lpTMDPDF_maxIteration
 character*8::lpTMDPDF_order
 logical::lpTMDPDF_makeGrid,lpTMDPDF_withGluon
-real*8::lpTMDPDF_grid_bMax,lpTMDPDF_grid_xMin,lpTMDPDF_grid_slope
+real(dp)::lpTMDPDF_grid_bMax,lpTMDPDF_grid_xMin,lpTMDPDF_grid_slope
 integer::lpTMDPDF_grid_SizeX,lpTMDPDF_grid_SizeB
-real*8,allocatable::lpTMDPDF_lambdaNP_init(:)
+real(dp),allocatable::lpTMDPDF_lambdaNP_init(:)
+logical::lpTMDPDF_IsComposite
 
 !-------------------- TMDs parameters
 logical::include_TMDs
 
 !-------------------- TMDF parameters
 logical::include_TMDF
-real*8::TMDF_OGATAh,TMDF_tolerance
+real(dp)::TMDF_OGATAh,TMDF_tolerance
 
 !-------------------- TMDs-inKT parameters
 logical::include_TMDs_inKT
-real*8::TMDs_inKT_OGATAh,TMDs_inKT_tolerance
+real(dp)::TMDs_inKT_OGATAh,TMDs_inKT_tolerance
 
 !-------------------- TMDX-DY parameters
 logical::include_TMDX_DY
 character*8::TMDX_DY_order
-real*8::TMDX_DY_tolerance
+real(dp)::TMDX_DY_tolerance
 integer::TMDX_DY_ptSECTION
 logical::TMDX_DY_exactX1X2,TMDX_DY_piResum
 integer::TMDX_DY_numProc
@@ -111,11 +116,11 @@ integer::TMDX_DY_numProc
 !-------------------- TMDX-SIDIS parameters
 logical::include_TMDX_SIDIS
 character*8::TMDX_SIDIS_order
-real*8::TMDX_SIDIS_tolerance
+real(dp)::TMDX_SIDIS_tolerance
 integer::TMDX_SIDIS_ptSECTION
 logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_qTinX1Z1corr
 integer::TMDX_SIDIS_numProc
-real*8::TMDX_SIDIS_toleranceZ,TMDX_SIDIS_toleranceX
+real(dp)::TMDX_SIDIS_toleranceZ,TMDX_SIDIS_toleranceX
 character(len=4)::TMDX_SIDIS_methodZ,TMDX_SIDIS_methodX
 
 !---------------------------------------------------
@@ -171,9 +176,9 @@ contains
     
     include_EWinput=.true.
     !-----------------------physic parameters
-    mCHARM=1.400d0	!threashold mass for charm quark
-    mBOTTOM=4.750d0	!threashold mass for bottom quark
-    mTOP=173.00d0	!threashold mass for top quark
+    mCHARM=1.2700d0	!threashold mass for charm quark
+    mBOTTOM=4.180d0	!threashold mass for bottom quark
+    mTOP=172.90d0	!threashold mass for top quark
     
     mZ=91.1876d0	!pole mass for Z-boson
     GammaZ=2.4952d0	!width of Z-boson
@@ -185,9 +190,14 @@ contains
     GammaH=0.0042d0	!width of Higgs-boson [GeV]
     vevH=246.d0		!Higgs Vev
     
+    mELECTRON=0.0005109989461d0	!mass of electron[GeV]
+    mMUON=0.1056583745d0	!mass of muon[GeV]
+    mTAU=1.77686d0		!mass of tau
+    
     hc2=0.389379338d0	!transformation constant (hc)^2   GeV->mbarn
     
     alphaQED_MZ=127.955d0	!inverse alpha_QED at Z-boson mass
+    alphaQED_MTAU=133.476d0	!inverse alpha_QED at TAU-lepton mass
     
     sW2=0.23122d0	!sin^2 theta_Weinberg
     
@@ -256,6 +266,7 @@ contains
    !-------------------- parameters for UTMDPDF
     include_uTMDPDF=.true.
     uTMDPDF_order=trim(order)
+    uTMDPDF_IsComposite=.false.
     uTMDPDF_makeGrid=.true.
     uTMDPDF_withGluon=.false.
     uTMDPDF_lambdaLength=2
@@ -271,6 +282,7 @@ contains
     !-------------------- parameters for UTMDFF
     include_uTMDFF=.false.!!! we do not initialize TMDFF by definition
     uTMDFF_order=trim(order)
+    uTMDFF_IsComposite=.false.
     uTMDFF_makeGrid=.true.
     uTMDFF_withGluon=.false.
     uTMDFF_lambdaLength=1
@@ -286,6 +298,7 @@ contains
     !-------------------- parameters for lpTMDPDF
     include_lpTMDPDF=.false. !!! we do not initialize lpTMDPDF by definition
     lpTMDPDF_order=trim(order)
+    lpTMDPDF_IsComposite=.false.
     lpTMDPDF_makeGrid=.true.
     lpTMDPDF_withGluon=.true.
     lpTMDPDF_lambdaLength=1
@@ -642,7 +655,7 @@ contains
   end subroutine Set_quarkMasses
   
   subroutine Set_EWparameters(alphaInv,massZ,massW,widthZ,widthW,massH,widthH,vevHIGGS,sin2ThetaW,UD,US,UB,CD,CS,CB)
-  real*8,optional::alphaInv,massZ,massW,widthZ,widthW,sin2ThetaW,UD,US,UB,CD,CS,CB,massH,widthH,vevHIGGS
+  real(dp),optional::alphaInv,massZ,massW,widthZ,widthW,sin2ThetaW,UD,US,UB,CD,CS,CB,massH,widthH,vevHIGGS
    if(present(alphaInv)) alphaQED_MZ=alphaInv
    if(present(massZ)) MZ=massZ
    if(present(massW)) MW=massW
@@ -968,6 +981,8 @@ contains
     write(51,"('*p3  : values of CKM matrix (1-line:UD, US, UB, 2-line: CD, CS, CB)')")
     write(51,*) Vckm_UD,Vckm_US,Vckm_UB
     write(51,*) Vckm_CD,Vckm_CS,Vckm_CB    
+    write(51,"('*p4  : value of (alphaQED)^{-1} at MTAU')")
+    write(51,*) alphaQED_MTAU
     write(51,"('*B   : ---- Z-boson ----')")
     write(51,"('*p1  : mass of Z-boson [GeV]')")
     write(51,*) mZ
@@ -985,6 +1000,13 @@ contains
     write(51,*) GammaH
     write(51,"('*p3  : Vacuum expectation value (VEV) for Higgs potential [GeV]')")
     write(51,*) vevH
+    write(51,"('*E   : ---- Leptons ----')")
+    write(51,"('*p1  : mass of electron [GeV]')")
+    write(51,*) mELECTRON
+    write(51,"('*p2  : mass of muon [GeV]')")
+    write(51,*) mMUON
+    write(51,"('*p3  : mass of tau-lepton [GeV]')")
+    write(51,*) mTAU
     
     write(51,"(' ')")
     write(51,"(' ')")
@@ -1024,6 +1046,8 @@ contains
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : Order of coefficient function')")
     write(51,*) trim(uTMDPDF_order)
+    write(51,"('*p2  : Use composite TMD-function definition')")
+    write(51,*) uTMDPDF_IsComposite
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) uTMDPDF_lambdaLength
@@ -1070,6 +1094,8 @@ contains
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : Order of coefficient function')")
     write(51,*) trim(uTMDFF_order)
+    write(51,"('*p2  : Use composite TMD-function definition')")
+    write(51,*) uTMDFF_IsComposite
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) uTMDFF_lambdaLength
@@ -1218,6 +1244,8 @@ contains
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : Order of coefficient function')")
     write(51,*) trim(lpTMDPDF_order)
+    write(51,"('*p2  : Use composite TMD-function definition')")
+    write(51,*) lpTMDPDF_IsComposite
     write(51,"('*B   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) lpTMDPDF_lambdaLength
@@ -1395,6 +1423,10 @@ contains
     call MoveTO(51,'*p3  ')
     read(51,*) Vckm_UD,Vckm_US,Vckm_UB
     read(51,*) Vckm_CD,Vckm_CS,Vckm_CB
+    if(FILEversion>=14) then
+      call MoveTO(51,'*p4  ')
+      read(51,*) alphaQED_MTAU
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) mZ
@@ -1413,6 +1445,15 @@ contains
       read(51,*) GammaH
       call MoveTO(51,'*p3  ')
       read(51,*) vevH
+    end if
+    if(FILEversion>=13) then
+      call MoveTO(51,'*E   ')
+      call MoveTO(51,'*p1  ')
+      read(51,*) mELECTRON
+      call MoveTO(51,'*p2  ')
+      read(51,*) mMUON
+      call MoveTO(51,'*p3  ')
+      read(51,*) mTAU
     end if
     
     
@@ -1452,6 +1493,10 @@ contains
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDPDF_order
+    if(FILEversion>=12) then
+        call MoveTO(51,'*p2  ')
+        read(51,*) uTMDPDF_IsComposite
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDPDF_lambdaLength
@@ -1500,6 +1545,10 @@ contains
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_order
+    if(FILEversion>=12) then
+        call MoveTO(51,'*p2  ')
+        read(51,*) uTMDFF_IsComposite
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_lambdaLength
@@ -1636,6 +1685,10 @@ contains
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
     read(51,*) lpTMDPDF_order
+    if(FILEversion>=12) then
+        call MoveTO(51,'*p2  ')
+        read(51,*) lpTMDPDF_IsComposite
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) lpTMDPDF_lambdaLength
@@ -1690,7 +1743,7 @@ contains
   !!!! this subtroutine kill re allocate the array, and sets its values as (2,0,0,0,...)
   !!!! used for empty initialization arrays
   subroutine ReNewInitializationArray(arr,n)
-    real*8,allocatable,intent(out)::arr(:)
+    real(dp),allocatable,intent(out)::arr(:)
     integer::n,i
     if(allocated(arr)) deallocate(arr)
     allocate(arr(1:n))

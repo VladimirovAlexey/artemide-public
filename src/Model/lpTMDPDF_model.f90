@@ -25,12 +25,12 @@
   !!! x-- is the bjorken variable of TMD
   !!! z-- is convolution variable
   function FNP(x,z,bT,hadron,lambdaNP)
-    real*8,intent(in)::x,z,bT
+    real(dp),intent(in)::x,z,bT
     integer,intent(in)::hadron
-    real*8,intent(in)::lambdaNP(:)
-    real*8,dimension(-5:5)::FNP
+    real(dp),intent(in)::lambdaNP(:)
+    real(dp),dimension(-5:5)::FNP
     
-    real*8::FNP0,p1,p2
+    real(dp)::FNP0,p1,p2
     
     !!! NOT USED
     FNP0=Exp(-0.5d0*bT**2)
@@ -44,9 +44,9 @@
   !!!! at large-b it is a part of model
   !!!! NOTE: if it is lambda-dependent, the grid will be recalculate each reset of lambdaNP
   function bSTAR(bT,lambdaNP)
-    real*8,intent(in)::bT
-    real*8,intent(in)::lambdaNP(:)
-    real*8::bSTAR
+    real(dp),intent(in)::bT
+    real(dp),intent(in)::lambdaNP(:)
+    real(dp)::bSTAR
     
     bSTAR=bT/sqrt(1d0+(bT/500d0)**2)
     
@@ -54,8 +54,8 @@
   
   !!!!This function is the mu(x,b), which is used inside the OPE
   function mu_OPE(x,bT)
-    real*8,intent(in)::bT,x
-    real*8::mu_OPE
+    real(dp),intent(in)::bT,x
+    real(dp)::mu_OPE
     
     mu_OPE=C0_const*1d0/bT+2d0
     
@@ -64,14 +64,30 @@
     end if
   end function mu_OPE
   
-   !!! this is the table of replica prameters extracted in fit BSV19.
+  !!!! if the option UseComposite TMD is OFF, this function is ignored
+  !!!! If the option UseComposite TMD is ON,
+  !!!! than the TMD for hardon is build as TMD(hadron)=Sum_c CA(h,c) TMD(c)
+  !!!! where h=hadron, CA=coefficientArray
+  !!!! coefficientArray real(dp) list of coefficeints
+  !!!! includeArray is logical array list (true=TMD(c) is computed, false TMD(c) ignored)
+  subroutine GetCompositionArray(hadron,lambdaNP,includeArray,coefficientArray)  
+  real(dp),intent(in)::lambdaNP(:)
+  integer::hadron
+  logical,allocatable,intent(out)::includeArray(:)
+  real(dp),allocatable,intent(out)::coefficientArray(:)
+   
+   allocate(includeArray(1:1))
+   allocate(coefficientArray(1:1))
+  end subroutine GetCompositionArray
+  
+ !!! this is the table of replica prameters extracted in fit BSV19.
  !!! -2 is suggested for initialization replica
  !!! -1 is the best fit
  !!! 0 is the mean reaplics
  !!! 1 -- 100 replicas
  function ReplicaParameters(rep)
  integer::rep
- real*8::ReplicaParameters(1:6)    
+ real(dp)::ReplicaParameters(1:6)    
  
  Write(*,*) 'THERE IS NOT YET FIT OF LINEARLY POLARIZED GLUONS'
  stop

@@ -9,6 +9,7 @@ aTMDeHOME       = $(PWD)
 FCompilator=f95 
 #PUT HERE extra flags for compilator (put "space" if not flags requared)
 Fflags= -fopenmp
+#Fflags=  
 #path to fortran compilator (needed for f2py)
 Fpath=/usr/bin/f95
 
@@ -23,11 +24,13 @@ MOD		= $(aTMDeHOME)/mod
 HDIR		= $(aTMDeHOME)/harpy
 
 aTMDeFILES = \
-$(SOURCEDIR)/LeptonCutsDY.f90 \
+$(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90 \
 $(SOURCEDIR)/CommonCode/IO_functions.f90 \
+$(SOURCEDIR)/LeptonCutsDY.f90 \
 $(SOURCEDIR)/aTMDe_setup.f90 \
 $(SOURCEDIR)/QCDinput.f90 \
 $(SOURCEDIR)/EWinput.f90 \
+$(SOURCEDIR)/TMD_AD.f90 \
 $(SOURCEDIR)/TMDR.f90 \
 $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 \
 $(SOURCEDIR)/uTMDPDF.f90 \
@@ -41,8 +44,6 @@ $(SOURCEDIR)/TMDs_inKT.f90 \
 $(SOURCEDIR)/TMDX_DY.f90 \
 $(SOURCEDIR)/TMDX_SIDIS.f90 \
 $(SOURCEDIR)/aTMDe_control.f90 
-
-
 
 CommonFiles=\
 $(SOURCEDIR)/CommonCode/Twist2Convolution.f90 \
@@ -60,11 +61,13 @@ $(SOURCEDIR)/Model/uTMDFF_model.f90 \
 $(SOURCEDIR)/Model/uTMDPDF_model.f90 
 
 aTMDeOBJ = \
+$(OBJ)/aTMDe_Numerics.o \
 $(OBJ)/IO_functions.o \
 $(OBJ)/LeptonCutsDY.o \
 $(OBJ)/aTMDe_setup.o \
 $(OBJ)/QCDinput.o \
 $(OBJ)/EWinput.o\
+$(OBJ)/TMD_AD.o\
 $(OBJ)/TMDR.o\
 $(OBJ)/uTMDPDF-MODELinterface.o \
 $(OBJ)/uTMDPDF.o \
@@ -78,6 +81,11 @@ $(OBJ)/TMDs_inKT.o \
 $(OBJ)/TMDX_DY.o \
 $(OBJ)/TMDX_SIDIS.o \
 $(OBJ)/aTMDe_control.o 
+
+#these are utility object needed to compale any artemide module
+aTMDeUTILITY = \
+$(OBJ)/aTMDe_Numerics.o \
+$(OBJ)/IO_functions.o
 
 
 ################################################################### COMPILATION OF ARTEMIDE ####################################
@@ -93,105 +101,116 @@ update: $(BIN)/update-const
 
 obj: $(aTMDeOBJ) $(aTMDeFILES) $(aTMDeMODEL) $(CommonFiles)
 
-$(OBJ)/IO_functions.o: $(SOURCEDIR)/CommonCode/IO_functions.f90
-	$(FC) -c $(SOURCEDIR)/CommonCode/IO_functions.f90
+$(OBJ)/aTMDe_Numerics.o: $(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90
+	$(FC) -c $(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/uTMDPDF-MODELinterface.o: $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(OBJ)/IO_functions.o
+$(OBJ)/IO_functions.o: $(SOURCEDIR)/CommonCode/IO_functions.f90 $(OBJ)/aTMDe_Numerics.o
+	$(FC) -c $(SOURCEDIR)/CommonCode/IO_functions.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/uTMDPDF-MODELinterface.o: $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/uTMDFF-MODELinterface.o: $(SOURCEDIR)/uTMDFF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDFF_model.f90 $(OBJ)/IO_functions.o
+$(OBJ)/uTMDFF-MODELinterface.o: $(SOURCEDIR)/uTMDFF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDFF_model.f90 $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/uTMDFF-MODELinterface.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/lpTMDPDF-MODELinterface.o: $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(OBJ)/IO_functions.o
+$(OBJ)/lpTMDPDF-MODELinterface.o: $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90 $(OBJ)/IO_functions.o
+$(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90 $(aTMDeUTILITY)
 	mkdir -p obj
 	mkdir -p mod
 	$(FC) -c $(SOURCEDIR)/LeptonCutsDY.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/QCDinput.o: $(SOURCEDIR)/QCDinput.f90 $(OBJ)/IO_functions.o
+$(OBJ)/QCDinput.o: $(SOURCEDIR)/QCDinput.f90 $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/QCDinput.f90 -I$(MOD) $(FOPT)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/EWinput.o: $(SOURCEDIR)/EWinput.f90 $(OBJ)/IO_functions.o
+$(OBJ)/EWinput.o: $(SOURCEDIR)/EWinput.f90 $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/EWinput.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/uTMDPDF.o: $(SOURCEDIR)/uTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(CommonFiles) $(OBJ)/IO_functions.o
+$(OBJ)/uTMDPDF.o: $(SOURCEDIR)/uTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/uTMDPDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/uTMDFF.o: $(SOURCEDIR)/uTMDFF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDFF_model.f90 $(CommonFiles) $(OBJ)/IO_functions.o
+$(OBJ)/uTMDFF.o: $(SOURCEDIR)/uTMDFF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDFF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/uTMDFF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(CommonFiles) $(OBJ)/IO_functions.o
+$(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/lpTMDPDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QCDinput.o $(OBJ)/IO_functions.o
+$(OBJ)/TMD_AD.o: $(SOURCEDIR)/TMD_AD.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/TMD_AD.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
+$(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QCDinput.o $(OBJ)/TMD_AD.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDR.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(OBJ)/IO_functions.o
+$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDs.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDs_inKT.o: $(SOURCEDIR)/TMDs_inKT.f90 $(OBJ)/TMDs.o $(OBJ)/IO_functions.o
+$(OBJ)/TMDs_inKT.o: $(SOURCEDIR)/TMDs_inKT.f90 $(OBJ)/TMDs.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDs_inKT.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDF.o: $(SOURCEDIR)/TMDF.f90 $(OBJ)/TMDs.o $(OBJ)/IO_functions.o
+$(OBJ)/TMDF.o: $(SOURCEDIR)/TMDF.f90 $(OBJ)/TMDs.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDX_DY.o: $(SOURCEDIR)/TMDX_DY.f90 $(SOURCEDIR)/DYcoeff-func.f90 $(OBJ)/TMDF.o  $(OBJ)/QCDinput.o $(OBJ)/IO_functions.o
+$(OBJ)/TMDX_DY.o: $(SOURCEDIR)/TMDX_DY.f90 $(SOURCEDIR)/DYcoeff-func.f90 $(OBJ)/TMDF.o  $(OBJ)/QCDinput.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDX_DY.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDX_SIDIS.o: $(SOURCEDIR)/TMDX_SIDIS.f90 $(OBJ)/TMDs.o $(OBJ)/QCDinput.o $(OBJ)/IO_functions.o
+$(OBJ)/TMDX_SIDIS.o: $(SOURCEDIR)/TMDX_SIDIS.f90 $(OBJ)/TMDs.o $(OBJ)/QCDinput.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDX_SIDIS.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/aTMDe_setup.o: $(SOURCEDIR)/aTMDe_setup.f90 $(OBJ)/IO_functions.o
+$(OBJ)/aTMDe_setup.o: $(SOURCEDIR)/aTMDe_setup.f90 $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/aTMDe_setup.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/aTMDe_control.o: $(SOURCEDIR)/aTMDe_control.f90 $(OBJ)/aTMDe_setup.o
+$(OBJ)/aTMDe_control.o: $(SOURCEDIR)/aTMDe_control.f90 $(OBJ)/aTMDe_setup.o $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/aTMDe_control.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
@@ -216,7 +235,7 @@ test:
 	
 ################################################ update constants part ##############################
 
-$(BIN)/update-const: $(aTMDeHOME)/Prog/update-constants-file.f90 $(OBJ)/IO_functions.o $(OBJ)/aTMDe_setup.o
+$(BIN)/update-const: $(aTMDeHOME)/Prog/update-constants-file.f90 $(OBJ)/aTMDe_setup.o $(aTMDeUTILITY)
 	$(FC) $(aTMDeHOME)/Prog/update-constants-file.f90 $(aTMDeOBJ) $(FOPT) -I$(MOD) -o update-const
 	mv update-const $(BIN)/update-const
 	

@@ -11,6 +11,7 @@
 !	ver.1.4  Deleted old routines. Incapsulated variables (AV. 18.01.2019(
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module LeptonCutsDY
+use aTMDe_Numerics
 use IO_functions
 implicit none
 private
@@ -18,12 +19,12 @@ private
 
 !!!Parameters of cut and cross-section
 !!!!! this is array =(/  pT1lim,pT2lim,etaMin,etaMax,Exp(2etaMin),exp(2etaMax) /)
-real*8::cutParam_global(1:6)
+real(dp)::cutParam_global(1:6)
 
 !!! number of divisions in Simpsons
-integer,parameter::num=64!24!!
+integer,parameter::num=64!
 !! Tolerance (absolute)
-real*8,parameter::tolerance=0.000001d0
+real(dp),parameter::tolerance=0.000001d0
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! the kinematic variables are passed via an aray
@@ -42,7 +43,7 @@ contains
 
 !SEt parameters of cut 
 subroutine SetCutParameters_sym(pT_in,etaMin_in,etaMax_in)
-  real*8::pT_in,etaMax_in,etaMin_in
+  real(dp)::pT_in,etaMax_in,etaMin_in
   
   cutParam_global=(/ pT_in**2,&
 	      pT_in**2,&
@@ -56,7 +57,7 @@ end subroutine SetCutParameters_sym
 !SEt parameters of cut 
 ! with asymetric cuts for pT
 subroutine SetCutParameters_asym(pT1_in,pT2_in,etaMin_in,etaMax_in)
-  real*8::pT1_in,pT2_in,etaMax_in,etaMin_in
+  real(dp)::pT1_in,pT2_in,etaMax_in,etaMin_in
   
   !! for definetines we order pt1>pt2
   if(pT1_in>=pT2_in) then 
@@ -89,11 +90,11 @@ end subroutine SetCutParameters_asym
 !!!!
 !!!! CutParameters = (/ kT1, kT2, etaMin, etaMax /)
 function CutFactor4(qT,Q_in,y_in,CutParameters)
-  real*8:: qT,CutFactor4,Q_in,y_in
-  real*8:: dphi
+  real(dp):: qT,CutFactor4,Q_in,y_in
+  real(dp):: dphi
   integer :: i
-  real*8,dimension(1:6)::var,varC
-  real*8,dimension(1:4),optional,intent(in)::CutParameters
+  real(dp),dimension(1:6)::var,varC
+  real(dp),dimension(1:4),optional,intent(in)::CutParameters
   
   if(present(CutParameters)) then
     if(CutParameters(1)>CutParameters(2)) then
@@ -118,7 +119,7 @@ function CutFactor4(qT,Q_in,y_in,CutParameters)
     CutFactor4=0d0
   else
     CutFactor4=0d0
-    dphi=2d0*3.14159265358979d0/num
+    dphi=pix2/num
     do i=0,num
       CutFactor4=CutFactor4+Simp(i,num)*IntegralOverEtaFixedPhiEXACT(var,varC,i*dphi)
     end do
@@ -132,11 +133,11 @@ end function CutFactor4
 
 !!!! integral for anti-symmetric part of lepton tensor
 function CutFactorA(qT,Q_in,y_in,CutParameters)
-  real*8:: qT,CutFactorA,Q_in,y_in
-  real*8:: dphi
+  real(dp):: qT,CutFactorA,Q_in,y_in
+  real(dp):: dphi
   integer :: i
-  real*8,dimension(1:6)::var,varC
-  real*8,dimension(1:4),optional,intent(in)::CutParameters
+  real(dp),dimension(1:6)::var,varC
+  real(dp),dimension(1:4),optional,intent(in)::CutParameters
   
   if(present(CutParameters)) then
     if(CutParameters(1)>CutParameters(2)) then
@@ -161,7 +162,7 @@ function CutFactorA(qT,Q_in,y_in,CutParameters)
     CutFactorA=0d0
   else
     CutFactorA=0d0
-    dphi=2d0*3.14159265358979d0/num
+    dphi=pix2/num
     do i=0,num
       CutFactorA=CutFactorA+Simp(i,num)*IntegralOverEtaFixedPhiEXACT_A(var,varC,i*dphi)
     end do
@@ -181,9 +182,9 @@ end function CutFactorA
 ! var =(/ qT,  Q_in, y_in,   Q_in**2,  qT**2/(Q_in**2+qT**2), SQRT(Q_in**2+qT**2)/)
 ! varC=(/ pT1, pT2,  etaMin, etaMax,   EXP(2*etaMin),         EXP(2*etaMax) /)
 function IntegralOverEtaFixedPhiEXACT(var,varC,phi)
-  real*8,dimension(1:6)::var,varC
-  real*8:: IntegralOverEtaFixedPhiEXACT,phi
-  real*8::eta1,eta2
+  real(dp),dimension(1:6)::var,varC
+  real(dp):: IntegralOverEtaFixedPhiEXACT,phi
+  real(dp)::eta1,eta2
   
   if(Integrand2THETA(var,varC,var(3),phi)==0) then
   !!!! Here is the point of assumption!! because if Q~qT the integration region is difficult and the boundaries may be inproper
@@ -195,7 +196,7 @@ function IntegralOverEtaFixedPhiEXACT(var,varC,phi)
   eta2=FindBoundary(var,varC,var(3),varC(4)+0.0001d0,phi)
   !write(*,*) eta1,eta2
   
-  IntegralOverEtaFixedPhiEXACT=var(4)/50.26548245743669d0*(&
+  IntegralOverEtaFixedPhiEXACT=var(4)/(16d0*pi)*(&
 	integralEtaExactUNDEFINED(var(1)*cos(phi),var(6),var(3)-eta2,var(4))&
 	-integralEtaExactUNDEFINED(var(1)*cos(phi),var(6),var(3)-eta1,var(4)))
 	
@@ -209,9 +210,9 @@ end function IntegralOverEtaFixedPhiEXACT
 ! varC=(/ pT1, pT2,  etaMin, etaMax,   EXP(2*etaMin),         EXP(2*etaMax) /)
 !!! ANTI SYMMETRIC ONE!
 function IntegralOverEtaFixedPhiEXACT_A(var,varC,phi)
-  real*8,dimension(1:6)::var,varC
-  real*8:: IntegralOverEtaFixedPhiEXACT_A,phi
-  real*8::eta1,eta2
+  real(dp),dimension(1:6)::var,varC
+  real(dp):: IntegralOverEtaFixedPhiEXACT_A,phi
+  real(dp)::eta1,eta2
   
   if(Integrand2THETA(var,varC,var(3),phi)==0) then
   !!!! Here is the point of assumption!! because if Q~qT the integration region is difficult and the boundaries may be inproper
@@ -223,7 +224,7 @@ function IntegralOverEtaFixedPhiEXACT_A(var,varC,phi)
   eta2=FindBoundary(var,varC,var(3),varC(4)+0.0001d0,phi)
   !write(*,*) eta1,eta2
   
-  IntegralOverEtaFixedPhiEXACT_A=var(4)/50.26548245743669d0*(&
+  IntegralOverEtaFixedPhiEXACT_A=var(4)/(16d0*pi)*(&
 	integralEtaExactUNDEFINED_A(var(1)*cos(phi),var(6),var(3)-eta2,var(4))&
 	-integralEtaExactUNDEFINED_A(var(1)*cos(phi),var(6),var(3)-eta1,var(4)))
 	
@@ -237,17 +238,17 @@ end function IntegralOverEtaFixedPhiEXACT_A
 !! b = Sqrt{Q^2+qT^2}
 !! uu = y-eta
 function integralEtaExactUNDEFINED(a,b,uu,Q2)
-  real*8::a,b,uu,integralEtaExactUNDEFINED,Q2
-  real*8::w,R,TT,bb
+  real(dp)::a,b,uu,integralEtaExactUNDEFINED,Q2
+  real(dp)::w,R,TT,bb
   
   bb=b*b
   w=bb-a**2
   R=a-b*Cosh(uu)
   TT=-b*Sinh(uu)/w/R
   
-  integralEtaExactUNDEFINED=2*Q2*TT/R**2+a*(6*w-5*Q2)*TT/w/R&
-      +(6-(18*bb+11*Q2)/w+15*bb*Q2/w**2)*TT&
-      -6*a*(2*(3*bb+Q2)*w-5*bb*Q2)*atan((a+b)/sqrt(w)*tanh(uu/2))/w**(3.5)
+  integralEtaExactUNDEFINED=2d0*Q2*TT/R**2+a*(6d0*w-5d0*Q2)*TT/w/R&
+      +(6d0-(18d0*bb+11d0*Q2)/w+15d0*bb*Q2/w**2)*TT&
+      -6d0*a*(2d0*(3d0*bb+Q2)*w-5d0*bb*Q2)*atan((a+b)/sqrt(w)*tanh(uu/2d0))/w**(3.5d0)
   
 end function integralEtaExactUNDEFINED
 
@@ -259,7 +260,7 @@ end function integralEtaExactUNDEFINED
 !! uu = y-eta
 !!! ANTI SYMMETRIC ONE!
 function integralEtaExactUNDEFINED_A(a,b,uu,Q2)
-  real*8::a,b,uu,integralEtaExactUNDEFINED_A,Q2
+  real(dp)::a,b,uu,integralEtaExactUNDEFINED_A,Q2
   
   
   integralEtaExactUNDEFINED_A=-6d0/(a-b*Cosh(uu))**2
@@ -274,10 +275,10 @@ end function integralEtaExactUNDEFINED_A
 ! var =(/ qT,  Q_in, y_in,   Q_in**2,  qT**2/(Q_in**2+qT**2), SQRT(Q_in**2+qT**2)/)
 ! varC=(/ pT1, pT2,  etaMin, etaMax,   EXP(2*etaMin),         EXP(2*etaMax) /)
 function Integrand2THETA(var,varC,h1,p1)
-  real*8,dimension(1:6)::var,varC
-  real*8:: h1,p1
+  real(dp),dimension(1:6)::var,varC
+  real(dp):: h1,p1
   integer::Integrand2THETA
-  real*8::cosp1,chhy,l1square,l2square,exp2h2,l1
+  real(dp)::cosp1,chhy,l1square,l2square,exp2h2,l1
   
   cosp1=COS(p1)
   chhy=COSH(h1-var(3))
@@ -300,7 +301,7 @@ end function Integrand2THETA
 
 function Simp(i,n)
   integer::i,n
-  real*8::Simp
+  real(dp)::Simp
   if((i==0).or.(i==n)) then
   Simp=1d0
   else 
@@ -319,8 +320,8 @@ end function Simp
 ! var =(/ qT,  Q_in, y_in,   Q_in**2,  qT**2/(Q_in**2+qT**2), SQRT(Q_in**2+qT**2)/)
 ! varC=(/ pT1, pT2,  etaMin, etaMax,   EXP(2*etaMin),         EXP(2*etaMax) /)
 function FindBoundary(var,varC,eta1_in,eta2_in,phi)
-  real*8,dimension(1:6)::var,varC
-  real*8::FindBoundary,eta1,eta2,phi,eta3,eta1_in,eta2_in
+  real(dp),dimension(1:6)::var,varC
+  real(dp)::FindBoundary,eta1,eta2,phi,eta3,eta1_in,eta2_in
   integer:: v1,v2,v3,i
   
   eta1=eta1_in

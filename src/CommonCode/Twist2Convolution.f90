@@ -17,22 +17,10 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Supplimentary functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!!number of active flavor at given mu
-function activeNf(mu)
-  real*8::activeNf,mu
-  if(mu<=mCHARM) then
-     activeNf=3d0
-    else if(mu<=mBOTTOM) then
-     activeNf=4d0
-    else 
-     activeNf=5d0
-  end if
-end function activeNf
-
 !!Evaluate Log[mu^2 bT^2/4/Exp(-2Gamma_E)]
 !! the b here is b*, this funciton is used only in Coefficeint functions
 function LogMuB(mu,bT)
-  real*8::bT,mu,LogMuB
+  real(dp)::bT,mu,LogMuB
   LogMuB=2d0*Log(bSTAR(bT,lambdaNP)*mu*C0_inv_const)
 end function LogMuB  
 
@@ -53,15 +41,15 @@ end function LogMuB
 !!!---
 !---------------------------------------------------------------------
 function Common_lowScale5(x,bT,hadron)
-  real*8,dimension(-5:5)::Common_lowScale5
-  real*8 :: x, bT
+  real(dp),dimension(-5:5)::Common_lowScale5
+  real(dp) :: x, bT
   integer::hadron,j
   
-  real*8 :: alpha,alphaAt1
-  real*8 :: Lmu,Nf,LmuAt1, NfAt1
+  real(dp) :: alpha,alphaAt1
+  real(dp) :: Lmu,Nf,LmuAt1, NfAt1
   
-  real*8,dimension(-5:5) :: deltaPart
-  real*8,dimension(-5:5) :: convolutionPart
+  real(dp),dimension(-5:5) :: deltaPart
+  real(dp),dimension(-5:5) :: convolutionPart
   
    xCurrent=x
    !! for extrimely small-values of b we freeze its value at b=10^{-6}.
@@ -73,7 +61,7 @@ function Common_lowScale5(x,bT,hadron)
    
    muCurrent=c4_global*mu_OPE(x,bTcurrent)
    alpha=As(muCurrent)
-   Nf=activeNf(muCurrent)
+   Nf=real(activeNf(muCurrent),dp)
    Lmu=LogMuB(muCurrent,bTcurrent)
    
    
@@ -83,7 +71,7 @@ function Common_lowScale5(x,bT,hadron)
     muAt1=c4_global*mu_OPE(1d0,bTcurrent)
     LmuAt1=LogMuB(muAt1,bTcurrent)
     alphaAt1=As(muAt1)
-    NfAt1=activeNf(muAt1)
+    NfAt1=real(activeNf(muAt1),dp)
   end if
   
   !! boundary value of FNP*PDF
@@ -135,8 +123,7 @@ function Common_lowScale5(x,bT,hadron)
   !write(*,*) 'gluonMIXTUREPart =', gluonMIXTURE/x  
   !write(*,*) 'TDhat', (deltaPart+singularPart+regularPart)/x
   Common_lowScale5=(deltaPart+convolutionPart)*(1d0/x)
- 
- 
+  
  end function Common_lowScale5
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
  !---------------------------------------------------------------------
@@ -151,15 +138,15 @@ function Common_lowScale5(x,bT,hadron)
 !!!---
 !---------------------------------------------------------------------
 function Common_lowScale50(x,bT,hadron)
-  real*8,dimension(-5:5)::Common_lowScale50
-  real*8 :: x, bT
+  real(dp),dimension(-5:5)::Common_lowScale50
+  real(dp) :: x, bT
   integer::hadron,j
   
-  real*8 :: alpha,alphaAt1
-  real*8 :: Lmu,Nf,LmuAt1, NfAt1,dummy1,dummy2
+  real(dp) :: alpha,alphaAt1
+  real(dp) :: Lmu,Nf,LmuAt1, NfAt1,dummy1,dummy2
   
-  real*8,dimension(-5:5) :: deltaPart
-  real*8,dimension(-5:5) :: convolutionPart
+  real(dp),dimension(-5:5) :: deltaPart
+  real(dp),dimension(-5:5) :: convolutionPart
   
    xCurrent=x
    !! for extrimely small-values of b we freeze its value at b=10^{-6}.
@@ -171,7 +158,7 @@ function Common_lowScale50(x,bT,hadron)
    
    muCurrent=c4_global*mu_OPE(x,bTcurrent)
    alpha=As(muCurrent)
-   Nf=activeNf(muCurrent)
+   Nf=real(activeNf(muCurrent),dp)
    Lmu=LogMuB(muCurrent,bTcurrent)
    
    
@@ -181,7 +168,7 @@ function Common_lowScale50(x,bT,hadron)
     muAt1=c4_global*mu_OPE(1d0,bTcurrent)
     LmuAt1=LogMuB(muAt1,bTcurrent)
     alphaAt1=As(muAt1)
-    NfAt1=activeNf(muAt1)
+    NfAt1=real(activeNf(muAt1),dp)
   end if
   
   !! boundary value of FNP*PDF
@@ -252,13 +239,13 @@ end function Common_lowScale50
 !!!		where f[x/z] is given by function xf, C[z] is given by coeff.
 !!!---
 recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
-    real*8,dimension(-5:5)::res5,PDFs,value,eps,epspdf,vg7,vk15
+    real(dp),dimension(-5:5)::res5,PDFs,value,eps,epspdf,vg7,vk15
     
-    real*8 :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon
+    real(dp) :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon
     integer :: j,i,hadron
-    real*8,dimension(1:parametrizationLength):: var
-    real*8:: alpha,Lmu,Nf
-    real*8,dimension(-5:5)::F0
+    real(dp),dimension(1:parametrizationLength):: var
+    real(dp):: alpha,Lmu,Nf
+    real(dp),dimension(-5:5)::F0
     
     xm=0.5d0*(x1+x0)
     xr=0.5d0*(x1-x0)
@@ -272,24 +259,24 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
       z=xm+xr*Xi_k15(j)
       
       !!!!If mu(x) we have to recalculate Coefficeints every new x!!! This should be very loooong
-      if(IsMuXdependent) then
-       if(bTcurrent>1d-8) then
-	muCurrent=c4_global*mu_OPE(z,bTcurrent)
-	Lmu=LogMuB(muCurrent,bTcurrent)
-	alpha=As(muCurrent)
-	Nf=activeNf(muCurrent)
-	else
-	muCurrent=100000d0
-	Lmu=0d0
-	alpha=0d0
-	Nf=5d0
-       end if
-       call Set_CoeffSing1_q_q(alpha,Nf,Lmu)
-       call Set_Coeff_q_q(alpha,Nf,Lmu)
-       call Set_Coeff_q_qb(alpha,Nf,Lmu)
-       call Set_Coeff_q_qp(alpha,Nf,Lmu)
-       call Set_Coeff_q_g(alpha,Nf,Lmu)  
-      end if
+    if(IsMuXdependent) then
+     if(bTcurrent>1d-8) then
+	  muCurrent=c4_global*mu_OPE(z,bTcurrent)
+	  Lmu=LogMuB(muCurrent,bTcurrent)
+	  alpha=As(muCurrent)
+	  Nf=real(activeNf(muCurrent),dp)
+	 else
+	  muCurrent=100000d0
+	  Lmu=0d0
+	  alpha=0d0
+	  Nf=5d0
+     end if
+     call Set_CoeffSing1_q_q(alpha,Nf,Lmu)
+     call Set_Coeff_q_q(alpha,Nf,Lmu)
+     call Set_Coeff_q_qb(alpha,Nf,Lmu)
+     call Set_Coeff_q_qp(alpha,Nf,Lmu)
+     call Set_Coeff_q_g(alpha,Nf,Lmu)  
+    end if
       
       !!! PDFs are together with non-perp func!
       PDFs=xf(xCurrent/z,muCurrent,hadron)
@@ -323,11 +310,9 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
       
       !!adding + part
       value=value+(CoeffSing1_q_q(1)/(1d0-z)+CoeffSing1_q_q(2)*LOG(1d0-z)/(1d0-z))*(F0*PDFs-FPDFcurrent)
-      
-      !write(*,*)CqMain,CqAnti,CqPrime,singCoeff,singCoeffLog      
-      !write(*,*) j, PDFs(2)!,FNP(z,bTcurrent,hadron)
+
       vg7=vg7+Wi_g7(j)*value
-      vk15=vk15+Wi_k15(j)*value 
+      vk15=vk15+Wi_k15(j)*value       
     end do
     
       !!!! check the convergance
@@ -339,18 +324,16 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
       
       if(MAXVAL(eps)>tolerance) then !!!integral not yet convergent
        if(counter>maxIteration) then !!!out of counting limit
-       if(outputLevel>0 .and. messageCounter<messageTrigger) then
-        write(*,*) 'WARNING: arTeMiDe.',moduleName,': Mellin convolution does not converge. Integral evaluation stop after ',&
-	  maxIteration,' iterations.'
+       
+       if(outputLevel>0) call Warning_Raise('Mellin convolution does not converge. Integral evaluation stop after '//&
+	  numToStr(maxIteration)//' iterations.',messageCounter,messageTrigger,moduleName)
+       
 	  if(outputLevel>2) then
+	  write(*,*) '----- information on last call -----'
 	  write(*,*) 'x=',xCurrent,'b=',bTcurrent,'mu=',muCurrent
 	  write(*,*) 'iteration=',counter, 'eps=',eps
 	  write(*,*) 'weight=',integralWeight
 	  end if
-	  messageCounter=messageCounter+1
-	  if(messageCounter>messageTrigger) &
-		write(*,*) 'WARNING: arTeMiDe.',moduleName,': number of WARNINGS more then 5. Futher WARNING suppresed'
-	end if
 	  !stop
 	res5=xr*vk15
 	else !!!!inside the counting limit
@@ -376,7 +359,7 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
 		  muCurrent=c4_global*mu_OPE(x0,bTcurrent)
 		  Lmu=LogMuB(muCurrent,bTcurrent)
 		  alpha=As(muCurrent)
-		  Nf=activeNf(muCurrent)
+		  Nf=real(activeNf(muCurrent),dp)
 	      else
 		muCurrent=100000d0
 		Lmu=0d0
@@ -439,13 +422,13 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
 !!!		where f[x/z] is given by function xf, C[z] is given by coeff.
 !!!---
 recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
-    real*8,dimension(-5:5)::res5,PDFs,value,vg7,vk15,eps,epspdf,addV
+    real(dp),dimension(-5:5)::res5,PDFs,value,vg7,vk15,eps,epspdf,addV
     
-    real*8 :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon,CgMain,CgQuark
+    real(dp) :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon,CgMain,CgQuark
     integer :: j,i,hadron
-    real*8,dimension(1:parametrizationLength):: var
-    real*8:: alpha,Lmu,Nf
-    real*8,dimension(-5:5)::F0
+    real(dp),dimension(1:parametrizationLength):: var
+    real(dp):: alpha,Lmu,Nf
+    real(dp),dimension(-5:5)::F0
     
     xm=0.5d0*(x1+x0)
     xr=0.5d0*(x1-x0)
@@ -462,7 +445,7 @@ recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
 	muCurrent=c4_global*mu_OPE(z,bTcurrent)
 	Lmu=LogMuB(muCurrent,bTcurrent)
 	alpha=As(muCurrent)
-	Nf=activeNf(muCurrent)
+	Nf=real(activeNf(muCurrent),dp)
 	else
 	muCurrent=100000d0
 	Lmu=0d0
@@ -526,18 +509,15 @@ recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
     
       if(MAXVAL(eps)>tolerance) then
        if(counter>maxIteration) then
-        if(outputLevel>0 .and. messageCounter<messageTrigger) then
-        write(*,*) 'WARNING: arTeMiDe.',moduleName,': Mellin convolution does not converge. Integral evaluation stop after ',&
-	  maxIteration,' iterations.'
+       if(outputLevel>0) call Warning_Raise('Mellin convolution does not converge. Integral evaluation stop after '//&
+	  numToStr(maxIteration)//' iterations.',messageCounter,messageTrigger,moduleName)
 	  if(outputLevel>1) then
+	  write(*,*) '----- information on last call -----'
 	  write(*,*) 'x=',xCurrent,'b=',bTcurrent,'mu=',muCurrent
 	  write(*,*) 'iteration=',counter, 'eps=',eps
 	  write(*,*) 'weight=',integralWeight
 	  end if
-	  messageCounter=messageCounter+1
-	  if(messageCounter>messageTrigger) &
-		  write(*,*) 'WARNING: arTeMiDe.',moduleName,' number of WARNINGS more then 5. Futher WARNING suppresed'
-	 end if
+	  
 	res5=xr*vk15
 	else 
 	  if(x1==1d0 .and. 1d0-x0<tolerance) then
@@ -562,7 +542,7 @@ recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
 		  muCurrent=c4_global*mu_OPE(x0,bTcurrent)
 		  Lmu=LogMuB(muCurrent,bTcurrent)
 		  alpha=As(muCurrent)
-		  Nf=activeNf(muCurrent)
+		  Nf=real(activeNf(muCurrent),dp)
 	      else
 		muCurrent=100000d0
 		Lmu=0d0

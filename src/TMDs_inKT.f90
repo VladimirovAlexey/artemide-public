@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDs_inKT
+  use aTMDe_Numerics
   use IO_functions
   use TMDs
   implicit none
@@ -25,16 +26,16 @@ module TMDs_inKT
   integer,parameter::inputver=1
  
  !------------------------------------------Tables-----------------------------------------------------------------------
-    integer,parameter::Nmax=200
-    INCLUDE 'Tables/BesselZero.f90'
+  integer,parameter::Nmax=200
+  INCLUDE 'Tables/BesselZero.f90'
  
-   logical:: convergenceLost=.false.
+  logical:: convergenceLost=.false.
  
-   real*8::hOGATA,tolerance
+  real(dp)::hOGATA,tolerance
   !!!weights of ogata quadrature
-  real*8,dimension(0:3,1:Nmax)::ww
+  real(dp),dimension(0:3,1:Nmax)::ww
   !!!nodes of ogata quadrature
-  real*8,dimension(0:3,1:Nmax)::bb
+  real(dp),dimension(0:3,1:Nmax)::bb
   
   integer::GlobalCounter
   integer::CallCounter
@@ -52,7 +53,7 @@ module TMDs_inKT
   
   public::TMDs_inKT_Initialize,TMDs_inKT_ShowStatistic,TMDs_inKT_IsInitialized,TMDs_inKT_ResetCounters
 	  
-  real*8,dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50,lpTMDPDF_kT_50
+  real(dp),dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50,lpTMDPDF_kT_50
   
   interface uTMDPDF_kT_5
     module procedure uTMDPDF_kT_5_Ev,uTMDPDF_kT_5_optimal
@@ -155,7 +156,7 @@ contains
       end if
       
       started=.true.
-      if(outputLevel>0) write(*,*) '----- arTeMiDe.TMDs-inKT ',version,': .... initialized'
+      if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDs-inKT '//trim(version)//': .... initialized',c_green)
       if(outputLevel>1) write(*,*) ' '
     
   end subroutine TMDs_inKT_Initialize
@@ -196,35 +197,13 @@ contains
   end subroutine TMDs_inKT_ShowStatistic
   
   
-   !!!Prepare tables for Ogata quadrature with given h
-   !!! note that the factor 1/(2pi) is taken into ww
-!  subroutine PrepareTables()
-!   real*8,parameter::piHalf=1.5707963267948966d0
-!   real*8,parameter::pi=3.141592653589793d0
-!   integer::i
-!   real*8::t!=h*xi
-!   real*8::psiPart!=tanh[pi/2 Sinh[h xi]]
-!   
-!   do i=1,Nmax
-!     t=hOGATA*JZero(0,i)
-!     psiPart=Tanh(piHalf*Sinh(t))
-!       bb(i)=JZero(0,i)*psiPart
-!       ww(i)=BESSEL_J0(bb(i))/JZero(0,i)/(BESSEL_J1(JZero(0,i))**2)*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
-! !      write(*,*) psiPart,b(k,i),w(k,i)
-!   end do
-!  
-!  end subroutine PrepareTables
- 
- 
   !!!Prepare tables for Ogata quadrature with given h
   !!! note that the factor 1/(2pi) is taken into ww
   !!! the difference between definition in TMDF and here is 1/pi
  subroutine PrepareTables()
-  real*8,parameter::piHalf=1.5707963267948966d0
-  real*8,parameter::pi=3.141592653589793d0
   integer::i,k
-  real*8::t!=h*xi
-  real*8::psiPart!=tanh[pi/2 Sinh[h xi]]
+  real(dp)::t!=h*xi
+  real(dp)::psiPart!=tanh[pi/2 Sinh[h xi]]
   
   do k=0,3
   do i=1,Nmax
@@ -243,58 +222,58 @@ contains
  
  !---------------------------------------------------uTMDPDF
  function uTMDPDF_kT_5_Ev(x,qT,mu,zeta,hadron)
- real*8::uTMDPDF_kT_5_Ev(-5:5)
- real*8::x,qT,mu,zeta
+ real(dp)::uTMDPDF_kT_5_Ev(-5:5)
+ real(dp)::x,qT,mu,zeta
  integer::hadron
  uTMDPDF_kT_5_Ev=Fourier(x,qT,mu,zeta,1,hadron) 
  end function uTMDPDF_kT_5_Ev
  
  function uTMDPDF_kT_50_Ev(x,qT,mu,zeta,hadron)
- real*8::uTMDPDF_kT_50_Ev(-5:5)
- real*8::x,qT,mu,zeta
+ real(dp)::uTMDPDF_kT_50_Ev(-5:5)
+ real(dp)::x,qT,mu,zeta
  integer::hadron
  uTMDPDF_kT_50_Ev=Fourier(x,qT,mu,zeta,2,hadron) 
  end function uTMDPDF_kT_50_Ev
  
   function uTMDPDF_kT_5_optimal(x,qT,hadron)
- real*8::uTMDPDF_kT_5_optimal(-5:5)
- real*8::x,qT
+ real(dp)::uTMDPDF_kT_5_optimal(-5:5)
+ real(dp)::x,qT
  integer::hadron
  uTMDPDF_kT_5_optimal=Fourier(x,qT,10d0,10d0,3,hadron) 
  end function uTMDPDF_kT_5_optimal
  
  function uTMDPDF_kT_50_optimal(x,qT,hadron)
- real*8::uTMDPDF_kT_50_optimal(-5:5)
- real*8::x,qT
+ real(dp)::uTMDPDF_kT_50_optimal(-5:5)
+ real(dp)::x,qT
  integer::hadron
  uTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,4,hadron) 
  end function uTMDPDF_kT_50_optimal
  
  !---------------------------------------------------uTMDFF
  function uTMDFF_kT_5_Ev(x,qT,mu,zeta,hadron)
- real*8::uTMDFF_kT_5_Ev(-5:5)
- real*8::x,qT,mu,zeta
+ real(dp)::uTMDFF_kT_5_Ev(-5:5)
+ real(dp)::x,qT,mu,zeta
  integer::hadron
  uTMDFF_kT_5_Ev=Fourier(x,qT,mu,zeta,5,hadron) 
  end function uTMDFF_kT_5_Ev
  
  function uTMDFF_kT_50_Ev(x,qT,mu,zeta,hadron)
- real*8::uTMDFF_kT_50_Ev(-5:5)
- real*8::x,qT,mu,zeta
+ real(dp)::uTMDFF_kT_50_Ev(-5:5)
+ real(dp)::x,qT,mu,zeta
  integer::hadron
  uTMDFF_kT_50_Ev=Fourier(x,qT,mu,zeta,6,hadron) 
  end function uTMDFF_kT_50_Ev
  
   function uTMDFF_kT_5_optimal(x,qT,hadron)
- real*8::uTMDFF_kT_5_optimal(-5:5)
- real*8::x,qT
+ real(dp)::uTMDFF_kT_5_optimal(-5:5)
+ real(dp)::x,qT
  integer::hadron
  uTMDFF_kT_5_optimal=Fourier(x,qT,10d0,10d0,7,hadron) 
  end function uTMDFF_kT_5_optimal
  
  function uTMDFF_kT_50_optimal(x,qT,hadron)
- real*8::uTMDFF_kT_50_optimal(-5:5)
- real*8::x,qT
+ real(dp)::uTMDFF_kT_50_optimal(-5:5)
+ real(dp)::x,qT
  integer::hadron
  uTMDFF_kT_50_optimal=Fourier(x,qT,10d0,10d0,8,hadron) 
  end function uTMDFF_kT_50_optimal
@@ -303,15 +282,15 @@ contains
  !---------------------------------------------------lpTMDPDF
  
  function lpTMDPDF_kT_50_Ev(x,qT,mu,zeta,hadron)
- real*8::lpTMDPDF_kT_50_Ev(-5:5)
- real*8::x,qT,mu,zeta
+ real(dp)::lpTMDPDF_kT_50_Ev(-5:5)
+ real(dp)::x,qT,mu,zeta
  integer::hadron
  lpTMDPDF_kT_50_Ev=Fourier(x,qT,mu,zeta,9,hadron) 
  end function lpTMDPDF_kT_50_Ev
  
  function lpTMDPDF_kT_50_optimal(x,qT,hadron)
- real*8::lpTMDPDF_kT_50_optimal(-5:5)
- real*8::x,qT
+ real(dp)::lpTMDPDF_kT_50_optimal(-5:5)
+ real(dp)::x,qT
  integer::hadron
  lpTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,10,hadron) 
  end function lpTMDPDF_kT_50_optimal
@@ -323,12 +302,12 @@ contains
  !!!  int_0^infty   b db/2pi  J0(b qT) F1
  !!! The function F1 is given via number.. num
  function Fourier(x,qT_in,mu,zeta,num,hadron)
-  real*8::qT,x,mu,zeta,qT_in
+  real(dp)::qT,x,mu,zeta,qT_in
   integer::num,hadron
-  real*8::integral(-5:5),eps(-5:5)
-  real*8::v1,v2,v3,v4
+  real(dp)::integral(-5:5),eps(-5:5)
+  real(dp)::v1,v2,v3,v4
   integer::k,n
-  real*8::Fourier(-5:5)
+  real(dp)::Fourier(-5:5)
   
   CallCounter=CallCounter+1
   integral=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
@@ -372,7 +351,7 @@ contains
 !     end if
   end do
   if(k>=Nmax) then	
-    if(outputlevel>0) WRITE(*,*) 'WARNING arTeMiDe.TMDs-in-kT: OGATA quadrature diverge. TMD decaing too slow? '
+    if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow?',moduleName)
       if(outputlevel>1) then
       write(*,*) 'Information over the last call ----------'
       write(*,*) 'bt/qT= ',bb(n,Nmax)/qT, 'qT=',qT
@@ -391,9 +370,9 @@ contains
  end function Fourier
  
  function Integrand(b,x,mu,zeta,num,hadron)
- real*8::b,x,mu,zeta
+ real(dp)::b,x,mu,zeta
  integer::num,hadron
- real*8::Integrand(-5:5)
+ real(dp)::Integrand(-5:5)
  
  !increment counter 
  GlobalCounter=GlobalCounter+1

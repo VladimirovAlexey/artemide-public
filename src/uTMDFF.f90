@@ -12,6 +12,7 @@
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module uTMDFF
+use aTMDe_Numerics
 use IO_functions
 use QCDinput
 use uTMDFF_model
@@ -20,12 +21,11 @@ implicit none
 private
 
   !Current version of module
- character (len=5),parameter :: version="v2.02"
+ character (len=5),parameter :: version="v2.03"
  character (len=7),parameter :: moduleName="uTMDFF"
  !Last appropriate verion of constants-file
-  integer,parameter::inputver=1
+  integer,parameter::inputver=12
  
-  INCLUDE 'Tables/NumConst.f90'  
   INCLUDE 'Tables/G7K15.f90'
 
 !-------------------Physical constants-----------------------------------------
@@ -48,12 +48,12 @@ private
   
   !!parameters of non-perturbative input
   integer::lambdaNPlength
-  real*8,dimension(:),allocatable::lambdaNP,lambdaNP_grid
+  real(dp),dimension(:),allocatable::lambdaNP,lambdaNP_grid
   
-  real*8::c4_global!!!this is the variation constant for mu_OPE
+  real(dp)::c4_global!!!this is the variation constant for mu_OPE
   
   !!parameters of numerics
-  real*8 :: tolerance=0.0001d0!!! relative tolerance of the integration
+  real(dp) :: tolerance=0.0001d0!!! relative tolerance of the integration
   integer :: maxIteration=5000
   
 !------------------------------Variables for coefficient function etc-------------------------------
@@ -68,11 +68,11 @@ private
   !! (Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  zLog[z]Log[1-z],
   !! (1-z)/z Log[1-z], (1-z)Log[1-z], (1-z) Log[1-z]^2 }
   !! The Lmu^2 part is exact the later parts are fitted, but exact if posible (e.g. Lmu and Nf parts for q->q)
-  real*8,dimension(1:parametrizationLength) :: Coeff_q_q, Coeff_q_g, Coeff_g_q, Coeff_g_g, Coeff_q_qb, Coeff_q_qp
+  real(dp),dimension(1:parametrizationLength) :: Coeff_q_q, Coeff_q_g, Coeff_g_q, Coeff_g_g, Coeff_q_qb, Coeff_q_qp
   
   !! This is list of coefficeints for the encoding the singular at x->1
   !! { 1/(1-x), (Log[1-x]/(1-x))_+}
-  real*8, dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
+  real(dp), dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
   
   integer:: counter,messageCounter
   
@@ -85,9 +85,13 @@ private
   logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated form the grid
   logical :: prepareGrid!!!idicator that grid must be prepared
   logical :: withGluon!!!indicator the gluon is needed in the grid
-  integer::numberOfHadrons
-  integer,dimension(:),allocatable::hadronsInGRID
+
+!!--------------------------------- variables for hadron composition---------------------------------------------
+  integer::numberOfHadrons				!!!number of hadrons/components
+  integer,dimension(:),allocatable::hadronsInGRID	!!!list of hadron to be pre-grid
+  logical::IsComposite=.false.					!!!flag to use the composite TMD
   
+
 !!-----------------------------------------------Public interface---------------------------------------------------
   public::uTMDFF_Initialize,uTMDFF_SetLambdaNP,uTMDFF_resetGrid,uTMDFF_SetScaleVariation,uTMDFF_CurrentNPparameters
   public::uTMDFF_IsInitialized
@@ -150,8 +154,8 @@ private
     end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
-    if(outputLevel>2) write(*,*) '--------------------------------------------- '
-    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+    if(outputLevel>1) write(*,*) '--------------------------------------------- '
+    if(outputLevel>1) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
     call MoveTO(51,'*p3  ')
     read(51,*) messageTrigger
     
@@ -160,11 +164,12 @@ private
     call MoveTO(51,'*p1  ')
     read(51,*) initRequared
     if(.not.initRequared) then
-      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+      if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not requared. '
       started=.false.
       return
     end if
     
+    !------ ORDER
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
     read(51,*) orderMain
@@ -189,13 +194,25 @@ private
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
 	order_global=2
       CASE DEFAULT
-	if(outputLevel>0)write(*,*) 'WARNING: arTeMiDe.uTMDFF_Initialize: unknown order for coefficient function. Switch to NLO.'
+	if(outputLevel>0)write(*,*) WarningString('Initialize: unknown order for coefficient function. Switch to NLO.',moduleName)
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
 	order_global=1
      END SELECT
     
      if(outputLevel>2) then
       write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
+     end if
+    
+    !------ Compositeness
+    call MoveTO(51,'*p2  ')
+    read(51,*) IsComposite
+    
+    if(outputLevel>2) then
+      if(IsComposite) then
+        write(*,'(A,I1)') ' |  Use compsite  =TRUE'
+      else
+        write(*,'(A,I1)') ' |  Use compsite  =FALSE'
+      end if
      end if
     
     !-------------parameters of NP model
@@ -206,8 +223,8 @@ private
     if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
     
     if(lambdaNPlength<=0) then
-    write(*,*) 'ERROR: arTeMiDe.uTMDPDF_Initialize: number of non-pertrubative &
-		    parameters should be >=1. Check the constants-file. Evaluation STOP'
+    write(*,*) ErrorString('Initialize: number of non-pertrubative &
+		    parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
     stop
     end if
     
@@ -317,7 +334,7 @@ private
     
     started=.true.
     
-    if(outputLevel>0) write(*,*) '----- arTeMiDe.uTMDFF ',version,': .... initialized'
+    if(outputLevel>0) write(*,*) color('----- arTeMiDe.uTMDFF '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
   end subroutine uTMDFF_Initialize
 
@@ -346,9 +363,9 @@ private
     !!! carries additionl option to build the grid
     !!! if need to build grid, specify the gluon requared directive.
   subroutine uTMDFF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
-    real*8,intent(in)::lambdaIN(:)
+    real(dp),intent(in)::lambdaIN(:)
     logical,optional :: buildGrid,gluonRequared
-    real*8,dimension(1:lambdaNPlength)::lambdaOLD
+    real(dp),dimension(1:lambdaNPlength)::lambdaOLD
     logical::IsNewValues
     integer::i,ll
     messageCounter=0
@@ -358,15 +375,17 @@ private
     
     ll=size(lambdaIN)
     if(ll<lambdaNPlength) then 
-      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING length of lambdaNP(,',I3,') is less then requred (',I3,')')")&
-	      moduleName,ll,lambdaNPlength
-      if(outputLevel>0) write(*,*)'                Reset parameters are replaced by zeros!'
+      if(outputLevel>0) write(*,"(A,I3,A,I3,')')")&
+              WarningString('SetLambdaNP:length of lambdaNP(',moduleName),&
+	      ll,color(') is less then requred (',c_red),lambdaNPlength
+      if(outputLevel>0) write(*,*)color('                Rest parameters are replaced by zeros!',c_red)
       lambdaNP=0d0*lambdaNP
       lambdaNP(1:ll)=lambdaIN(1:ll)
     else if (ll>lambdaNPlength) then
-      if(outputLevel>0) write(*,"('arTeMiDe.',A,'SetLambdaNP: WARNING&
-	      length of lambdaNP(,',I3,') is greater then requred (',I3,')')") moduleName,ll,lambdaNPlength
-      if(outputLevel>0) write(*,*)'                Array is truncated!'
+      if(outputLevel>0) write(*,"(A,I3,A,I3,')')")&
+              WarningString('SetLambdaNP:length of lambdaNP(',moduleName),&
+	      ll,color(') is greater then requred (',c_red),lambdaNPlength
+      if(outputLevel>0) write(*,*)color('                Array is truncated!',c_red)
       lambdaNP(1:lambdaNPlength)=lambdaIN(1:lambdaNPlength)
      else
       lambdaOLD=lambdaNP
@@ -446,32 +465,35 @@ private
 	gridReady=.true.
       end if
   end subroutine uTMDFF_resetGrid
+  
   !!!! this routine set the variations of scales
   !!!! it is used for the estimation of errors
-  subroutine uTMDFF_SetScaleVariation(c4_in)
-    real*8::c4_in
+    subroutine uTMDFF_SetScaleVariation(c4_in)
+    real(dp)::c4_in
     if(c4_in<0.1d0 .or. c4_in>10.d0) then
-      if(outputLevel>0) write(*,*) 'WARNING: arTeMiDe.uTMDFF: variation in c4 is enourmous. c4 is set to 2'
+      if(outputLevel>0) write(*,*) WarningString('variation in c4 is enourmous. c4 is set to 2',moduleName)
       c4_global=2d0
+      call uTMDFF_resetGrid()
+    else if(abs(c4_in-c4_global)<tolerance) then
+      if(outputLevel>1) write(*,*) color('uTMDFF: c4-variation is ignored. c4='//real8ToStr(c4_global),c_yellow)
     else
       c4_global=c4_in
+      if(outputLevel>1) write(*,*) color('uTMDFF: set scale variations constant c4 as:'//real8ToStr(c4_global),c_yellow)
+      call uTMDFF_resetGrid()
     end if
-    c4_global=c4_in
-    if(outputLevel>1) write(*,*) 'uTMDFF: set scale variations constant c4 as:',c4_global
-    call uTMDFF_resetGrid()
   end subroutine uTMDFF_SetScaleVariation
   
   !!! retruns current value of NP parameters
   subroutine uTMDFF_CurrentNPparameters(var)
-    real*8,dimension(1:lambdaNPlength)::var
+    real(dp),dimension(1:lambdaNPlength)::var
     var=lambdaNP
   end subroutine uTMDFF_CurrentNPparameters
   
   
   function xf(x,Q,hadron)
-      real*8 :: x,Q
+      real(dp) :: x,Q
       integer:: hadron
-      real*8, dimension(-5:5):: xf
+      real(dp), dimension(-5:5):: xf
       xf=xFF(x,Q,hadron)
       
   end function xf
@@ -482,8 +504,8 @@ private
     
   !!! the function which contains the functions of parameterizations
   function parametrizationString(z)
-  real*8::z,lx,l1x
-  real*8,dimension(1:parametrizationLength)::parametrizationString
+  real(dp)::z,lx,l1x
+  real(dp),dimension(1:parametrizationLength)::parametrizationString
       lx=Log(z)
       l1x=Log(1d0-z)
       parametrizationString=(/ l1x,l1x**2, l1x**3,&
@@ -501,8 +523,8 @@ private
     !!! int_z^1 parameterization at values of z -> 1
     !!! it is used to estimate integration error at z~1
   function parametrizationStringAt1(z0)
-  real*8::z0
-  real*8,dimension(1:parametrizationLength)::parametrizationStringAt1
+  real(dp)::z0
+  real(dp),dimension(1:parametrizationLength)::parametrizationStringAt1
     parametrizationStringAt1=(/(1d0-z0)*(-1d0+Log(1d0-z0)),(1d0-z0)*(2d0-2d0*Log(1d0-z0)+Log(1d0-z0)**2),&
 	      (1d0-z0)*(-6d0+6d0*Log(1d0-z0)-3d0*Log(1d0-z0)**2+Log(1d0-z0)**3),&
 	      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0,&
@@ -517,7 +539,7 @@ private
   
   !!!!!coefficient function q<-q delta-part
   function C_q_q_delta(alpha,Nf,Lmu)
-  real*8::C_q_q_delta,Nf,alpha,Lmu
+  real(dp)::C_q_q_delta,Nf,alpha,Lmu
   
  C_q_q_delta=1d0
  
@@ -537,7 +559,7 @@ private
   
   !!!!!coefficient function g<-g delta-part
   function C_g_g_delta(alpha,Nf,Lmu)
-  real*8::C_g_g_delta,Nf,alpha,Lmu
+  real(dp)::C_g_g_delta,Nf,alpha,Lmu
   
   C_g_g_delta=1d0
  
@@ -555,7 +577,7 @@ private
   
   !!!!!coefficient function q<-q singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
   subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
-  real*8::Nf,alpha,Lmu,s1,s2
+  real(dp)::Nf,alpha,Lmu,s1,s2
     
   s1=0d0!!!coeff 1/(1-x)
   s2=0d0!!!coeff log(1-x)/(1-x)
@@ -579,7 +601,7 @@ private
   
   !!!!!coefficient function g<-g singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
   subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
-  real*8::Nf,alpha,Lmu,s1,s2
+  real(dp)::Nf,alpha,Lmu,s1,s2
     
   s1=0d0!!!coeff 1/(1-x)
   s2=0d0!!!coeff log(1-x)/(1-x)
@@ -604,7 +626,7 @@ private
   
   !!!!!coefficient function q->q
   subroutine Set_Coeff_q_q(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_q_q=(/&
@@ -664,7 +686,7 @@ private
   
    !!!!!coefficient function q->g
   subroutine Set_Coeff_q_g(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_q_g=(/&
@@ -725,7 +747,7 @@ private
   
    !!!!!coefficient function g->q
   subroutine Set_Coeff_g_q(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_g_q=(/&
@@ -796,7 +818,7 @@ private
   
      !!!!!coefficient function g->g
   subroutine Set_Coeff_g_g(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_g_g=(/&
@@ -867,7 +889,7 @@ private
   
      !!!!!coefficient function q->qb
   subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_q_qb=(/&
@@ -905,7 +927,7 @@ private
   
   !!!!!coefficient function q->qp
   subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)  
-  real*8::alpha,Nf,Lmu
+  real(dp)::alpha,Nf,Lmu
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
   Coeff_q_qp=(/&
@@ -935,9 +957,9 @@ private
   end subroutine Set_Coeff_q_qp
   
  subroutine CheckCoefficient(as,Nf,Lmu,z)
- real*8::Lmu,as,z,Nf
- real*8, dimension(1:25)::func
- real*8, dimension(1:2)::func1
+ real(dp)::Lmu,as,z,Nf
+ real(dp), dimension(1:25)::func
+ real(dp), dimension(1:2)::func1
  
   func=(/ Log(1d0-z),log(1d0-z)**2, log(1d0-z)**3,&
      1d0/z, log(z)/z, Log(z)**2/z, Log(z)**3/z, &
@@ -972,17 +994,18 @@ private
 !--    f =  -5, -4, -3,  -2,  -1,0,1,2,3, 4 ,5
 !--      = bbar ,cbar sbar,ubar,dbar,g,d,u,s, c ,b
 !!---Gluon contribution is undefined
+!!---Base version: hadron=number of PDF
 !---------------------------------------------------------------------
 !---------------------------------------------------------------------
-function uTMDFF_lowScale5(z,bT,hadron)
-real*8,dimension(-5:5)::uTMDFF_lowScale5
-  real*8 :: z, bT
+function uTMDFF_base5(z,bT,hadron)
+real(dp),dimension(-5:5)::uTMDFF_base5
+  real(dp) :: z, bT
   integer::hadron,j
   
     !!! variables for restoration only
-  real*8,dimension(-5:5) :: fNP_grid,fNP_current
+  real(dp),dimension(-5:5) :: fNP_grid,fNP_current
   if(gridReady.and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-   uTMDFF_lowScale5=ExtractFromGrid(z,bT,hadron)/z**2
+   uTMDFF_base5=ExtractFromGrid(z,bT,hadron)/z**2
    
    !!!!!!!!!!This is procedure of restoration of function from the initial grid
    !!! if fNP is z-independent then the value can be obtained by TMDFF(initial) fNP(current)/fNP(initial)
@@ -993,16 +1016,12 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
     do j=-5,5
       if(fNP_grid(j)==0) then
       if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
-       if(outputLevel>0 .and. messageCounter<messageTrigger) then
-	  write(*,*) 'WARNING: arTeMiDe.uTMDFF error in restoration: original value is zero. TMDFF set to zero. b=',bT
-	messageCounter=messageCounter+1
-	if(messageCounter>messageTrigger)&
-	  write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
+       if(outputLevel>0) call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
+        messageCounter,messageTrigger,moduleName)
       end if
-      end if
-      uTMDFF_lowScale5(j)=0
+      uTMDFF_base5(j)=0
        else
-      uTMDFF_lowScale5(j)=uTMDFF_lowScale5(j)*fNP_current(j)/fNP_grid(j)
+      uTMDFF_base5(j)=uTMDFF_base5(j)*fNP_current(j)/fNP_grid(j)
       end if
     end do
     
@@ -1011,27 +1030,28 @@ real*8,dimension(-5:5)::uTMDFF_lowScale5
   else!!!! calculation
    
   
-  uTMDFF_lowScale5=Common_lowScale5(z,bT,hadron)/z**2
+  uTMDFF_base5=Common_lowScale5(z,bT,hadron)/z**2
   
  end if
- end function uTMDFF_lowScale5
+ end function uTMDFF_base5
 
 !---------------------------------------------------------------------
 !- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu
 !--    f =  -5, -4, -3,  -2,  -1,0,1,2,3, 4 ,5
 !--      = bbar ,cbar sbar,ubar,dbar,g,d,u,s, c ,b
+!!---Base version: hadron=number of PDF
 !---------------------------------------------------------------------
 !---------------------------------------------------------------------
-function uTMDFF_lowScale50(z,bT,hadron)
-real*8,dimension(-5:5)::uTMDFF_lowScale50
-  real*8 :: z, bT
+function uTMDFF_base50(z,bT,hadron)
+real(dp),dimension(-5:5)::uTMDFF_base50
+  real(dp) :: z, bT
   integer::hadron,j
   
   !!! variables for restoration only
-  real*8,dimension(-5:5) :: fNP_grid,fNP_current
+  real(dp),dimension(-5:5) :: fNP_grid,fNP_current
   
   if(gridReady .and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-  uTMDFF_lowScale50=ExtractFromGrid(z,bT,hadron)/z**2
+  uTMDFF_base50=ExtractFromGrid(z,bT,hadron)/z**2
   
   if(.not.IsFnpZdependent) then
     fNP_grid=FNP(z,1d0,bT,hadron,lambdaNP_grid)
@@ -1039,17 +1059,13 @@ real*8,dimension(-5:5)::uTMDFF_lowScale50
     
     do j=-5,5
       if(fNP_grid(j)==0) then
-      if(uTMDFF_lowScale50(j)/=0) then
-      if(outputLevel>0 .and. messageCounter<messageTrigger) then
-	write(*,*)  'WARNING: arTeMiDe_uTMDFF error in restoration: original value is zero. TMDPDF set to zero. b=',bT
-	messageCounter=messageCounter+1
-	if(messageCounter>messageTrigger)&
-	    write(*,*) 'WARNING: arTeMiDe_uTMDFF number of WARNINGS more then 5. Futher WARNING suppresed'
+      if(uTMDFF_base50(j)/=0) then
+      if(outputLevel>0) call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
+        messageCounter,messageTrigger,moduleName)
       end if
-      end if
-      uTMDFF_lowScale50(j)=0
+      uTMDFF_base50(j)=0
        else
-      uTMDFF_lowScale50(j)=uTMDFF_lowScale50(j)*fNP_current(j)/fNP_grid(j)
+      uTMDFF_base50(j)=uTMDFF_base50(j)*fNP_current(j)/fNP_grid(j)
       end if
     end do
     
@@ -1057,8 +1073,100 @@ real*8,dimension(-5:5)::uTMDFF_lowScale50
    
    
   else
-  uTMDFF_lowScale50=Common_lowScale50(z,bT,hadron)/z**2
- end if
-  end function uTMDFF_lowScale50
+  uTMDFF_base50=Common_lowScale50(z,bT,hadron)/z**2
+  end if
+end function uTMDFF_base50
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!OUTPUT INTERFACE!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!---------------------------------------------------------------------
+!- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu
+!--    f =  -5, -4, -3,  -2,  -1,0,1,2,3, 4 ,5
+!--      = bbar ,cbar sbar,ubar,dbar,??,d,u,s, c ,b
+!!---Gluon contribution is undefined
+!!---Full version: hadron=number of PDF (if compositeness OFF)
+!!---		   hadron=sum components (if compositeness ON)
+!---------------------------------------------------------------------
+!---------------------------------------------------------------------
+function uTMDFF_lowScale5(x,bT,hadron)
+  real(dp),dimension(-5:5)::uTMDFF_lowScale5
+  real(dp) :: x, bT
+  integer::hadron
+  
+  logical,allocatable::includeInComposition(:)
+  real(dp),allocatable::compositionCoefficients(:)
+  integer::j,jN
+  
+  if(x>1d0) then
+    uTMDFF_lowScale5=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
+    return
+  end if
+  
+  if(IsComposite) then
+    
+    uTMDFF_lowScale5=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
+    
+    call GetCompositionArray(hadron,lambdaNP,includeInComposition,compositionCoefficients)
+    jN=size(includeInComposition)
+    
+    do j=1,jN
+      if(includeInComposition(j)) then
+	uTMDFF_lowScale5=uTMDFF_lowScale5+compositionCoefficients(j)*uTMDFF_base5(x,bT,j)
+      end if
+    end do
+    
+    deallocate(includeInComposition,compositionCoefficients)
+  
+  else
+  
+   uTMDFF_lowScale5=uTMDFF_base5(x,bT,hadron)  
+  end if
+ 
+end function uTMDFF_lowScale5
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+ !---------------------------------------------------------------------
+!- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu the GLUON INCLUDED
+!--    f =  -5, -4, -3,  -2,  -1,0,1,2,3, 4 ,5
+!--      = bbar ,cbar sbar,ubar,dbar,g,d,u,s, c ,b
+!!---Full version: hadron=number of PDF (if compositeness OFF)
+!!---		   hadron=sum components (if compositeness ON)
+!---------------------------------------------------------------------
+!---------------------------------------------------------------------
+function uTMDFF_lowScale50(x,bT,hadron)
+  real(dp),dimension(-5:5)::uTMDFF_lowScale50
+  real(dp) :: x, bT
+  integer::hadron
+  
+  logical,allocatable::includeInComposition(:)
+  real(dp),allocatable::compositionCoefficients(:)
+  integer::j,jN
+  
+  if(x>1d0) then
+    uTMDFF_lowScale50=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
+    return
+  end if
+  
+  if(IsComposite) then
+    
+    uTMDFF_lowScale50=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
+    
+    call GetCompositionArray(hadron,lambdaNP,includeInComposition,compositionCoefficients)
+    jN=size(includeInComposition)
+    
+    do j=1,jN
+      if(includeInComposition(j)) then
+	uTMDFF_lowScale50=uTMDFF_lowScale50+compositionCoefficients(j)*uTMDFF_base50(x,bT,j)
+      end if
+    end do
+    
+    deallocate(includeInComposition,compositionCoefficients)
+  
+  else
+  
+   uTMDFF_lowScale50=uTMDFF_base50(x,bT,hadron)  
+  end if
+end function uTMDFF_lowScale50
+
 
 end module

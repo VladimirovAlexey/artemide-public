@@ -15,11 +15,11 @@
 
   !these are globals for the exchange of parameters between functions
   ! it is used only in the calculation without grid!!!
-  real*8:: xCurrent,bTcurrent,muCurrent
-  real*8::muAt1!!!special case for z-dependant mu. it is = mu(z=1)
-  real*8,dimension(-5:5)::FPDFcurrent !!!value of fNP(1)*f(xCurrent)
-  real*8,dimension(-5:5)::PDFcurrent !!!value of f(xCurrent)
-  real*8,dimension(-5:5)::Fcurrent !!!value of fNP(1)
-  real*8,dimension(-5:5) :: integralWeight
+  real(dp):: xCurrent,bTcurrent,muCurrent
+  real(dp)::muAt1!!!special case for z-dependant mu. it is = mu(z=1)
+  real(dp),dimension(-5:5)::FPDFcurrent !!!value of fNP(1)*f(xCurrent)
+  real(dp),dimension(-5:5)::PDFcurrent !!!value of f(xCurrent)
+  real(dp),dimension(-5:5)::Fcurrent !!!value of fNP(1)
+  real(dp),dimension(-5:5) :: integralWeight
   !!!triger for calculation
   logical:: IsMuXdependent, IsFnpZdependent

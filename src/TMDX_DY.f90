@@ -13,6 +13,7 @@
 !	ver 2.01: Added Higgs xSec, piresum option, and coefficient function moved to separate file (AV, 17.06.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_DY
+use aTMDe_Numerics
 use IO_functions
 use TMDF
 use LeptonCutsDY
@@ -28,25 +29,25 @@ implicit none
  !Last appropriate verion of constants-file
   integer,parameter::inputver=6
   
-  real*8 :: tolerance=0.0005d0
+  real(dp) :: tolerance=0.0005d0
   
   integer::outputlevel
   integer::messageTrigger
   
   !!!!
-  !!!! in the module the kinematic is stored in the varibles "kinematic" real*8,dimension(1:6)
+  !!!! in the module the kinematic is stored in the varibles "kinematic" real(dp),dimension(1:6)
   !!!! which is (qT,s,Q,Q^2,x0,y,exp[y])
   !!!! where x0=sqrt[(Q^2+q_T^2)/s]   (if exactX1X2) or x0=Q^2/s (otherwise)
   !!!!
   
   !The variables for all parameters of the model!
-  real*8:: s_global,Q_global,y_global
+  real(dp):: s_global,Q_global,y_global
   !! Set of process definition, for Prefactor 1, Prefactor 2, structure function, etc
   !! = (/p1,p2,p3/)
   integer,dimension(1:3)::process_global
   !!cut parameters
   !!!!! this variable = (pT1,pT2,etaMIN,etaMAX)
-  real*8,dimension(1:4)::CutParameters_global
+  real(dp),dimension(1:4)::CutParameters_global
   
   !!other global parameters see SetXParameters  
   integer:: orderH_global
@@ -57,7 +58,7 @@ implicit none
   !!! number of sections for PT-integral by default
   integer::NumPTdefault=4
   
-  real*8::c2_global!,muHard_global
+  real(dp)::c2_global!,muHard_global
   
 
   
@@ -65,7 +66,7 @@ implicit none
   integer::CallCounter
   integer::messageCounter
   
-  real*8::hc2
+  real(dp)::hc2
   
   logical::started=.false.
   
@@ -253,7 +254,7 @@ contains
      messageCounter=0
      
      started=.true.
-    write(*,*)  '----- arTeMiDe.TMD_DY ',version,'.... initialized'
+    write(*,*)  color('----- arTeMiDe.TMD_DY '//trim(version)//': .... initialized',c_green)
   end subroutine TMDX_DY_Initialize
 
   subroutine TMDX_DY_ResetCounters()
@@ -274,7 +275,7 @@ contains
   
   !!!!Call this after TMD initializetion but before NP, and X parameters
   subroutine TMDX_DY_SetScaleVariation(c2_in)
-    real*8::c1_in,c2_in,c3_in,c4_in
+    real(dp)::c1_in,c2_in,c3_in,c4_in
     
     if(outputLevel>1) write(*,*) 'TMDX_DY: c2 scale reset:',c2_in
     
@@ -292,7 +293,7 @@ contains
   !! call BEFORE SetXParameters
   subroutine SetCuts_sym(include_arg,pT_arg,eta_min,eta_max)
   logical:: include_arg
-  real*8:: pT_arg,eta_max,eta_min
+  real(dp):: pT_arg,eta_max,eta_min
   
   includeCuts_global=include_arg
   
@@ -305,7 +306,7 @@ contains
   !! call BEFORE SetXParameters
   subroutine SetCuts_asym(include_arg,pT1_arg,pT2_arg,eta_min,eta_max)
   logical:: include_arg
-  real*8:: pT1_arg,pT2_arg,eta_max,eta_min
+  real(dp):: pT1_arg,pT2_arg,eta_max,eta_min
   
   includeCuts_global=include_arg
   
@@ -362,15 +363,15 @@ contains
   call TMDX_setProcess30(processArrayFromInteger(p))
   end subroutine TMDX_setProcess1
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR OPERATION WITH KINEMATICS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR OPERATION WITH KINEMATICS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   
   !sets the main parameters of cross-section (x,zeta,etc)
   !the variables process defines the type of process
   subroutine TMDX_DY_XSetup(s,Q,y)
-    real*8::s,Q,y
+    real(dp)::s,Q,y
     
     if(.not.started) then
     write(*,*) 'ERROR: arTeMiDe.TMDX_DY is not initialized. Evaluation terminated'
@@ -390,8 +391,8 @@ contains
   !!! function makes kinematic array from the given set of qT,s,Q,y
   !!! array has 7 often appearing entries
   function kinematicArray(qT,s,Q,y)
-  real*8,dimension(1:7)::kinematicArray
-  real*8::qT,s,Q,y
+  real(dp),dimension(1:7)::kinematicArray
+  real(dp)::qT,s,Q,y
   
   kinematicArray=(/qT,s,Q,Q**2,sqrt((Q**2+exactX1X2*qT**2)/s),y,exp(y)/)
   
@@ -399,8 +400,8 @@ contains
   
   !!!intrinsic change the value of Q within kinematic array var
   subroutine SetQ(Q,var)
-    real*8,dimension(1:7)::var
-    real*8::Q
+    real(dp),dimension(1:7)::var
+    real(dp)::Q
    
     var(3)=Q
     var(4)=Q**2
@@ -410,8 +411,8 @@ contains
   
   !!!intrinsic change the value of y within kinematic array var
   subroutine SetY(y,var)
-    real*8,dimension(1:7)::var
-    real*8::y
+    real(dp),dimension(1:7)::var
+    real(dp)::y
     
     var(6)=y
     var(7)=exp(y)
@@ -420,8 +421,8 @@ contains
   
   !!!intrinsic change the value of qT within kinematic array var
   subroutine SetQT(qT_in,var)
-    real*8,dimension(1:7)::var
-    real*8::qT_in
+    real(dp),dimension(1:7)::var
+    real(dp)::qT_in
     
     var(1)=qT_in
     var(5)=sqrt((var(4)+exactX1X2*var(1)**2)/var(2))
@@ -429,19 +430,19 @@ contains
   end subroutine SetQT
 
 
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   !!!! for easier read coeff-functions are split into separate file
   INCLUDE 'DYcoeff-func.f90'
   
   !!!!! Prefactor 2 is (universal part) x (cuts) x H
   function PreFactor2(kin,process, includeCuts_in,CutParam)
-    real*8,dimension(1:7),intent(in)::kin
+    real(dp),dimension(1:7),intent(in)::kin
     logical,intent(in)::includeCuts_in
-    real*8::PreFactor2,cutPrefactor,uniPart
-    real*8,dimension(1:4),intent(in)::CutParam
+    real(dp)::PreFactor2,cutPrefactor,uniPart
+    real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
   
   !!!!! cut part
@@ -461,25 +462,25 @@ contains
 	uniPart=1d0
     CASE(1)
 	!4 pi aEm^2/3 /Nc/Q^2/s
-	uniPart=1.3962634015954636d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
+	uniPart=pix4/9d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9!from GeV to pb
 	!!! IsySymmetric=.true.  !!! state is IsySymmetric-function
     CASE(2)
 	!4 pi aEm^2/3 /Nc/Q^2/s
-	uniPart=1.3962634015954636d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
+	uniPart=pix4/9d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9!from GeV to pb
 	!!!IsySymmetric=.false.	!!! state is IsySymmetric-function
     CASE (3) !Zboson in the narrow-width approximation
-	!4 pi^2 aem/Ns/s Br(z->ee+mumu)
-	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
+	!4 pi^2 aem/Nc/s Br(z->ee+mumu)
+	uniPart=pi2x4/3d0*alphaEM(kin(3))/kin(2)*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
 	    0.03645d0!Br from PDG, ee+mumu
     CASE (4) !Wboson in the narrow-width approximation
-	!4 pi^2 aem/Ns/s Br(z->ee+mumu)
-	uniPart=13.15947253478581d0*alphaEM(kin(3))/kin(2)*&
+	!4 pi^2 aem/Nc/s Br(z->ee+mumu)
+	uniPart=pi2x4/3d0**alphaEM(kin(3))/kin(2)*&
 	    HardCoefficientDY(kin(3))*&
 	    hc2*1d9*&!from GeV to pb
 	    0.1086d0!Br from PDG, ee+mumu
@@ -510,7 +511,7 @@ contains
   !!!! Set Prefactor1
   !!!! it multiplies the cross-section as a whole, does not participate in the integration
   function PreFactor1(p1)
-  real*8::Prefactor1
+  real(dp)::Prefactor1
   integer::p1
   SELECT CASE(p1)
     CASE(1)
@@ -534,20 +535,20 @@ contains
   end if
   end function IsySymmetric
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   !---------------------------------UNINTEGRATED------------------------------------------------------------------
   
   !!! this is help function which evaluate xSec at single qt (without lists) with only prefactor 2
   !!!! this is extended (and default) version of xSec, which include all parameters
   function xSec(var,process,incCut,CutParam)
-    real*8:: xSec,FF
-    real*8::x1,x2
-    real*8,dimension(1:7),intent(in)::var
+    real(dp):: xSec,FF
+    real(dp)::x1,x2
+    real(dp),dimension(1:7),intent(in)::var
     logical,intent(in)::incCut
-    real*8,dimension(1:4),intent(in)::CutParam
+    real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
     GlobalCounter=GlobalCounter+1
     
@@ -570,7 +571,7 @@ contains
   !!! it is determined by formula Q/PT< val/ (2 k) => def+2K
   function NumPT_auto(dPT,Q)
     real,parameter::val=40.
-    real::dPT,Q,rat
+    real(dp)::dPT,Q,rat
     integer::i,NumPT_auto
     rat=Q/dPT
     
@@ -579,7 +580,7 @@ contains
         return
     else
         do i=1,5
-            if(rat>(40./2./i)) then
+            if(rat>(40d0/2d0/i)) then
                 NumPT_auto=NumPTdefault+2*i
                 return
             end if
@@ -594,20 +595,20 @@ contains
   end function NumPT_auto
       
   function yFromXF(xF,var)
-  real*8,dimension(1:7)::var
-  real*8:: yFromXF,xF
+  real(dp),dimension(1:7)::var
+  real(dp):: yFromXF,xF
 !     yFromXF=asinh(Sqrt(s_global/(Q2_global+qt**2))*xF/2d0)
     yFromXF=asinh(xF/2d0/var(5))
   end function yFromXF
   
   !!!
   function Xsec_Yint(var,process,incCut,CutParam,ymin_in,ymax_in)
-    real*8,dimension(1:7) :: var
+    real(dp),dimension(1:7) :: var
     logical,intent(in)::incCut
-    real*8,dimension(1:4),intent(in)::CutParam
-    real*8 :: Xsec_Yint
-    real*8 :: ymin, ymax,ymin_in,ymax_in
-    real*8 :: ymin_Check,ymax_Check
+    real(dp),dimension(1:4),intent(in)::CutParam
+    real(dp) :: Xsec_Yint
+    real(dp) :: ymin, ymax,ymin_in,ymax_in
+    real(dp) :: ymin_Check,ymax_Check
     integer,dimension(1:3),intent(in)::process
     
     if(TMDF_IsconvergenceLost()) then 
@@ -659,15 +660,15 @@ contains
   !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
   !!!! Thus minimal number of points =9
   function integralOverYpoint_S(var,process,incCut,CutParam,yMin_in,yMax_in)
-   real*8,dimension(1:7)::var
+   real(dp),dimension(1:7)::var
    logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-   real*8 ::integralOverYpoint_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: y2,y3,y4,deltay
-   real*8 :: yMin_in,yMax_in
-   real*8::valueMax
+   real(dp) ::integralOverYpoint_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: y2,y3,y4,deltay
+   real(dp) :: yMin_in,yMax_in
+   real(dp)::valueMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -694,14 +695,14 @@ contains
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverYpoint_S_Rec(var,process,incCut,CutParam,yMin_in,yMax_in,X1,X3,X5,valueMax) result(interX)
-   real*8,dimension(1:7) ::var
+   real(dp),dimension(1:7) ::var
    logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: value,valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8,intent(in)::valueMax
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: value,valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
+   real(dp),intent(in)::valueMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -733,12 +734,12 @@ contains
   
   !---------------------------------INTEGRATED over Q---------------------------------------------------------------
   function Xsec_Qint(var,process,incCut,CutParam,Q_min,Q_max)
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     logical,intent(in)::incCut
-    real*8,dimension(1:4),intent(in)::CutParam
+    real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
-    real*8:: Xsec_Qint
-    real*8:: Q_min,Q_max
+    real(dp):: Xsec_Qint
+    real(dp):: Q_min,Q_max
     
     if(TMDF_IsconvergenceLost()) then 
       Xsec_Qint=1d9
@@ -754,14 +755,14 @@ contains
   !!!! Thus minimal number of points =9
   !!!! taking into account minimum calls of y-integral we have  =81 points
   function integralOverQpoint_S(var,process,incCut,CutParam,QMin_in,QMax_in)
-  real*8,dimension(1:7)::var
+  real(dp),dimension(1:7)::var
   logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-    real*8 ::integralOverQpoint_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: QMin_in,QMax_in
-   real*8::valueMax,Q2,Q3,Q4,deltaQ
+    real(dp) ::integralOverQpoint_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: QMin_in,QMax_in
+   real(dp)::valueMax,Q2,Q3,Q4,deltaQ
    
    deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
@@ -792,14 +793,14 @@ contains
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQpoint_S_Rec(var,process,incCut,CutParam,QMin_in,QMax_in,X1,X3,X5,valueMax) result(interX)
-   real*8,dimension(1:7)::var
+   real(dp),dimension(1:7)::var
    logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: valueAB,valueACB
-   real*8 :: QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
-   real*8,intent(in)::valueMax
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: valueAB,valueACB
+   real(dp) :: QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
+   real(dp),intent(in)::valueMax
    
    deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
@@ -832,14 +833,14 @@ contains
   !!!! Thus minimal number of points =9
   !!!! taking into account minimum calls of y-integral we have  =81 points
   function Xsec_Qint_Yint(var,process,incCut,CutParam,Qmin_in,Qmax_in,ymin_in,ymax_in)
-  real*8,dimension(1:7)::var
+  real(dp),dimension(1:7)::var
   logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-   real*8:: Xsec_Qint_Yint
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: yMin_in,yMax_in,QMin_in,QMax_in
-   real*8::valueMax,Q2,Q3,Q4,deltaQ
+   real(dp):: Xsec_Qint_Yint
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: yMin_in,yMax_in,QMin_in,QMax_in
+   real(dp)::valueMax,Q2,Q3,Q4,deltaQ
    
     if(TMDF_IsconvergenceLost()) then 
       Xsec_Qint_Yint=1d9
@@ -876,14 +877,14 @@ contains
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQYpoint_S_Rec(var,process,incCut,CutParam,&
 			      QMin_in,QMax_in,yMin_in,yMax_in,X1,X3,X5,valueMax) result(interX)
-   real*8,dimension(1:7)::var
+   real(dp),dimension(1:7)::var
    logical,intent(in)::incCut
-   real*8,dimension(1:4),intent(in)::CutParam
+   real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
-   real*8,intent(in)::valueMax
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,QMin_in,QMax_in,Q2,Q3,Q4,deltaQ
+   real(dp),intent(in)::valueMax
    
    deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
@@ -911,12 +912,12 @@ contains
   !!!integration over PT is made by Num-sections
   !!!N even  
   function Xsec_PTint_Qint_Yint(process,incCut,CutParam,s_in,qt_min,qt_max,Q_min,Q_max,ymin_in,ymax_in,Num)
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     logical,intent(in)::incCut
-    real*8,dimension(1:4),intent(in)::CutParam
+    real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
-    real*8:: Xsec_PTint_Qint_Yint,X0,Xfin
-    real*8:: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
+    real(dp):: Xsec_PTint_Qint_Yint,X0,Xfin
+    real(dp):: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
     integer :: Num
     
     if(TMDF_IsconvergenceLost()) then 
@@ -944,15 +945,15 @@ contains
   !!! X0 is value of the function at qt_max output
   !!! !!! Xfin is value of the cross-section
   subroutine Xsec_PTint_Qint_Yint_0(process,incCut,CutParam,s_in,qt_min,qt_max,Q_min,Q_max,ymin_in,ymax_in,Num,Xfin,X0)
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     logical,intent(in)::incCut
-    real*8,dimension(1:4),intent(in)::CutParam
+    real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
-    real*8:: Xfin,X0
-    real*8:: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
+    real(dp):: Xfin,X0
+    real(dp):: ymin_in,ymax_in,Q_min,Q_max,qt_min,qt_max,s_in
     integer :: i,Num
     
-    real*8::deltaQT,qT_cur,inter
+    real(dp)::deltaQT,qT_cur,inter
     
     if(mod(num,2)>0) then 
       write(*,*) 'ERROR: arTeMiDe_DY: number of Simpson sections is odd. Evaluation stop.'
@@ -988,19 +989,19 @@ contains
     
   end subroutine Xsec_PTint_Qint_Yint_0
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!INTERFACES TO CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!INTERFACES TO CALCULATING CROSS-SECTIONS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
   !---------------------------------UN-INTEGRATED------------------------------------------------------------------
   
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList(X_list,qt_List)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
     integer :: i,length
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length=size(qt_list)
     CallCounter=CallCounter+length
      do i=1,length
@@ -1011,8 +1012,8 @@ contains
   
   !!!!Evaluate differential xSec at single point
   subroutine xSecSingle(X,qT_in)
-   real*8,dimension(1:7)::var
-   real*8:: X,qT_in
+   real(dp),dimension(1:7)::var
+   real(dp):: X,qT_in
    CallCounter=CallCounter+1
    var=kinematicArray(qt_in,s_global,Q_global,y_global)
    X=PreFactor1(process_global(1))*xSec(var,process_global,includeCuts_global,CutParameters_global)
@@ -1023,10 +1024,10 @@ contains
     !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_Yint(X_list,qt_List,yMin_in,yMax_in)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::yMin_in,yMax_in
-    real*8,dimension(1:7)::var
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::yMin_in,yMax_in
+    real(dp),dimension(1:7)::var
     integer :: i,length
     length=size(qt_list)
     CallCounter=CallCounter+length
@@ -1040,9 +1041,9 @@ contains
   
   !!
   subroutine xSecSingle_Yint(X,qt,yMin_in,yMax_in)
-    real*8::X,qT
-    real*8::yMin_in,yMax_in
-    real*8,dimension(1:7)::var
+    real(dp)::X,qT
+    real(dp)::yMin_in,yMax_in
+    real(dp),dimension(1:7)::var
     
    CallCounter=CallCounter+1
    var=kinematicArray(qt,s_global,Q_global,y_global)
@@ -1052,10 +1053,10 @@ contains
       !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_Ycomplete(X_list,qt_List)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
     integer :: i,length
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length=size(qt_list)
     CallCounter=CallCounter+length
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(var)
@@ -1068,8 +1069,8 @@ contains
   end subroutine xSecList_Ycomplete
   
   subroutine xSecSingle_Ycomplete(X,qt)
-    real*8::X,qT
-    real*8,dimension(1:7)::var
+    real(dp)::X,qT
+    real(dp),dimension(1:7)::var
     
    CallCounter=CallCounter+1
    var=kinematicArray(qt,s_global,Q_global,y_global)
@@ -1081,11 +1082,11 @@ contains
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_Qint(X_list,qt_List,Q_min,Q_max)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     integer :: i,length
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length=size(qt_list)
     CallCounter=CallCounter+length
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(var)
@@ -1098,9 +1099,9 @@ contains
   
   !!
   subroutine xSecSingle_Qint(X,qt,Q_min,Q_max)
-    real*8::X,qT
-    real*8::Q_min,Q_max
-    real*8,dimension(1:7)::var
+    real(dp)::X,qT
+    real(dp)::Q_min,Q_max
+    real(dp),dimension(1:7)::var
     
    CallCounter=CallCounter+1
    var=kinematicArray(qt,s_global,Q_global,y_global)
@@ -1112,11 +1113,11 @@ contains
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_Qint_Yint(X_list,qt_List,Q_min,Q_max,yMin_in,yMax_in)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::yMin_in,yMax_in,Q_min,Q_max
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
     integer :: i,length
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length=size(qt_list)
     CallCounter=CallCounter+length
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(var)
@@ -1130,9 +1131,9 @@ contains
   
   !!
   subroutine xSecSingle_Qint_Yint(X,qt,Q_min,Q_max,yMin_in,yMax_in)
-    real*8::X,qT
-    real*8::yMin_in,yMax_in,Q_min,Q_max
-    real*8,dimension(1:7)::var
+    real(dp)::X,qT
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
+    real(dp),dimension(1:7)::var
    CallCounter=CallCounter+1
    var=kinematicArray(qt,s_global,Q_global,y_global)
    X=PreFactor1(process_global(1))*Xsec_Qint_Yint(var,process_global,includeCuts_global,CutParameters_global,&
@@ -1142,11 +1143,11 @@ contains
       !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_Qint_Ycomplete(X_list,qt_List,Q_min,Q_max)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     integer :: i,length
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length=size(qt_list)
     CallCounter=CallCounter+length
     !$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(var)
@@ -1159,9 +1160,9 @@ contains
   end subroutine xSecList_Qint_Ycomplete
   
   subroutine xSecSingle_Qint_Ycomplete(X,qt,Q_min,Q_max)
-      real*8::X,qT
-      real*8::Q_min,Q_max
-      real*8,dimension(1:7)::var
+      real(dp)::X,qT
+      real(dp)::Q_min,Q_max
+      real(dp),dimension(1:7)::var
     
    CallCounter=CallCounter+1
    var=kinematicArray(qt,s_global,Q_global,y_global)
@@ -1173,9 +1174,9 @@ contains
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   subroutine xSecList_PTintN_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_in,yMax_in,num)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::yMin_in,yMax_in,Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
     integer :: i,length,num
     length=size(qtMIN_list)
     CallCounter=CallCounter+length
@@ -1188,20 +1189,20 @@ contains
   end subroutine xSecList_PTintN_Qint_Yint
   
   subroutine xSecList_PTint_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_in,yMax_in)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::yMin_in,yMax_in,Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
     
     call xSecList_PTintN_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_in,yMax_in,NumPTdefault)
 
   end subroutine xSecList_PTint_Qint_Yint
   
   subroutine xSecListList_PTintN_Qint_Yint(X_list,qt_List,Q_min,Q_max,yMin_in,yMax_in,num)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max,X0,Xfin,yMin_in,yMax_in
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max,X0,Xfin,yMin_in,yMax_in
     integer :: i,length,length2,num
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     length2=size(qt_list)
     length=size(X_list)
     if( (length2-length) .ne. 1) then    
@@ -1227,9 +1228,9 @@ contains
   end subroutine xSecListList_PTintN_Qint_Yint
   
   subroutine xSecListList_PTint_Qint_Yint(X_list,qt_List,Q_min,Q_max,yMin_in,yMax_in)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max,yMin_in,yMax_in
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max,yMin_in,yMax_in
     
     call xSecListList_PTintN_Qint_Yint(X_list,qt_List,Q_min,Q_max,yMin_in,yMax_in,NumPTdefault)
     
@@ -1237,8 +1238,8 @@ contains
   
   !!
   subroutine xSecSingle_PTintN_Qint_Yint(X,qt_Min,qt_Max,Q_min,Q_max,yMin_in,yMax_in,num)
-    real*8::X,qt_Min,qt_Max
-    real*8::yMin_in,yMax_in,Q_min,Q_max
+    real(dp)::X,qt_Min,qt_Max
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
     integer::num
     
    CallCounter=CallCounter+1
@@ -1247,16 +1248,16 @@ contains
   end subroutine xSecSingle_PTintN_Qint_Yint
   
   subroutine xSecSingle_PTint_Qint_Yint(X,qt_Min,qt_Max,Q_min,Q_max,yMin_in,yMax_in)
-    real*8::X,qt_Min,qt_Max
-    real*8::yMin_in,yMax_in,Q_min,Q_max
+    real(dp)::X,qt_Min,qt_Max
+    real(dp)::yMin_in,yMax_in,Q_min,Q_max
    X=PreFactor1(process_global(1))*Xsec_PTint_Qint_Yint(process_global,includeCuts_global,CutParameters_global,&
 			    s_global, qt_Min,qt_Max,Q_min,Q_max,yMin_in,yMax_in,NumPTdefault)
   end subroutine xSecSingle_PTint_Qint_Yint
   
   subroutine xSecListPY_PTint_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_List,yMax_List,num)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:),yMin_List(:),yMax_List(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:),yMin_List(:),yMax_List(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     integer :: i,length,num
     length=size(qtMIN_list)
     if(size(qtMAX_list)/=length) then
@@ -1288,21 +1289,21 @@ contains
   end subroutine xSecListPY_PTint_Qint_Yint
   
   subroutine xSecListPY_PTintN_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_List,yMax_List)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:),yMin_List(:),yMax_List(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:),yMin_List(:),yMax_List(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     call xSecListPY_PTint_Qint_Yint(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,yMin_List,yMax_List,NumPTdefault)
   end subroutine xSecListPY_PTintN_Qint_Yint
   
-  !---------------------------------INTEGRATED over Y (complete) over Q  over PT----------------------------------------------------------!
+  !---------------------------------INTEGRATED over Y (complete) over Q  over PT---------------------------------------------------!
   
   !!qt_list is the list of requred qt -point,
   !! X_list is variable to store results (should be of the same dimension as qt_list)
   !! I set y in (-1000,1000) since the check is made in the integration routine
   subroutine xSecList_PTintN_Qint_Ycomplete(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,num)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     integer :: i,length,num
     length=size(qtMIN_list)
     CallCounter=CallCounter+length
@@ -1315,8 +1316,8 @@ contains
   end subroutine xSecList_PTintN_Qint_Ycomplete
   
   subroutine xSecSingle_PTintN_Qint_Ycomplete(X,qt_min,qt_max,Q_min,Q_max,num)
-      real*8::X,qT_min,qT_max
-      real*8::Q_min,Q_max
+      real(dp)::X,qT_min,qT_max
+      real(dp)::Q_min,Q_max
       integer::num
     
    CallCounter=CallCounter+1
@@ -1325,11 +1326,11 @@ contains
   end subroutine xSecSingle_PTintN_Qint_Ycomplete
   
   subroutine xSecListList_PTintN_Qint_Ycomplete(X_list,qt_List,Q_min,Q_max,num)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max,X0,Xfin
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max,X0,Xfin
     integer :: i,length,length2,num
-    real*8,dimension(1:7)::var
+    real(dp),dimension(1:7)::var
     
     length2=size(qt_list)
     length=size(X_list)
@@ -1356,16 +1357,16 @@ contains
   end subroutine xSecListList_PTintN_Qint_Ycomplete
   
   subroutine xSecList_PTint_Qint_Ycomplete(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max)
-    real*8, intent(in) :: qtMIN_list(:),qtMAX_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qtMIN_list(:),qtMAX_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     
     call xSecList_PTintN_Qint_Ycomplete(X_list,qtMIN_List,qtMAX_list,Q_min,Q_max,NumPTdefault)
   end subroutine xSecList_PTint_Qint_Ycomplete
   
   subroutine xSecSingle_PTint_Qint_Ycomplete(X,qt_min,qt_max,Q_min,Q_max)
-      real*8::X,qT_min,qT_max
-      real*8::Q_min,Q_max
+      real(dp)::X,qT_min,qT_max
+      real(dp)::Q_min,Q_max
     
    CallCounter=CallCounter+1
    X=PreFactor1(process_global(1))*Xsec_PTint_Qint_Yint(process_global,includeCuts_global,CutParameters_global,&
@@ -1373,32 +1374,32 @@ contains
   end subroutine xSecSingle_PTint_Qint_Ycomplete
   
   subroutine xSecListList_PTint_Qint_Ycomplete(X_list,qt_List,Q_min,Q_max)
-    real*8, intent(in) :: qt_list(:)
-    real*8, intent(out) :: X_list(:)
-    real*8::Q_min,Q_max
+    real(dp), intent(in) :: qt_list(:)
+    real(dp), intent(out) :: X_list(:)
+    real(dp)::Q_min,Q_max
     
     call xSecListList_PTintN_Qint_Ycomplete(X_list,qt_List,Q_min,Q_max,NumPTdefault)
     
   end subroutine xSecListList_PTint_Qint_Ycomplete
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!THE MAIN INTERFACE TO CROSS-SECTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!THE MAIN INTERFACE TO CROSS-SECTION!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!! interface for integer,s,array,array,array,logical,optional, optional
   subroutine MainInterface_isAAAloo(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
     integer,intent(in)::process					!the number of process
-    real*8,intent(in)::s					!Mandelshtam s
-    real*8,intent(in),dimension(1:2)::qT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)
-    real*8,intent(in),dimension(1:2)::y				!(ymin,ymax)
+    real(dp),intent(in)::s					!Mandelshtam s
+    real(dp),intent(in),dimension(1:2)::qT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(1:2)::Q				!(Qmin,Qmax)
+    real(dp),intent(in),dimension(1:2)::y				!(ymin,ymax)
     logical,intent(in)::includeCuts				!include cuts
-    real*8,intent(in),dimension(1:4),optional::CutParameters	!(p1,p2,eta1,eta2)
+    real(dp),intent(in),dimension(1:4),optional::CutParameters	!(p1,p2,eta1,eta2)
     integer,intent(in),optional::Num				!number of sections
     
-    real*8::X
+    real(dp)::X
   
   integer::nn
-  real*8,dimension(1:4)::CutParam
+  real(dp),dimension(1:4)::CutParam
   integer,dimension(1:3)::ppp
   
   !!! determine number of sections
@@ -1434,25 +1435,25 @@ contains
   subroutine MainInterface_AsAAAloo(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
 !   function xSec_DY(process,s,qT,Q,y,includeCuts,CutParameters,Num)
     integer,intent(in),dimension(1:3)::process			!the number of process
-    real*8,intent(in)::s					!Mandelshtam s
-    real*8,intent(in),dimension(1:2)::qT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)
-    real*8,intent(in),dimension(1:2)::y				!(ymin,ymax)
+    real(dp),intent(in)::s					!Mandelshtam s
+    real(dp),intent(in),dimension(1:2)::qT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(1:2)::Q				!(Qmin,Qmax)
+    real(dp),intent(in),dimension(1:2)::y				!(ymin,ymax)
     logical,intent(in)::includeCuts				!include cuts
-    real*8,intent(in),dimension(1:4),optional::CutParameters	!(p1,p2,eta1,eta2)
+    real(dp),intent(in),dimension(1:4),optional::CutParameters	!(p1,p2,eta1,eta2)
     integer,intent(in),optional::Num				!number of sections
     
-    real*8::X
+    real(dp)::X
   
   integer::nn
-  real*8,dimension(1:4)::CutParam
+  real(dp),dimension(1:4)::CutParam
   
   
   !! determine number of sections
   if(present(Num)) then
     nn=Num
   else
-    nn=NumPT_auto(real(qT(2)-qT(1)),real((Q(2)+Q(1))/2.))
+    nn=NumPT_auto(qT(2)-qT(1),(Q(2)+Q(1))/2d0)
   end if
     
   !!! determine cut parameters
@@ -1477,14 +1478,14 @@ contains
   
   subroutine xSec_DY_List(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
     integer,intent(in),dimension(:,:)::process			!the number of process
-    real*8,intent(in),dimension(:)::s				!Mandelshtam s
-    real*8,intent(in),dimension(:,:)::qT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)
-    real*8,intent(in),dimension(:,:)::y				!(ymin,ymax)
+    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
+    real(dp),intent(in),dimension(:,:)::qT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(:,:)::Q				!(Qmin,Qmax)
+    real(dp),intent(in),dimension(:,:)::y				!(ymin,ymax)
     logical,intent(in),dimension(:)::includeCuts		!include cuts
-    real*8,intent(in),dimension(:,:)::CutParameters	        !(p1,p2,eta1,eta2)
+    real(dp),intent(in),dimension(:,:)::CutParameters	        !(p1,p2,eta1,eta2)
     integer,intent(in),dimension(:),optional::Num		!number of sections
-    real*8,dimension(:),intent(out)::X
+    real(dp),dimension(:),intent(out)::X
     integer :: i,length
     integer,allocatable::nn(:)
     
@@ -1560,7 +1561,7 @@ contains
 	nn=Num
     else
         do i=1,length
-            nn=NumPT_auto(real(qT(i,2)-qT(i,1)),real((Q(i,2)+Q(i,1))/2.))
+            nn=NumPT_auto(qT(i,2)-qT(i,1),(Q(i,2)+Q(i,1))/2d0)
         end do
     end if
     !$OMP PARALLEL DO DEFAULT(SHARED)

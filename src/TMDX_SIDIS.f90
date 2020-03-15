@@ -10,6 +10,7 @@
 !	ver 2.02:							(AV,16.08.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_SIDIS
+use aTMDe_Numerics
 use IO_functions
 use TMDF
 use QCDinput
@@ -29,22 +30,22 @@ implicit none
   integer::outputlevel
   integer::messageTrigger
   
-  real*8::hc2
+  real(dp)::hc2
   
   !The variables for all parameters of the model!
   !it is used only as input if these parameters are not set by the user.
-  real*8:: Q_global,x_global,z_global,s_global
+  real(dp):: Q_global,x_global,z_global,s_global
   !! Set of process definition, for Prefactor 1, Prefactor 2, structure function, etc
   !! = (/p1,p2,p3/)
   integer,dimension(1:3)::process_global
   !! cut prarameters
   logical::includeCuts_global
   !! (yMin,yMax,Wmin,Wmax)
-  real*8,dimension(1:4)::CutParameters_global
+  real(dp),dimension(1:4)::CutParameters_global
     !!! Target mass of target (squared)
-  real*8:: M2_target_global=0.939d0**2
+  real(dp):: M2_target_global=0.939d0**2
   !!! Produced mass (squared)
-  real*8:: M2_product_global=0.1d0**2
+  real(dp):: M2_product_global=0.1d0**2
   
   !!other global parameters, which are defined upon initialization
   integer:: orderH_global
@@ -57,22 +58,23 @@ implicit none
   
   
   
-  real*8 :: tolerance=0.0005d0
+  real(dp) :: tolerance=0.0005d0
   !!! number of sections for PT-integral by default
   integer::NumPTdefault=4
   
-  real*8::c2_global!,muHard_global
+  real(dp)::c2_global!,muHard_global
   
+  integer::messageCounter
   integer::GlobalCounter
   integer::CallCounter
   
   !!!------------------------------Global Integration definitions-------------------
   !-integration over Z
-  real*8 :: toleranceZ=0.0005d0
+  real(dp) :: toleranceZ=0.0005d0
   !!! SA = adaptive simpson, S5 = Simpson with 5-points
   character(len=4)::methodZ='SA'
   !-integration over X
-  real*8 :: toleranceX=0.0005d0
+  real(dp) :: toleranceX=0.0005d0
   !!! SA = adaptive simpson, S5 = Simpson with 5-points
   character(len=4)::methodX='SA'
   
@@ -258,15 +260,17 @@ contains
      
      GlobalCounter=0
      CallCounter=0
+     messageCounter=0
      
      started=.true.
-    write(*,*)  '----- arTeMiDe.TMD_SIDIS ',version,'.... initialized'
+    write(*,*)  color('----- arTeMiDe.TMD_SIDIS '//trim(version)//': .... initialized',c_green)
   end subroutine TMDX_SIDIS_Initialize
 
   subroutine TMDX_SIDIS_ResetCounters()
   if(outputlevel>2) call TMDX_SIDIS_ShowStatistic()
   GlobalCounter=0
   CallCounter=0
+  messageCounter=0
   end subroutine TMDX_SIDIS_ResetCounters
   
 
@@ -280,7 +284,7 @@ contains
   
   !!!!Call this after TMD initializetion but before NP, and X parameters
   subroutine TMDX_SIDIS_SetScaleVariation(c2_in)
-    real*8::c2_in
+    real(dp)::c2_in
     
     if(outputLevel>1) write(*,*) 'TMDX_SIDIS: scale variation constant c2 reset:',c2_in
     
@@ -333,8 +337,8 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
   
   subroutine TMDX_SIDIS_XSetup(s,z,x,Q,mTARGET,mPRODUCT)
-   real*8::s,Q,x,z
-   real*8,optional::mTARGET,mPRODUCT
+   real(dp)::s,Q,x,z
+   real(dp),optional::mTARGET,mPRODUCT
     
     if(.not.started) then
     write(*,*) ErrorString('module is not initialized. Evaluation terminated',moduleName)
@@ -374,8 +378,8 @@ contains
   ! 12=M2-target
   ! 13=M2-product
   function kinematicArray(pT,s,z,x,Q,M2target_in,M2product_in)
-  real*8,dimension(1:13)::kinematicArray
-  real*8::s,pT,Q,Q2,x,z,y,varepsilon,gamma2,rho2,rhoPEPR2,sM2,M2target_in,M2product_in,M2target,M2product
+  real(dp),dimension(1:13)::kinematicArray
+  real(dp)::s,pT,Q,Q2,x,z,y,varepsilon,gamma2,rho2,rhoPEPR2,sM2,M2target_in,M2product_in,M2target,M2product
   
   Q2=Q**2
   if(corrM1) then
@@ -412,17 +416,17 @@ contains
   
   !!! xy(s-M^2)=Q^2
   function YfromSXQ2(sM2,x,Q2)
-  real*8::sM2,x,Q2,YfromSXQ2
+  real(dp)::sM2,x,Q2,YfromSXQ2
   YfromSXQ2=Q2/x/sM2
   end function YfromSXQ2
   
   function XfromSYQ2(sM2,y,Q2)
-  real*8::sM2,y,Q2,XfromSYQ2
+  real(dp)::sM2,y,Q2,XfromSYQ2
   XfromSYQ2=Q2/y/sM2
   end function XfromSYQ2
   
   function QfromSXY(sM2,x,y)
-  real*8::sM2,x,y,QfromSXY
+  real(dp)::sM2,x,y,QfromSXY
   QfromSXY=Sqrt(sM2*x*y)
   end function QfromSXY
   
@@ -432,9 +436,9 @@ contains
   !!X1=x*fac1
   !!Z1=z*fac1*(...)
   subroutine CalculateX1Z1qT(x1,z1,qT,var)
-  real*8,intent(out)::x1,z1,qT
-  real*8,dimension(1:13),intent(in)::var
-  real*8::fac1
+  real(dp),intent(out)::x1,z1,qT
+  real(dp),dimension(1:13),intent(in)::var
+  real(dp)::fac1
   
   qT=var(1)/var(5)*Sqrt((1d0+var(8))/(1d0-var(9)))
   
@@ -464,8 +468,8 @@ contains
   
   !!!! update a given kinematic array with new value of x.
   subroutine SetX(x,var)
-  real*8,dimension(1:13)::var
-  real*8::x,g2
+  real(dp),dimension(1:13)::var
+  real(dp)::x,g2
   
 !   var=kinematicArray(var(1),var(11)+var(12),var(5),x,var(2),var(12),var(13))
   g2=var(8)!old gamma2
@@ -493,8 +497,8 @@ contains
   
   !!!! update a given kinematic array with new value of Q.
   subroutine setQ(Q,var)
-  real*8,dimension(1:13)::var
-  real*8::Q
+  real(dp),dimension(1:13)::var
+  real(dp)::Q
   
   !!! in the case of Q, the array is updated completely
   !!! thus we just reconstruct it
@@ -504,8 +508,8 @@ contains
   
   !!!! update a given kinematic array with new value of Q2.
   subroutine setQ2(Q2,var)
-  real*8,dimension(1:13)::var
-  real*8::Q2
+  real(dp),dimension(1:13)::var
+  real(dp)::Q2
   !!! in the case of Q, the array is updated completely
   !!! thus we just reconstruct it
   var=kinematicArray(var(1),var(11)+var(12),var(5),var(4),sqrt(Q2),var(12),var(13))
@@ -514,8 +518,8 @@ contains
   
   !!!! update a given kinematic array with new value of Z.
   subroutine SetZ(z,var)
-  real*8,dimension(1:13)::var,var1
-  real*8::z
+  real(dp),dimension(1:13)::var,var1
+  real(dp)::z
 !   var=kinematicArray(var(1),var(11)+var(12),z,var(4),var(2),var(12),var(13))
   var(5)=z
   !!Q2 same
@@ -537,8 +541,8 @@ contains
   
   !!!! update a given kinematic array with new value of pt.
   subroutine SetPT(pt,var)
-  real*8,dimension(1:13)::var
-  real*8::pt
+  real(dp),dimension(1:13)::var
+  real(dp)::pt
 !   var=kinematicArray(pt,var(11)+var(12),var(5),var(4),var(2),var(12),var(13))
   var(1)=pt
   
@@ -563,7 +567,7 @@ contains
   !!! it takes global values of Q,order
   !!! NOTE it uses Nf=3(fixed)
   function HardCoefficientSIDIS(mu)
-    real*8::HardCoefficientSIDIS,mu,alpha,LQ!=Log[Q^2/mu^2]=-2Log[c1]
+    real(dp)::HardCoefficientSIDIS,mu,alpha,LQ!=Log[Q^2/mu^2]=-2Log[c1]
     
     HardCoefficientSIDIS=1.d0
     if(orderH_global>=1) then
@@ -587,16 +591,16 @@ contains
    !!!! Set Prefactor1
    !!!! it multiplies the cross-section as a whole, does not participate in the integration
   function PreFactor1(p1)
-  real*8::Prefactor1
+  real(dp)::Prefactor1
   integer::p1
 	PreFactor1=1d0
   end function PreFactor1
   
     !!!!! Prefactor 2 is (universal part) x H
   function PreFactor2(var,process,x1,z1,qT)
-    real*8,dimension(1:13),intent(in)::var
+    real(dp),dimension(1:13),intent(in)::var
     integer,dimension(1:3),intent(in)::process
-    real*8::PreFactor2,uniPart,phasePart,x1,z1,qT,fac1
+    real(dp)::PreFactor2,uniPart,phasePart,x1,z1,qT,fac1
     
    !!!! universal part
 
@@ -613,7 +617,7 @@ contains
 	else
 	  fac1=1d0
 	end if
-	uniPart=6.283185307179586d0*alphaEM(var(2))**2/(var(3)**2)*(var(6)**2/(1d0-var(7)))*(z1/var(5))*&
+	uniPart=pix2*alphaEM(var(2))**2/(var(3)**2)*(var(6)**2/(1d0-var(7)))*(z1/var(5))*&
 	    fac1*&
 	    HardCoefficientSIDIS(var(2))*&
 	    hc2*1d9!from GeV to mbarn
@@ -626,7 +630,7 @@ contains
 	else
 	  fac1=1d0
 	end if
-	uniPart=0.3183098861837907d0*var(4)/(1d0+0.5d0*var(8)/var(4))*&
+	uniPart=var(4)/pi/(1d0+0.5d0*var(8)/var(4))*&
 	    fac1*&
 	    HardCoefficientSIDIS(var(2))
     CASE DEFAULT 
@@ -657,8 +661,8 @@ contains
   !!The cuts are ymin<y<ymax,Wmin<W2<Wmax
   subroutine TMDX_SIDIS_SetCuts(inc,yMin,yMax,Wmin,Wmax)
     logical::inc
-    real*8::yMin,yMax,Wmin,Wmax
-    real*8::y0,y1,W0,W1
+    real(dp)::yMin,yMax,Wmin,Wmax
+    real(dp)::y0,y1,W0,W1
     includeCuts_global=inc
     
     if(.not.inc) return
@@ -717,9 +721,9 @@ contains
   !!! checks the value of x against cut constaints from below and return the maximal allowed value
   !!! argument xmin is xmin vs. which we compare cuts.
   function xMinWithCuts(xmin,var,cutParam)
-    real*8,dimension(1:13),intent(in)::var
-    real*8,dimension(1:4),intent(in)::cutParam
-    real*8::xmin,x1,x2,xMinWithCuts
+    real(dp),dimension(1:13),intent(in)::var
+    real(dp),dimension(1:4),intent(in)::cutParam
+    real(dp)::xmin,x1,x2,xMinWithCuts
     
     x1=var(3)/cutParam(2)/var(11)
     x2=var(3)/(var(3)+cutParam(4)-var(12))
@@ -730,9 +734,9 @@ contains
   !!! checks the value of x against cut constaints from above and return the minimal allowed value
   !!! argument xmax is xmin vs. which we compare cuts.
   function xMaxWithCuts(xmax,var,cutParam)
-    real*8,dimension(1:13),intent(in)::var
-    real*8,dimension(1:4),intent(in)::cutParam
-    real*8::xmax,x1,x2,xMaxWithCuts
+    real(dp),dimension(1:13),intent(in)::var
+    real(dp),dimension(1:4),intent(in)::cutParam
+    real(dp)::xmax,x1,x2,xMaxWithCuts
     x1=var(3)/cutParam(1)/var(11)
     x2=var(3)/(var(3)+cutParam(3)-var(12))
     
@@ -743,9 +747,9 @@ contains
   !!! argument Qmin is Qmin vs. which we compare cuts.
   !!! argument xmin is xmin vs. which we compare cuts.
   function QMinWithCuts(xmin,Qmin,var,cutParam)
-    real*8,dimension(1:13),intent(in)::var
-    real*8,dimension(1:4),intent(in)::cutParam
-    real*8::xmin,Q1,Q2,Qmin,QMinWithCuts
+    real(dp),dimension(1:13),intent(in)::var
+    real(dp),dimension(1:4),intent(in)::cutParam
+    real(dp)::xmin,Q1,Q2,Qmin,QMinWithCuts
     
     Q1=sqrt(xmin*cutParam(1)*var(11))
     Q2=sqrt(xmin*(cutParam(3)-var(12))/(1d0-xmin))
@@ -757,9 +761,9 @@ contains
   !!! argument Qmax is Qmax vs. which we compare cuts.
   !!! argument xmax is xmax vs. which we compare cuts.
   function QMaxWithCuts(xmax,Qmax,var,cutParam)
-    real*8,dimension(1:13),intent(in)::var
-    real*8,dimension(1:4),intent(in)::cutParam
-    real*8::xmax,Qmax,Q1,Q2,QMaxWithCuts
+    real(dp),dimension(1:13),intent(in)::var
+    real(dp),dimension(1:4),intent(in)::cutParam
+    real(dp)::xmax,Qmax,Q1,Q2,QMaxWithCuts
     
     Q1=Sqrt(xmax*cutParam(2)*var(11))
     Q2=sqrt(xmax*(cutParam(4)-var(12))/(1d0-xmax))
@@ -779,9 +783,9 @@ contains
   !!!! this is extended (and default) version of xSec, which include all parameters
   !!! note that it is calculated with respect to qT
   function xSec(var,process)
-    real*8:: xSec,FF
-    real*8::x1,z1,qT
-    real*8,dimension(1:13),intent(in)::var
+    real(dp):: xSec,FF
+    real(dp)::x1,z1,qT
+    real(dp),dimension(1:13),intent(in)::var
     integer,dimension(1:3),intent(in)::process
     integer::OMP_get_thread_num
     GlobalCounter=GlobalCounter+1
@@ -800,10 +804,10 @@ contains
   !!! if doZ=true, the integration is done
   !!! if doZ=facle the single value (at xMin) is returned
   function Xsec_Zint(var,process,doZ,zMin,zMax)
-    real*8,dimension(1:13),intent(in) :: var
+    real(dp),dimension(1:13),intent(in) :: var
     logical::doZ
-    real*8 :: Xsec_Zint
-    real*8 :: zMin,zMax
+    real(dp) :: Xsec_Zint
+    real(dp) :: zMin,zMax
     integer,dimension(1:3),intent(in)::process
     
     !! the integration over Z is requared
@@ -846,13 +850,13 @@ contains
   !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
   !!!! Thus minimal number of points =9
   function integralOverZpoint_S(var,process,yMin_in,yMax_in)
-   real*8,dimension(1:13),intent(in)::var
+   real(dp),dimension(1:13),intent(in)::var
    integer,dimension(1:3),intent(in)::process
-   real*8 ::integralOverZpoint_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: y2,y3,y4,deltay
-   real*8 :: yMin_in,yMax_in
-   real*8::valueMax
+   real(dp) ::integralOverZpoint_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: y2,y3,y4,deltay
+   real(dp) :: yMin_in,yMax_in
+   real(dp)::valueMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -885,12 +889,12 @@ contains
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverZpoint_S_Rec(var,process,yMin_in,yMax_in,X1,X3,X5,valueMax)  result(interX)
-   real*8,dimension(1:13),intent(in) ::var
+   real(dp),dimension(1:13),intent(in) ::var
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: value,valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8::valueMax,valueMaxNew,vv
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: value,valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
+   real(dp)::valueMax,valueMaxNew,vv
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -924,11 +928,11 @@ contains
   !!! if doX=true, the integration is done
   !!! if doX=false the single value (at xMin) is returned
   function Xsec_Zint_Xint(var,process,doZ,zMin,zMax,doX,Xmin_in,Xmax_in,doCut,Cuts)
-    real*8,dimension(1:13),intent(in) :: var
+    real(dp),dimension(1:13),intent(in) :: var
     logical::doX,doZ,doCut
-    real*8,dimension(1:4),intent(in)::Cuts
-    real*8 :: Xsec_Zint_Xint
-    real*8 :: xmin, xmax,xmin_in,xmax_in,zMin,zMax
+    real(dp),dimension(1:4),intent(in)::Cuts
+    real(dp) :: Xsec_Zint_Xint
+    real(dp) :: xmin, xmax,xmin_in,xmax_in,zMin,zMax
     integer,dimension(1:3),intent(in)::process
     
     if(doX) then    
@@ -1003,15 +1007,15 @@ contains
   !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
   !!!! Thus minimal number of points =9
   function integralOverXpoint_S(var,process,doZ,zMin,zMax,yMin_in,yMax_in)
-   real*8,dimension(1:13),intent(in)::var
+   real(dp),dimension(1:13),intent(in)::var
    integer,dimension(1:3),intent(in)::process
-   real*8 ::integralOverXpoint_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: y2,y3,y4,deltay
-   real*8 :: yMin_in,yMax_in
-   real*8::valueMax
+   real(dp) ::integralOverXpoint_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: y2,y3,y4,deltay
+   real(dp) :: yMin_in,yMax_in
+   real(dp)::valueMax
    logical::doZ
-   real*8::zmin,zMax
+   real(dp)::zmin,zMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1046,14 +1050,14 @@ contains
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,yMax_in,X1,X3,X5,valueMax) result(interX)
-   real*8,dimension(1:13),intent(in) ::var
+   real(dp),dimension(1:13),intent(in) ::var
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: value,valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8::valueMax,valueMaxNew,vv
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: value,valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
+   real(dp)::valueMax,valueMaxNew,vv
    logical::doZ
-   real*8::zmin,zMax
+   real(dp)::zmin,zMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1087,11 +1091,11 @@ contains
   !!! if doQ=true, the integration is done
   !!! if doQ=facle the single value (at xMin) is returned
   function Xsec_Zint_Xint_Qint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin_in,Qmax_in,doCut,Cuts)
-    real*8,dimension(1:13),intent(in) :: var
+    real(dp),dimension(1:13),intent(in) :: var
     logical::doX,doQ,doCut,doZ
-    real*8,dimension(1:4),intent(in)::Cuts
-    real*8 :: Xsec_Zint_Xint_Qint
-    real*8 :: Qmin, Qmax,Qmin_in,Qmax_in,xMin,xMax,zMin,zMax
+    real(dp),dimension(1:4),intent(in)::Cuts
+    real(dp) :: Xsec_Zint_Xint_Qint
+    real(dp) :: Qmin, Qmax,Qmin_in,Qmax_in,xMin,xMax,zMin,zMax
     integer,dimension(1:3),intent(in)::process
     
     !! the integration over Q is requared
@@ -1160,16 +1164,16 @@ contains
   !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
   !!!! Thus minimal number of points =9
   function integralOverQpoint_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,yMin_in,yMax_in,doCut,Cuts)
-   real*8,dimension(1:13),intent(in)::var
+   real(dp),dimension(1:13),intent(in)::var
    integer,dimension(1:3),intent(in)::process
-   real*8 ::integralOverQpoint_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: y2,y3,y4,deltay
-   real*8 :: yMin_in,yMax_in
-   real*8::valueMax
+   real(dp) ::integralOverQpoint_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: y2,y3,y4,deltay
+   real(dp) :: yMin_in,yMax_in
+   real(dp)::valueMax
    logical::doX,doCut,doZ
-   real*8,dimension(1:4),intent(in)::Cuts
-   real*8::xMin,xMax,zMin,zMax
+   real(dp),dimension(1:4),intent(in)::Cuts
+   real(dp)::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1197,15 +1201,15 @@ contains
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,yMax_in,X1,X3,X5,valueMax)&
 												    result(interX)
-   real*8,dimension(1:13),intent(in) ::var
+   real(dp),dimension(1:13),intent(in) ::var
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: value,valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8::valueMax,valueMaxNew,vv
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: value,valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
+   real(dp)::valueMax,valueMaxNew,vv
    logical::doX,doCut,doZ
-   real*8,dimension(1:4),intent(in)::Cuts
-   real*8::xMin,xMax,zMin,zMax
+   real(dp),dimension(1:4),intent(in)::Cuts
+   real(dp)::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1240,16 +1244,16 @@ contains
   !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
   !!!! Thus minimal number of points =9
   function integralOverQ2point_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,yMin_in,yMax_in,doCut,Cuts)
-   real*8,dimension(1:13)::var
+   real(dp),dimension(1:13)::var
    integer,dimension(1:3),intent(in)::process
-   real*8 ::integralOverQ2point_S
-   real*8 :: X1,X2,X3,X4,X5
-   real*8 :: y2,y3,y4,deltay
-   real*8 :: yMin_in,yMax_in
-   real*8::valueMax
+   real(dp) ::integralOverQ2point_S
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp) :: y2,y3,y4,deltay
+   real(dp) :: yMin_in,yMax_in
+   real(dp)::valueMax
    logical::doX,doCut,doZ
-   real*8,dimension(1:4),intent(in)::Cuts
-   real*8::xMin,xMax,zMin,zMax
+   real(dp),dimension(1:4),intent(in)::Cuts
+   real(dp)::xMin,xMax,zMin,zMax
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
    y3=yMin_in+deltay/2d0
@@ -1276,15 +1280,15 @@ contains
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,yMax_in,&
 			  X1,X3,X5,valueMax) result(interX)
-   real*8,dimension(1:13) ::var
+   real(dp),dimension(1:13) ::var
    integer,dimension(1:3),intent(in)::process
-   real*8 :: interX,X1,X2,X3,X4,X5
-   real*8 :: value,valueAB,valueACB
-   real*8 :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real*8::valueMax,valueMaxNew,vv
+   real(dp) :: interX,X1,X2,X3,X4,X5
+   real(dp) :: value,valueAB,valueACB
+   real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
+   real(dp)::valueMax,valueMaxNew,vv
    logical::doX,doCut,doZ
-   real*8,dimension(1:4),intent(in)::Cuts
-   real*8::xMin,xMax,zMin,zMax
+   real(dp),dimension(1:4),intent(in)::Cuts
+   real(dp)::xMin,xMax,zMin,zMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -1317,17 +1321,17 @@ contains
   !!! function determines the best value of PT-sections from PT-bin size, and Q
   !!! it is determined by formula Q/PT< val/ (2 k) => def+2K
   function NumPT_auto(dPT,Q)
-    real,parameter::val=40.
-    real::dPT,Q,rat
+    real(dp),parameter::val=40d0
+    real(dp)::dPT,Q,rat
     integer::i,NumPT_auto
     rat=Q/dPT
     
-    if(rat>40.) then
+    if(rat>40d0) then
         NumPT_auto=NumPTdefault
         return
     else
         do i=1,5
-            if(rat>(40./2./i)) then
+            if(rat>(40d0/2d0/i)) then
                 NumPT_auto=NumPTdefault+2*i
                 return
             end if
@@ -1345,11 +1349,11 @@ contains
   !!! if doZ=true, the integration is done
   !!! if doZ=facle the single value (at xMin) is returned
   function Xsec_Zint_Xint_Qint_PTint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,doPT,ptMin_in,ptMax_in,doCut,Cuts,Num)
-    real*8,dimension(1:13),intent(in) :: var
-    real*8,dimension(1:4),intent(in) :: Cuts
+    real(dp),dimension(1:13),intent(in) :: var
+    real(dp),dimension(1:4),intent(in) :: Cuts
     logical::doX,doQ,doZ,doPT,doCut
-    real*8 :: Xsec_Zint_Xint_Qint_PTint
-    real*8 :: Qmin,Qmax,xMin,xMax,zMin,zMax,ptMin,ptMax,pT_cur,deltaPT,inter,ptMax_in,ptMin_in
+    real(dp) :: Xsec_Zint_Xint_Qint_PTint
+    real(dp) :: Qmin,Qmax,xMin,xMax,zMin,zMax,ptMin,ptMax,pT_cur,deltaPT,inter,ptMax_in,ptMin_in
     integer,dimension(1:3),intent(in)::process
     integer::Num,i
     
@@ -1415,8 +1419,8 @@ contains
   !----------------------------------------------- single pt point-----------------------------------------
   !!!! just a point cross-section
   subroutine CalcXsecSINGLE_SIDIS(X,pt)
-    real*8,dimension(1:13):: var
-    real*8::X,pt
+    real(dp),dimension(1:13):: var
+    real(dp)::X,pt
     CallCounter=CallCounter+1
     
     var=kinematicArray(pt,s_global,z_global,x_global,Q_global,M2_target_global,M2_product_global)
@@ -1426,9 +1430,9 @@ contains
   
     !!!! just a point cross-section
   subroutine CalcXsecLIST_SIDIS(X_list,pt_list)
-    real*8,dimension(1:13):: var
-    real*8,intent(in)::pt_list(:)
-    real*8,intent(out)::X_list(:)
+    real(dp),dimension(1:13):: var
+    real(dp),intent(in)::pt_list(:)
+    real(dp),intent(out)::X_list(:)
     integer::length,length2,i
     
     length=size(pt_list)
@@ -1451,8 +1455,8 @@ contains
   
   !!! integrated over XQZ
   subroutine CalcXsecSINGLE_SIDIS_Zint_Xint_Qint(X,pt,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8::X,pt,xMin,xMax,Qmin,Qmax,zMin,zMax
-    real*8,dimension(1:13):: var
+    real(dp)::X,pt,xMin,xMax,Qmin,Qmax,zMin,zMax
+    real(dp),dimension(1:13):: var
     CallCounter=CallCounter+1
     var=kinematicArray(pt,s_global,(zMin+zMax)/2d0,(xMin+xMax)/2d0,(Qmin+Qmax)/2d0,M2_target_global,M2_product_global)
     X=PreFactor1(process_global(1))*Xsec_Zint_Xint_Qint(var,process_global,.true.,zMin,zMax,.true.,xMin,xMax,.true.,Qmin,Qmax,&
@@ -1462,9 +1466,9 @@ contains
   
   !!! integrated over XQZ
   subroutine CalcXsecLIST_SIDIS_Zint_Xint_Qint(X_list,pt_list,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8,intent(in)::pt_list(:)
-    real*8,intent(in)::xMin,xMax,Qmin,Qmax,zMin,zMax
-    real*8,intent(out)::X_list(:)
+    real(dp),intent(in)::pt_list(:)
+    real(dp),intent(in)::xMin,xMax,Qmin,Qmax,zMin,zMax
+    real(dp),intent(out)::X_list(:)
     integer::i,length
     
     length=size(pt_list)
@@ -1488,13 +1492,13 @@ contains
 !----------------------------------------------- PT+XQZ-integerations -----------------------------------------
     !!! this function just to help incapsulte the variables for parallel computation
   function CalcXsecHELP_PTint_Zint_Xint_Qint(ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8::pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax,CalcXsecHELP_PTint_Zint_Xint_Qint
-    real*8,dimension(1:13):: var
+    real(dp)::pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax,CalcXsecHELP_PTint_Zint_Xint_Qint
+    real(dp),dimension(1:13):: var
     integer::Num
     var=kinematicArray((ptMin+ptMax)/2d0,s_global,(zMin+zMax)/2d0,(xMin+xMax)/2d0,(Qmin+Qmax)/2d0,&
 		    M2_target_global,M2_product_global)
 		    
-    Num=NumPT_auto(real(ptMax-ptMin),real(var(2)))
+    Num=NumPT_auto(ptMax-ptMin,var(2))
   
     CalcXsecHELP_PTint_Zint_Xint_Qint=PreFactor1(process_global(1))*&
 	     Xsec_Zint_Xint_Qint_PTint(var,process_global,.true.,zMin,zMax,.true.,xMin,xMax,.true.,Qmin,Qmax,.true.,ptMin,ptMax,&
@@ -1503,7 +1507,7 @@ contains
 
     !!! integrated over PT+XQZ
   subroutine CalcXsecSINGLE_SIDIS_PTint_Zint_Xint_Qint(X,ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8::X,pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
+    real(dp)::X,pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
     
     CallCounter=CallCounter+1
     X=CalcXsecHELP_PTint_Zint_Xint_Qint(ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
@@ -1511,9 +1515,9 @@ contains
   end subroutine CalcXsecSINGLE_SIDIS_PTint_Zint_Xint_Qint
   
   subroutine CalcXsecLIST_SIDIS_PTint_Zint_Xint_Qint(X_list,ptMin_list,ptMax_list,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8::xMin,xMax,Qmin,Qmax,zMin,zMax
-    real*8,intent(in)::ptMax_list(:),ptMin_list(:)
-    real*8::X_list(:)
+    real(dp)::xMin,xMax,Qmin,Qmax,zMin,zMax
+    real(dp),intent(in)::ptMax_list(:),ptMin_list(:)
+    real(dp)::X_list(:)
     integer::length,i
     
     length=size(ptMin_list)
@@ -1541,9 +1545,9 @@ contains
 
   
   subroutine CalcXsecLISTLIST_SIDIS_PTint_Zint_Xint_Qint(X_list,pt_list,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real*8::xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
-    real*8,intent(in)::pt_list(:)
-    real*8::X_list(:)
+    real(dp)::xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
+    real(dp),intent(in)::pt_list(:)
+    real(dp)::X_list(:)
     integer::length,i
     
     length=size(pt_list)-1
@@ -1572,18 +1576,18 @@ contains
   !!! single value interface
   subroutine xSec_SIDIS(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
     integer,intent(in),dimension(1:3)::process			!the number of process
-    real*8,intent(in)::s					!Mandelshtam s
-    real*8,intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(1:2)::z				!(zmin,zmax)
-    real*8,intent(in),dimension(1:2)::x				!(xmin,xmax)
-    real*8,intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
+    real(dp),intent(in)::s					!Mandelshtam s
+    real(dp),intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(1:2)::z				!(zmin,zmax)
+    real(dp),intent(in),dimension(1:2)::x				!(xmin,xmax)
+    real(dp),intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
     logical,intent(in)::doCut					!triger cuts
-    real*8,intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2)
-    real*8,intent(in),dimension(1:2),optional::masses		!(mass_target,mass-product)GeV
-    real*8,intent(out)::xx
+    real(dp),intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2)
+    real(dp),intent(in),dimension(1:2),optional::masses		!(mass_target,mass-product)GeV
+    real(dp),intent(out)::xx
     integer :: i,length
     
-    real*8,dimension(1:13):: var
+    real(dp),dimension(1:13):: var
     integer::Num
     
     CallCounter=CallCounter+1
@@ -1594,7 +1598,7 @@ contains
     end if
     
     
-    Num=NumPT_auto(real(pt(2)-pt(1)),real(var(2)))
+    Num=NumPT_auto(pt(2)-pt(1),var(2))
   
     xx=PreFactor1(process(1))*&
 	     Xsec_Zint_Xint_Qint_PTint(var,process,.true.,z(1),z(2),.true.,x(1),x(2),.true.,Q(1),Q(2),.true.,pt(1),pt(2),&
@@ -1605,15 +1609,15 @@ contains
   
   subroutine xSec_SIDIS_List(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
     integer,intent(in),dimension(:,:)::process			!the number of process
-    real*8,intent(in),dimension(:)::s				!Mandelshtam s
-    real*8,intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(:,:)::z				!(zmin,zmax)
-    real*8,intent(in),dimension(:,:)::x				!(xmin,xmax)
-    real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
+    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
+    real(dp),intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(:,:)::z				!(zmin,zmax)
+    real(dp),intent(in),dimension(:,:)::x				!(xmin,xmax)
+    real(dp),intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
     logical,intent(in),dimension(:)::doCut			!triger cuts
-    real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
-    real*8,intent(in),dimension(:,:),optional::masses		!(mass_target,mass-product)GeV
-    real*8,dimension(:),intent(out)::xx
+    real(dp),intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
+    real(dp),intent(in),dimension(:,:),optional::masses		!(mass_target,mass-product)GeV
+    real(dp),dimension(:),intent(out)::xx
     integer :: i,length
     
     length=size(s)
@@ -1729,15 +1733,15 @@ contains
   !!!! problem is that f2py does not like optional arguments.. in any form
   subroutine xSec_SIDIS_List_forharpy(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
     integer,intent(in),dimension(:,:)::process			!the number of process
-    real*8,intent(in),dimension(:)::s				!Mandelshtam s
-    real*8,intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
-    real*8,intent(in),dimension(:,:)::z				!(zmin,zmax)
-    real*8,intent(in),dimension(:,:)::x				!(xmin,xmax)
-    real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
+    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
+    real(dp),intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(:,:)::z				!(zmin,zmax)
+    real(dp),intent(in),dimension(:,:)::x				!(xmin,xmax)
+    real(dp),intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
     logical,intent(in),dimension(:)::doCut			!triger cuts
-    real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
-    real*8,intent(in),dimension(:,:)::masses		!(mass_target,mass-product)GeV
-    real*8,dimension(:),intent(out)::xx
+    real(dp),intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
+    real(dp),intent(in),dimension(:,:)::masses		!(mass_target,mass-product)GeV
+    real(dp),dimension(:),intent(out)::xx
     integer :: i,length
     
     length=size(s)
@@ -1839,12 +1843,12 @@ contains
   
   !!! helper to incapsulate PARALLEL variables
   function xSecFULL(proc,s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,doCut,Cuts,m1,m2)
-  real*8::s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,Cuts(1:4),xSecFULL,var(1:13),m1,m2
+  real(dp)::s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,Cuts(1:4),xSecFULL,var(1:13),m1,m2
   integer::proc(1:3),Num
   logical::doCut
   
   var=kinematicArray((ptmin+ptmax)/2d0,s,(zmin+zmax)/2d0,(xmin+xmax)/2d0,(Qmin+Qmax)/2d0,m1,m2)
-  Num=NumPT_auto(real(ptmax-ptmin),real(var(2)))
+  Num=NumPT_auto(ptmax-ptmin,var(2))
   
 !   write(*,*) 'aTMD:1  ',var
 !   write(*,*) 'aTMD:2  ',proc,m1,m2

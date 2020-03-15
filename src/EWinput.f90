@@ -10,6 +10,7 @@
 
 
 module EWinput
+use aTMDe_Numerics
 use IO_functions
 implicit none
 
@@ -18,28 +19,38 @@ private
 logical:: started=.false.
 integer::outputLevel
 character (len=7),parameter :: moduleName="EWinput"
-character (len=5),parameter :: version="v2.01"
+character (len=5),parameter :: version="v2.03"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=5
+integer,parameter::inputver=14
 
-real*8::Zmass,Wmass,Hmass,alphaZ,sW2,cW2
-real*8::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
+real(dp)::massZ,massW,massHIGGS,sW2,cW2
+real(dp)::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 
 public::alphaEM,EWinput_Initialize,EWinput_IsInitialized
 
 !!-Z-gamma DY
-real*8,public::paramU,paramD,paramS,paramC,paramB,paramL
-real*8,public::paramMIXU,paramMIXD,paramMIXS,paramMIXC,paramMIXB,paramMIXL
+real(dp),public::paramU,paramD,paramS,paramC,paramB,paramL
+real(dp),public::paramMIXU,paramMIXD,paramMIXS,paramMIXC,paramMIXB,paramMIXL
 !!-W DY
-real*8,public::paramW_UD,paramW_US,paramW_UB,paramW_CD,paramW_CS,paramW_CB,paramW_L
+real(dp),public::paramW_UD,paramW_US,paramW_UB,paramW_CD,paramW_CS,paramW_CB,paramW_L
 
 !!-EW-boson parameters
-real*8,public::GammaZ2,MZ2
-real*8,public::GammaW2,MW2
+real(dp),public::GammaZ2,MZ2
+real(dp),public::GammaW2,MW2
 
-!!-Higgs-boso parameters
-real*8,public::MH2,GammaH2,VEVH
+!!-Higgs-boson parameters
+real(dp),public::MH2,GammaH2,VEVH
 
+!!-Lepton parameters
+real(dp),public::massELECTRON,massMUON,massTAU
+!!-quark masses parameters (used to compute threashold of running alpha)
+real(dp)::massCHARM,massBOTTOM,massTOP
+
+!!alphaQED parameters
+real(dp)::alphaZ,alphaZinv,alphaTAUinv !!! these are from constans-file
+real(dp)::alphaELECTRONinv,alphaMUONinv,alphaCHARMinv,alphaBOTTOMinv,alphaTOPinv!!! these are calculated in Set_betaQED()
+!! running parameters
+real(dp)::betaQED !!! this is corrected beta function of qed matched to mZ and mTau threasholds with 1-loop evolution
 
 contains
 
@@ -54,7 +65,7 @@ contains
   character(len=*),optional::prefix
   character(len=300)::path
   logical::initRequared
-  real*8::dummy
+  real(dp)::dummy
   integer::FILEver
   
   if(started) return
@@ -79,63 +90,89 @@ contains
     end if
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
-    if(outputLevel>2) write(*,*) '--------------------------------------------- '
-    if(outputLevel>2) write(*,*) 'artemide.EWinput: initialization started ... '
+    if(outputLevel>1) write(*,*) '--------------------------------------------- '
+    if(outputLevel>1) write(*,*) 'artemide.EWinput: initialization started ... '
   
     !!! check do we need initialisation?
     call MoveTO(51,'*2   ')
     call MoveTO(51,'*p1  ')
     read(51,*) initRequared
     if(.not.initRequared) then
-      if(outputLevel>2) write(*,*)'artemide.EWinput: initialization is not requared. '
+      if(outputLevel>1) write(*,*)'artemide.EWinput: initialization is not requared. '
       started=.false.
       return
     end if
     
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) dummy
-    alphaZ=1d0/dummy
+    read(51,*) alphaZinv
+    alphaZ=1d0/alphaZinv
     
     call MoveTO(51,'*p2   ')
     read(51,*) sW2	!!!!!!!!!!sin^2 theta_W
     cw2=1d0-sw2		!!!!!!!!!!cos^2 theta_W
     
-    call MoveTO(51,'*p3   ')
+    call MoveTO(51,'*p3   ')!!!!CKM matrix
     read(51,*) Vckm_UD,Vckm_US,Vckm_UB
     read(51,*) Vckm_CD,Vckm_CS,Vckm_CB
     
+    call MoveTO(51,'*p4  ')
+    read(51,*) alphaTAUinv
+    
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) Zmass     !!!!!!!!!!Z mass
-    MZ2=Zmass**2
+    read(51,*) massZ     !!!!!!!!!!Z mass
+    MZ2=massZ**2
     call MoveTO(51,'*p2  ')
     read(51,*) dummy
     GammaZ2=dummy**2     !!!!!!!!!!Z width
     
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) Wmass     !!!!!!!!!!W mass
-    MW2=Wmass**2
+    read(51,*) massW     !!!!!!!!!!W mass
+    MW2=massW**2
     call MoveTO(51,'*p2  ')
     read(51,*) dummy
     GammaW2=dummy**2     !!!!!!!!!!W width
     
-     call MoveTO(51,'*D   ')
+    call MoveTO(51,'*D   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) Hmass     !!!!!!!!!!Higgs mass
-    MH2=Hmass**2
+    read(51,*) massHIGGS     !!!!!!!!!!Higgs mass
+    MH2=massHIGGS**2
     call MoveTO(51,'*p2  ')
     read(51,*) dummy
     GammaH2=dummy**2     !!!!!!!!!!Higgs width
     call MoveTO(51,'*p3  ')
     read(51,*) VEVH      !!!!!!!!!!Higgs VEV
     
+    call MoveTO(51,'*E   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) massELECTRON     !!!!!!!!!!electron mass in GEV
+    call MoveTO(51,'*p2  ')
+    read(51,*) massMUON	 	!!!!!!!!!!muon mass in GEV
+    call MoveTO(51,'*p3  ')
+    read(51,*) massTAU	 	!!!!!!!!!!tau-lepton mass in GEV
+    
+    CLOSE (51, STATUS='KEEP')
+    
+    !!!!! read quark thresholds from the QCD section
+    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+    call MoveTO(51,'*1   ')!!! QCD section
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) massCHARM
+    call MoveTO(51,'*p2  ')
+    read(51,*) massBOTTOM
+    call MoveTO(51,'*p3  ')
+    read(51,*) massTOP
     CLOSE (51, STATUS='KEEP')
   
     
   call Set_EWconstants()
-  if(outputLevel>2)	write(*,*)'EWinput succesfully initialized.'
+  call Set_betaQED()
+  
+   if(outputLevel>0) write(*,*) color('----- arTeMiDe.EWinput '//trim(version)//': .... initialized',c_green)
+   if(outputLevel>1) write(*,*) ' '
   started=.true.
  
  end subroutine EWinput_Initialize
@@ -144,13 +181,28 @@ contains
    !!!!alpha EM (normalized at MZ as 127^{-1}
    !!!! with 1-loop run
   function alphaEM(mu)
-  real*8::mu,alphaEM
-  real*8,parameter::beta0=-0.1061032953945969d0*(2d0+3d0*11d0/9d0) !!!! =-1/3pi  * (NUMBER OF LEPTONS+Nc*sum(e^_q))
-  alphaEM=alphaZ/(1+alphaZ*beta0*(2d0*LOG(mu/Zmass)-5d0/3d0))
+  real(dp)::mu,alphaEM
+  
+    if(mu>massTOP) then
+      alphaEM=1d0/(alphaTOPinv+16d0*betaQED*log(mu/massTOP))
+    else if(mu>massBOTTOM) then
+      alphaEM=1d0/(alphaZinv+40d0/3d0*betaQED*log(mu/massZ))
+    else if(mu>massTAU) then
+      alphaEM=1d0/(alphaTAUinv+38d0/3d0*betaQED*log(mu/massTAU))
+    else if(mu>massCHARM) then
+      alphaEM=1d0/(alphaTAUinv+32d0/3d0*betaQED*log(mu/massTAU))
+    else if(mu>massMUON) then
+      alphaEM=1d0/(alphaCHARMinv+8d0*betaQED*log(mu/massCHARM))
+    else if(mu>massELECTRON) then
+      alphaEM=1d0/(alphaMUONinv+16d0/3d0*betaQED*log(mu/massMUON))
+    else
+      alphaEM=1d0/alphaELECTRONinv
+    end if
+  
   end function alphaEM
 
  subroutine Set_EWconstants()
- real*8::ef,t3
+ real(dp)::ef,t3
  !!!! param is given by
  !!!! ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2)
  !!!!  it is 2(gV^2+gA^2) for Z boson.
@@ -211,6 +263,43 @@ contains
  
  end subroutine Set_EWconstants
 
+ !!! compute the matched value of QED beta function
+ !!! It uses alphaZ and alphaTau to determine the beta function of QED with threasholds
+ !!! the threasholds used
+ !!! e(+u+d); muon(+s); c; t; b; t;
+ !!! betaEFF=Neff*beta
+ !!! beta is almost -1/3pi
+ !!! Neff=N_leptons+sum_q e_q^2 N_c
+ !!! Neff= 8/3; 4; 16/3;, 19/3; 20/3; 8
+ !!!
+ !!! So fixing at z and tau gives beta=(alpha^{-1}(tau)-alpha^{-1}(Z))/2/(Neff(top<->b) Log[b/MZ]+Neff(b<->tau) Log[tau/b])
+ !!! this number should be close to -1/3pi
+ !!! 
+ !!! It also compute threashold values of alpha QED
+ subroutine Set_betaQED()
+  real(dp),parameter::betaQED_1loop=-0.1061032953945969d0  
+  real(dp)::deltaB
+  betaQED=(alphaTAUinv-alphaZinv)/2d0/(20d0/3d0*Log(massBOTTOM/massZ)+19d0/3d0*Log(massTAU/massBOTTOM))
+
+  deltaB=betaQED/betaQED_1loop
+  
+  if(outputLevel>2) write(*,*) "    Effective QED beta fuction in fractions of LO:",deltaB
+  if(abs(deltaB-1d0)>0.05) &
+	write(*,*)  WarningString(' Effective QED beta function 5% deviate from LO. Check boundary setup.',modulename)
+  
+  alphaTOPinv=alphaZinv+2d0*betaQED*20d0/3d0*log(massTOP/massZ)
+  alphaBOTTOMinv=alphaZinv+2d0*betaQED*20d0/3d0*log(massBOTTOM/massZ)
+  !alphaTAUinv  !! exact
+  alphaCHARMinv=alphaTAUinv+2d0*betaQED*16d0/3d0*log(massCHARM/massTAU)
+  alphaMUONinv=alphaCHARMinv+2d0*betaQED*4d0*log(massMUON/massCHARM)
+  alphaELECTRONinv=alphaMUONinv+2d0*betaQED*8d0/3d0*log(massELECTRON/massMUON)
+  
+  if(outputLevel>2) write(*,*) "    Theashold values of alpha^(-1) QED (mE,mMU,mC,mTAU,mB,mT):"
+  if(outputLevel>2) write(*,"('    ',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3)") &
+	      alphaELECTRONinv,alphaMUONinv,alphaCHARMinv,alphaTAUinv,alphaBOTTOMinv,alphaTOPinv
+	      
+ end subroutine Set_betaQED
+ 
 end module EWinput
 
 
