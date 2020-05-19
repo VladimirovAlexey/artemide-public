@@ -1,83 +1,149 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			Model for unpolarized TMD PDF  (without LHC data points) [1902.08474]
+!			Model for unpolarized TMD PDF  BSV19  [1902.08474]
 !
-!			Requres six NP parameters (initated by best values values)
-!			Uses NNPDF31_nnlo_as_0118 PDF set (replica 0)
-!				A.Vladimirov (20.02.2019)
+!				A.Vladimirov (11.07.2019)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module uTMDPDF_model
+use aTMDe_Numerics
+use IO_functions
+implicit none
 
-  
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+private
+
+!!!!!------------------------------------------------------------------------------------
+!!!!! These functions MUST defined in module  !!
+!!!!!
+!!!!! 1) The subroutine is called during the initialization of TMD-module
+!!!!!    arg=array of initial NP-parameters
+public:: ModelInitialization
+!!!!! 2) The subroutine that is called on reset of NP-parameters in TMD-module
+!!!!!    arg=array of new NP-parameters
+public:: ModelUpdate
+!!!!! 3) Function which returns FNP function
+!!!!!    arg=(x,z,b,hadron,lambdaNP) with x=x_Bj for TMD (real_dp), z=convolution variable(real_dp), 
+!!!!!    b=transverse distance(real_dp), hadron=number of the hadron in grid(integer)
+!!!!!    lambdaNP = array of NP parameters (real_dp(:))
+real(dp),public,dimension(-5:5):: FNP
+!!!!! 4) Function which returns the value of b used as argument of convolution integrals
+!!!!!    arg=(b,lambdaNP) with b=transverse distance(real_dp), lambdaNP = array of NP parameters (real_dp(:))
+real(dp),public:: bSTAR
+!!!!! 5) Function which returns the scale of matching (OPE scale)
+!!!!!    arg=(z,bt) with z=convolution variable(real_dp), b=transverse distance(real_dp)
+real(dp),public:: mu_OPE
+!!!!! 6) Subroutine which returns the array of parameters CA which compose the TMDs into a single one
+!!!!!    i.e. the TMD for hardon=h is build as TMD(h)=Sum_c CA(h,c) TMD(c)
+!!!!!    it is used only if the option UseComposite TMD is ON,
+!!!!!    arg=(h,lambdaNP,includeArray,CA) with h=hadron(integer),lambdaNP = array of NP parameters (real_dp(:))
+!!!!!    includeArray=logical array with .true. for terms included in the sum (logical(:),allocatable,intent(out))
+!!!!!    CA=coefficient CA (real_dp(:),allocatable,intent(out))
+public:: GetCompositionArray
+!!!!! 7) Subroutine which returns the array of NP-parameters corresponding to certain integer (replica)
+!!!!!    arg=rep input integer,  NParray (real_dp(:), allocatable, intent(out))  returned array
+public:: GetReplicaParameters
+!!!!!------------------------------------------------------------------------------------
+
+real(dp),allocatable::NPparam(:)
+
+contains  
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! USER DEFINED FUNCTIONS   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  
-  !!!!!! Write nessecery model intitialization.
-  subroutine ModelInitialization()  
-    name="BSV19.bFIX.noLHC"
-    
-    write(*,*) 'Model BSV19.bFIX.noLHC is used. Please, cite 1902.08474'
-    
-  end subroutine ModelInitialization
-  
-  
-  !!! This is  non-pertrubative function
-  !!! non=pertrubative parameters are lambdaNP()
-  !!! x-- is the bjorken variable of TMD
-  !!! z-- is convolution variable
-  function FNP(x,z,bT,hadron,lambdaNP)
-  real*8::x,z,bT
-  real*8,dimension(-5:5)::FNP
-  real*8::FNP0
-  integer::hadron
-  real*8,intent(in)::lambdaNP(:)
 
-   real*8::bb,w1,w2,w3
-   bb=bT**2
-   w1=lambdaNP(1)*(1-x)+x*lambdaNP(2)+x*(1-x)*lambdaNP(5)
-   w2=lambdaNP(3)*x**lambdaNP(4)+lambdaNP(6)
-   
-   if(w2<0d0 .or. w1<0d0) then
-   FNP0=-1d0
-   else
-   FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
-   end if
+!!!!!! Write nessecery model intitialization.
+subroutine ModelInitialization(NPstart)
+    real(dp),intent(in)::NPstart(:)
+    allocate(NPparam(1:size(NPstart)))
+    NPparam=NPstart
+    
+    write(*,*) color(">>>  The model for uTMDPDF is BSV19.bFIX.noLHC. Please, cite [1902.08474]   <<<",c_cyan)
+    
+end subroutine ModelInitialization
 
-  FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
-  end function FNP
+!!!!!! Write nessecery model update (e.g. save current NP-parameters)
+!!!!!! newNPParams is the new NP-array
+subroutine ModelUpdate(newNPParams)  
+    real(dp),intent(in):: newNPParams(:)
+    
+    NPparam=newNPParams !! save new vector of NP-parameters
+
+end subroutine ModelUpdate
+  
+!!! This is  non-pertrubative function
+!!! non=pertrubative parameters are lambdaNP()
+!!! x-- is the bjorken variable of TMD
+!!! z-- is convolution variable
+function FNP(x,z,bT,hadron,lambdaNP)
+    real(dp),intent(in)::x,z,bT    
+    integer,intent(in)::hadron
+    real(dp),intent(in)::lambdaNP(:)
+
+    real(dp)::bb,w1,w2,w3,FNP0
+
+    bb=bT**2
+    w1=lambdaNP(1)*(1-x)+x*lambdaNP(2)+x*(1-x)*lambdaNP(5)
+    w2=lambdaNP(3)*x**lambdaNP(4)+lambdaNP(6)
+
+    if(w2<0d0 .or. w1<0d0) then !!! case of negative power, we return absolutely incorrect expression.
+        if(bT<1d0) then
+    FNP0=-1d0
+        else
+    FNP0=0d0
+        end if
+    else
+    FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
+    end if
+
+    !    FNP0=Exp(-lambdaNP(1)*bb)
+
+    FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+
+end function FNP
   
   !!!! This is the function b* that enter the logarithms of coefficient function
   !!!! at small-b it should be ~b to match the collinear regime
   !!!! at large-b it is a part of model
   !!!! NOTE: if it is lambda-dependent, the grid will be recalculate each reset of lambdaNP
-  function bSTAR(bT,lambdaNP)
-    real*8,intent(in)::bT
-    real*8,intent(in)::lambdaNP(:)
-    real*8::bSTAR
-    
+pure function bSTAR(bT,lambdaNP)
+    real(dp),intent(in)::bT
+    real(dp),intent(in)::lambdaNP(:)
+
     bSTAR=bT/sqrt(1d0+(bT/500d0)**2)
-    
-  end function bSTAR
+
+end function bSTAR
   
     !!!!This function is the mu(x,b), which is used inside the OPE
-  function mu_OPE(x,bt)
-  real*8::bt,mu_OPE,x
-  !mu_OPE=C0_const*SQRT(1+bT**2)/bT+1d0
-  mu_OPE=C0_const*1d0/bT+2d0
+pure function mu_OPE(z,bt)
+    real(dp),intent(in)::z,bt
+
+    mu_OPE=C0_const*1d0/bT+2d0
+
+    if(mu_OPE>1000d0) then
+        mu_OPE=1000d0
+    end if
+end function mu_OPE
   
-  if(mu_OPE>1000d0) then
-    mu_OPE=1000d0
-  end if
-  end function mu_OPE
+!!!! if the option UseComposite TMD is OFF, this function is ignored
+!!!! If the option UseComposite TMD is ON,
+!!!! than the TMD for hardon is build as TMD(hadron)=Sum_c CA(h,c) TMD(c)
+!!!! where h=hadron, CA=coefficientArray
+!!!! coefficientArray real(dp) list of coefficeints
+!!!! includeArray is logical array list (true=TMD(c) is computed, false TMD(c) ignored)
+subroutine GetCompositionArray(hadron,lambdaNP,includeArray,coefficientArray)  
+    real(dp),intent(in)::lambdaNP(:)
+    integer::hadron
+    logical,allocatable,intent(out)::includeArray(:)
+    real(dp),allocatable,intent(out)::coefficientArray(:)
+
+    allocate(includeArray(1:1))
+    allocate(coefficientArray(1:1))
+end subroutine GetCompositionArray
   
-   !!! this is the table of replica prameters extracted in fit BSV19.
- !!! -2 is suggested for initialization replica
- !!! -1 is the best fit
- !!! 0 is the mean reaplics
- !!! 1 -- 100 replicas
- function ReplicaParameters(rep)
- integer::rep
- real*8::ReplicaParameters(1:6)
+  
+!!! In SV19 model the replica parameters are stored in separate file.
+subroutine GetReplicaParameters(rep,NParray)
+    integer,intent(in)::rep
+    real(dp),allocatable,intent(out)::NParray(:)
  real,parameter,dimension(1:618)::replicas=(/&
     0.135821, 11.2293,   413.805,   2.07758,  -2.47575,    0.1000,&!!!the suggested fo initialization replica is slightly wider. It prevent the 0-values at large b
     0.135821, 11.2293,   413.805,   2.07758,  -2.47575,    0.0000,&!!! best replica
@@ -182,13 +248,14 @@
     0.2317,   10.1883,  284.3366,    1.9017,   -1.3917,    0.0000,&
     0.2050,    6.6016,  162.1046,    1.9601,   -0.5491,    0.0000,&
     0.2147,    6.6506,  181.1879,    1.6776,    2.2456,    0.0000/)
-    
-  if(rep>100) then
-   write(*,*) 'ERROR in BSV19_EXP model. It has only 100 replicas. Central replica is set'
-   rep=0
-  end if
-    
- ReplicaParameters=1d0*replicas((rep+2)*6+1:(rep+2)*6+6)
- 
- end function ReplicaParameters
-  
+
+    allocate(NParray(1:size(NPparam)))
+    if(rep>100) then
+        write(*,*) color('ERROR in BSM19.bFIX.noLHC model. It has only 100 replicas. Central replica is set',c_red)
+        NParray=1d0*replicas((0+2)*6+1:(0+2)*6+6)
+    else
+        NParray=1d0*replicas((rep+2)*6+1:(rep+2)*6+6)
+    end if
+end subroutine GetReplicaParameters
+
+end module uTMDPDF_model

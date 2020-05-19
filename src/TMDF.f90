@@ -241,27 +241,9 @@ module TMDF
   real(dp)::integral,eps,delta
   real(dp)::v1,v2,v3,v4
   integer::k,n,j,Nsegment
-  
+    
   CallCounter=CallCounter+1
   integral=0d0
-  
-! ! !   do k=1,60
-! ! !     write(*,'("{",F6.2,",",F20.16,"},")') 0.1d0*k,x1*x2*Integrand(Q2,0.1d0*k,x1,x2,mu,zeta1,zeta2,process)
-! ! !   end do
-  
-!   do k=1,200
-!     write(*,'("{",F6.2,",",F24.16,"},")') 0.01d0*k,x1*x2*Integrand(Q2,0.01d0*k,x1,x2,mu,zeta1,zeta2,process)
-!   end do
-!   
-!   do k=1,80
-!     write(*,'("{",F6.2,",",F24.16,"},")') 2d0+0.1d0*k,x1*x2*Integrand(Q2,2d0+0.1d0*k,x1,x2,mu,zeta1,zeta2,process)
-!   end do
-!   
-!   do k=1,180
-!     write(*,'("{",F6.2,",",F24.16,"},")') 10d0+0.5d0*k,x1*x2*Integrand(Q2,10d0+0.5d0*k,x1,x2,mu,zeta1,zeta2,process)
-!   end do
-!   
-!   stop
   
   if(qT<0.0000001d0 .or. x1>=1d0 .or. x2>=1d0) then  
   integral=0d0
@@ -295,7 +277,7 @@ module TMDF
   else
     Nsegment=j
   end if
-  !write(*,*) '>>>>',qT,hOGATA*hSegmentationWeight(j)
+  
   !!! sum over OGATA nodes
   do k=1,Nmax!!! maximum of number of bessel roots preevaluated in the head
     eps=ww(Nsegment,n,k)*(bb(Nsegment,n,k)**(n+1))*Integrand(Q2,bb(Nsegment,n,k)/qT,x1,x2,mu,zeta1,zeta2,process)
@@ -308,11 +290,10 @@ module TMDF
     delta=(v1+v2+v3+v4)
     integral=integral+eps
     
-    !write(*,*) k,integral,v1
     !!! here we check that residual term is smaller than already collected integral
     !!! also checking the zerothness of the integral. If already collected integral is null it is null
     !!! Here is potential bug. If the first 10 points give zero (whereas some later points do not), the integral will be zero
-    if((delta<=tolerance*abs(integral) .or. abs(integral)<1d-32) .and. k>=10) exit
+    if((delta<tolerance*abs(integral) .or. abs(integral)<1d-32) .and. k>=10) exit
   end do
   if(k>=Nmax) then	
     if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow? ',moduleName)
@@ -335,7 +316,7 @@ module TMDF
   end if
   !write(*,*) 'Last call: ',k
   
-!   write(*,'("{",F6.2,",",F18.16,"},")') qT,x1*x2*TMDF_F
+!    write(*,'("{",F6.2,",",F18.16,"},")') qT,x1*x2*TMDF_F
  end function TMDF_F
  
  function Integrand(Q2,b,x1,x2,mu,zeta1,zeta2,process)
@@ -644,7 +625,7 @@ module TMDF
 	FB=lpTMDPDF_50(x2,b,mu,zeta2,1)
 	Integrand=Integrand+FA(0)*FB(0) !!!! linearly polarized part
 !--------------------------------------------------------------------------------  
-  CASE(21) !pp -> Higgs (unpol.part)
+  CASE(21) !pp -> Higgs (unpol.part)    
 	FA=uTMDPDF_50(x1,b,mu,zeta1,1)
 	FB=uTMDPDF_50(x2,b,mu,zeta2,1)
 	Integrand=FA(0)*FB(0)

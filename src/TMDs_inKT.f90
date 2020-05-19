@@ -21,21 +21,28 @@ module TMDs_inKT
 !   public
  
  character (len=10),parameter :: moduleName="TMDs-inKT"
- character (len=5),parameter :: version="v2.01"
+ character (len=5),parameter :: version="v2.04"
  !Last appropriate verion of constants-file
   integer,parameter::inputver=1
  
- !------------------------------------------Tables-----------------------------------------------------------------------
-  integer,parameter::Nmax=200
-  INCLUDE 'Tables/BesselZero.f90'
+!------------------------------------------Tables-----------------------------------------------------------------------
+    integer,parameter::Nmax=1000
+    INCLUDE 'Tables/BesselZero1000.f90'
  
   logical:: convergenceLost=.false.
+  
+  !!!!! I split the qT over runs qT<qTSegmentationBoundary
+  !!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
+  !!!!! It helps to convergen integrals, since h(optimal) ~ qT
+  integer,parameter::hSegmentationNumber=7
+  real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.0001d0,0.001d0,0.01d0,1d0,2d0,5d0,10d0/)
+  real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,10d0,50d0,100d0,200d0/)
  
   real(dp)::hOGATA,tolerance
   !!!weights of ogata quadrature
-  real(dp),dimension(0:3,1:Nmax)::ww
+  real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww,ww0
   !!!nodes of ogata quadrature
-  real(dp),dimension(0:3,1:Nmax)::bb
+  real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb,bb0
   
   integer::GlobalCounter
   integer::CallCounter
@@ -54,6 +61,7 @@ module TMDs_inKT
   public::TMDs_inKT_Initialize,TMDs_inKT_ShowStatistic,TMDs_inKT_IsInitialized,TMDs_inKT_ResetCounters
 	  
   real(dp),dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50,lpTMDPDF_kT_50
+  public::testTMD_kT
   
   interface uTMDPDF_kT_5
     module procedure uTMDPDF_kT_5_Ev,uTMDPDF_kT_5_optimal
@@ -201,24 +209,45 @@ contains
   !!! note that the factor 1/(2pi) is taken into ww
   !!! the difference between definition in TMDF and here is 1/pi
  subroutine PrepareTables()
-  integer::i,k
-  real(dp)::t!=h*xi
-  real(dp)::psiPart!=tanh[pi/2 Sinh[h xi]]
-  
+  integer::i,k,j
+  real(dp)::hS!=h*hSegmentationWeight
+  real(dp)::xi,qqq
+   
+  do j=1,hSegmentationNumber
   do k=0,3
   do i=1,Nmax
-    t=hOGATA*JZero(k,i)
-    psiPart=Tanh(piHalf*Sinh(t))
-      bb(k,i)=JZero(k,i)*psiPart
-      ww(k,i)=BESSEL_JN(k,bb(k,i))/pi/JZero(k,i)/(BESSEL_JN(k+1,JZero(k,i))**2)&
-			*(pi*t*Cosh(t)+Sinh(pi*Sinh(t)))/(1d0+Cosh(pi*Sinh(t)))
-!      write(*,*) psiPart,b(k,i),w(k,i)
+    
+    hS=hOGATA*hSegmentationWeight(j)    
+    xi=JZero(k,i)
+    
+!     ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)&
+! 	    *(pi*xi*hS*Cosh(xi*hS)+Sinh(pi*Sinh(xi*hS)))/(1d0+Cosh(pi*Sinh(xi*hS)))
+    
+    !!! if we too far away in xI*hS, the double exponential grow rapidly.
+    !!! and for >6, it generates term 10^{300} and exceed the presision
+
+    if(xi*hS>6.d0) then
+        bb(j,k,i)=xi*Tanh(piHalf*Sinh(xi*hS))
+        ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)/pi
+        
+    else
+        bb(j,k,i)=xi*Tanh(piHalf*Sinh(xi*hS))
+        ww(j,k,i)=BESSEL_JN(k,bb(j,k,i))/xi/(BESSEL_JN(k+1,xi)**2)&
+        *(pi*xi*hS*Cosh(xi*hS)/(2d0*Cosh(piHalf*Sinh(xi*hS))**2)+Tanh(piHalf*Sinh(xi*hS)))/pi
+    end if
+
   end do
   end do
-  
+  end do 
  end subroutine PrepareTables
  
  !--------------------------------------INTERFACES TO TMD------------------------------------------------
+ 
+ function testTMD_kT(x,qT)
+ real(dp)::testTMD_kT(-5:5)
+ real(dp)::x,qT
+ testTMD_kT=Fourier(x,qT,10d0,10d0,0,1) 
+ end function testTMD_kT
  
  !---------------------------------------------------uTMDPDF
  function uTMDPDF_kT_5_Ev(x,qT,mu,zeta,hadron)
@@ -305,15 +334,16 @@ contains
   real(dp)::qT,x,mu,zeta,qT_in
   integer::num,hadron
   real(dp)::integral(-5:5),eps(-5:5)
-  real(dp)::v1,v2,v3,v4
-  integer::k,n
+  real(dp)::v1(-5:5),v2(-5:5),v3(-5:5),v4(-5:5),delta(-5:5)
+  logical:: partDone(-5:5)
+  integer::k,n,j,Nsegment
   real(dp)::Fourier(-5:5)
   
   CallCounter=CallCounter+1
   integral=(/0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
   
-  if(qT_in<0.001d0) then  
-  qT=0.001d0  
+  if(qT_in<0.0001d0) then  
+  qT=0.0001d0  
   else
   qT=qT_in
   end if
@@ -323,10 +353,21 @@ contains
 	Fourier=integral+1d10		
   else
   
-  v1=1d0
-  v2=1d0
-  v3=1d0
-  v4=1d0
+  v1=(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+  v2=(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+  v3=(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+  v4=(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+  partDone=(/.false.,.false.,.false.,.false.,.false.,.false.,.false.,.false.,.false.,.false.,.false./)
+  
+  !!! define segment of qT
+  do j=1,hSegmentationNumber
+    if(qT<qTSegmentationBoundary(j)) exit
+  end do
+  if(j>hSegmentationNumber) then
+    Nsegment=hSegmentationNumber
+  else
+    Nsegment=j
+  end if
   
   !!!! select the order of Bessel function for transform
   SELECT CASE(num)
@@ -337,34 +378,46 @@ contains
   END SELECT
   
   do k=1,Nmax!!! maximum of number of bessel roots preevaluated in the head
-    eps=ww(n,k)*bb(n,k)*Integrand(bb(n,k)/qT,x,mu,zeta,num,hadron)
+    eps=ww(Nsegment,n,k)*(bb(Nsegment,n,k)**(n+1))*Integrand(bb(Nsegment,n,k)/qT,x,mu,zeta,num,hadron)
+        
+    v4=v3
+    v3=v2
+    v2=v1
+    v1=abs(eps)
     
+    delta=(v1+v2+v3+v4)
     integral=integral+eps
-!     if(k>8) then
-      v4=v3
-      v3=v2
-      v2=v1
-      v1=ABS(eps(0))+ABS(eps(1))+ABS(eps(2))!!! we check by u+d+g
-!       if(v1+v2+v3+v4>0.7d0*ABS(integral)) write(17,*) bb(n,k)/qT,x1,x2
-!       write(*,*) k, eps,ww(n,k),eps/ww(n,k)
-      if(v1+v2+v3+v4<=tolerance*(ABS(integral(0))+ABS(integral(1))+ABS(integral(2)))) exit
-!     end if
+      
+    !!! here we check that residual term is smaller than already collected integral
+    !!! also checking the zerothness of the integral. If already collected integral is null it is null
+    !!! Here is potential bug. If the first 10 points give zero (whereas some later points do not), the integral will be zero
+    !!! I check for each separate flavor
+    do j=-5,5
+     if((delta(j)<tolerance*ABS(integral(j)) .or. ABS(integral(j))<1d-32) .and. k>=10) partDone(j)=.true.
+    end do
+    if(partDone(-5).and.partDone(-4).and.partDone(-3).and.partDone(-2).and.partDone(-1)&
+        .and.partDone(0).and.partDone(1).and.partDone(2).and.partDone(3).and.partDone(4).and.partDone(5)) exit
+      
   end do
+  
   if(k>=Nmax) then	
     if(outputlevel>0) WRITE(*,*) WarningString('OGATA quadrature diverge. TMD decaing too slow?',moduleName)
-      if(outputlevel>1) then
+      if(outputlevel>2) then
       write(*,*) 'Information over the last call ----------'
-      write(*,*) 'bt/qT= ',bb(n,Nmax)/qT, 'qT=',qT
-      write(*,*) 'W=',Integrand(bb(n,Nmax)/qT,x,mu,zeta,num,hadron), 'eps/integral =', eps/integral
-      write(*,*) 'v1+v2+v3+v4=',v1+v2+v3+v4, '>',tolerance*ABS(integral)
+      write(*,*) partDone
+      write(*,*) 'bt/qT= ',bb(Nsegment,n,Nmax)/qT, 'qT=',qT, '| segmentation zone=',Nsegment,&
+	      ' ogata h=',hOGATA*hSegmentationWeight(Nsegment)
+      write(*,*) 'W=',Integrand(bb(Nsegment,n,Nmax)/qT,x,mu,zeta,num,hadron), 'eps/integral =', eps/integral
+      write(*,*) 'v1+v2+v3+v4=',v1+v2+v3+v4, '>',tolerance*(ABS(integral(1))+ABS(integral(2)))
       write(*,*) 'x=',x,'type =',num,' it is ',CallCounter,'call.'
       write(*,*) '------------------------------------------'
       end if
     call TMDs_inKT_convergenceISlost()
   end if
+  
   if(k>MaxCounter) MaxCounter=k-1
 !   write(*,*) 'Integral=',integral
-  Fourier=integral/(qT**2) 
+  Fourier=integral/(qT**(n+2)) 
   end if 
   !write(*,*) 'Last call: ',k
  end function Fourier
@@ -377,6 +430,11 @@ contains
  !increment counter 
  GlobalCounter=GlobalCounter+1
  SELECT CASE(num)
+  CASE(0) !!! test case
+   Integrand=(/(b**3d0)*Exp(-x*b),(b**2d0)*Exp(-x*b),b*Exp(-x*b),Exp(-x*b),&
+   1d0/(b**2+x**2d0)**4d0,1d0/(b**2+x**2d0)**2d0,1d0/(b**2+x**2d0),&
+   (b**2d0)*Exp(-x*b*b),Exp(-x*b*b), BESSEL_J0(x/b)/b,1d0/b/)
+   
   CASE(1) !!! uTMDPDF  quarks
    Integrand=uTMDPDF_5(x,b,mu,zeta,hadron)
    Integrand(0)=0d0

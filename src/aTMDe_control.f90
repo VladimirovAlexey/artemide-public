@@ -405,7 +405,7 @@ contains
     return
   end if
   
-  if(ll>NPlength_total) then
+  if(ll>NPlength_TMDR) then
     if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
 	    color('artemide.SetNPparameters: ERROR: the length of NP parameters array (',c_red),ll,&
 	    color(') is larger then total the number of NP parameters for TMDR (',c_red),NPlength_TMDR,&
@@ -448,7 +448,7 @@ contains
     return
   end if
   
-  if(ll>NPlength_total) then
+  if(ll>NPlength_uTMDPDF) then
     if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
 	    color('artemide.SetNPparameters: ERROR: the length of NP parameters array (',c_red),ll,&
 	    color(') is larger then total the number of NP parameters for uTMDPDF (',c_red),NPlength_uTMDPDF,&
@@ -491,7 +491,7 @@ contains
     return
   end if
   
-  if(ll>NPlength_total) then
+  if(ll>NPlength_uTMDFF) then
     if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
 	    color('artemide.SetNPparameters: ERROR: the length of NP parameters array (',c_red),ll,&
 	    color(') is larger then total the number of NP parameters for uTMDFF (',c_red),NPlength_uTMDFF,&
@@ -535,7 +535,7 @@ contains
     return
   end if
   
-  if(ll>NPlength_total) then
+  if(ll>NPlength_lpTMDPDF) then
     if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
 	    color('artemide.SetNPparameters: ERROR: the length of NP parameters array (',c_red),ll,&
 	    color(') is larger then total the number of NP parameters for lpTMDPDF (',c_red),NPlength_lpTMDPDF,&

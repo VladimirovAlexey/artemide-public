@@ -1,5 +1,5 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			Model for unpolarized TMD evolution for Vpion19 [1907.????]
+!			Model for unpolarized TMD evolution for SV19
 !
 !			corresponds to bb* model
 !			DNP=Dpert(b*)+g bb*
@@ -10,80 +10,104 @@
 !				A.Vladimirov (11.07.2019)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+module TMDR_model
+use aTMDe_Numerics
+use IO_functions
+use TMD_AD, only : Dresum,zetaMUpert,zetaSL
+implicit none
 
+private
+
+!!!!!------------------------------------------------------------------------------------
+!!!!! These functions MUST defined in module  !!
+!!!!!
+!!!!! 1) The subroutine is called during the initialization of TMDR
+!!!!!    arg=array of initial NP-parameters
+public:: ModelInitialization
+!!!!! 2) The subroutine that is called on reset of NP-parameters in TMDR
+!!!!!    arg=array of new NP-parameters
+public:: ModelUpdate
+!!!!! 3) Function which returns RAD function
+!!!!!    arg=(mu,b,f) with mu=scale(real_dp), b=transverse distance(real_dp), f=flavor(integer)
+real(dp),public:: DNP
+!!!!! 4) Function which returns special equi-potential line, which is used in the evolution solutions
+!!!!!    arg=(mu,b,f) with mu=scale(real_dp), b=transverse distance(real_dp), f=flavor(integer)
+real(dp),public:: zetaNP
+!!!!! 5) Subroutine which returns the array of NP-parameters corresponding to certain integer (replica)
+!!!!!    arg=rep input integer,  NParray (real_dp(:), allocatable, intent(out))  returned array
+public:: GetReplicaParameters
+!!!!!------------------------------------------------------------------------------------
+
+real(dp),allocatable::NPparam(:)
   
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! USER DEFINED FUNCTIONS   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+contains
   
- 
-  !!!!!! Write nessecery model intitialization.
-  subroutine ModelInitialization()  
-    real*8,dimension(1:NPlength):: InitVar
-    integer::i
-    if(NPlength<2) then
-      write(*,*) 'arTeMiDe.TMDR-model: Number NP parameters for TMDR has less then 2'
-      write(*,*) 'Evaluation STOP'
-      stop
+!!!!!! Write nessecery model intitialization.
+!!!!!! InitialNPParams is the initial NP-array (in principle, any non-pathological NP-array)
+subroutine ModelInitialization(InitialNPParams)  
+    real(dp),intent(in):: InitialNPParams(:)
+
+    if(size(InitialNPParams)<2) then
+        write(*,*) color('SV19-model: Number NP parameters for TMDR is less then 2',c_red)
+        write(*,*) 'Evaluation STOP'
+        stop
     end if
-    !!!! hard core set of evolution parmeters
-    !!!! to secure the model
-    EvolutionType=3
     
-    InitVar(1:2)=ReplicaParameters(-2)
-    if(NPlength>2) then
-     do i=3,NPlength
-      InitVar(i)=0d0
-     end do
-    end if
+    allocate(NPparam(1:size(InitialNPParams)))
+    NPparam=InitialNPParams
     
-    !!! we also initialize the variables
-    call TMDR_setNPparameters(InitVar)
+    write(*,*) &
+    color(">>>  The model for TMD evolution is Vpion19=BSV19.NNPDF31. Please, cite [1902.08474]&[1907.10356]   <<<",c_cyan)
+
+end subroutine ModelInitialization 
+
+!!!!!! Write nessecery model update (e.g. save current NP-parameters)
+!!!!!! newNPParams is the new NP-array
+subroutine ModelUpdate(newNPParams)  
+    real(dp),intent(in):: newNPParams(:)
     
-  end subroutine ModelInitialization 
-  !!! This is the rapidity anomalous dimension non-pertrubative model
-  !!! In your evaluation take care that the saddle point is inside the pertrubative regeme
-  !!! Use function Dpert(mu,b,f) for D pertrubative, use Dresum for D resum
-  !!! use non-pertrubative parameters NPparam(1...)
- function DNP(mu,b,f)
- real*8::DNP,mu,b
- integer::f
- real*8::bSTAR
- 
-  bSTAR=b/SQRT(1+b**2/NPparam(1)**2)
-  DNP=Dresum(mu,bSTAR,1)+NPparam(2)*b*bSTAR!!!! D*+gK b b*, it smoother turns perturbative to b^2 assimptotic
+    NPparam=newNPParams !! save new vector of NP-parameters
+
+end subroutine ModelUpdate
   
- end function DNP
+ 
+!!! This is the rapidity anomalous dimension non-pertrubative model
+!!! In your evaluation take care that the saddle point is inside the pertrubative regeme
+!!! Use function Dpert(mu,b,f) for D pertrubative, use Dresum for D resum
+function DNP(mu,b,f)
+    real(dp),intent(in)::mu,b
+    integer,intent(in)::f
+    real(dp)::bSTAR
+
+    bSTAR=b/SQRT(1_dp+b**2/NPparam(1)**2)
+    DNP=Dresum(mu,bSTAR,1)+NPparam(2)*bSTAR*b  !!!! D*+gK b b*, it smoother turns perturbative to b^2 assimptotic
+    
+end function DNP
   
- !! This is the non-pertrubative shape of zeta_mu line.
- !! It MUST follow the equipotential line in pertrubative regime (at small-b), at the level pf PT accuracy.
- !! Otherwice, your evolution is completely broken.
- !! DO NOT modify it if you do not understand what does it mean!
- !!
- !!! Use function zetaMUpert(mu,b,f) for zetamu pertrubative, use zetaMUresum for zetaMu resumed
- !!! use non-pertrubative parameters NPparam(1...)
- !!
- !! Typical form of it is just zetaMUpert(mu,b,f), if b* is used then zetaMUpert(mu,b^*,f)
- !! The large-b deviation from the "true" line is the part of NP model :)
- function zetaNP(mu,b,f)
- real*8::zetaNP,mu,b
- integer::f
- real*8::zz
+!! This is the non-pertrubative shape of zeta_mu line.
+!! It MUST follow the equipotential line in pertrubative regime (at small-b), at the level pf PT accuracy.
+!! Otherwice, your evolution is completely broken.
+!! Use zetaMUpert for perturbative values, use zetaSL for exact values
+function zetaNP(mu,b,f)
+    real(dp),intent(in)::mu,b
+    integer,intent(in)::f
+    real(dp)::zz,rad
+    
+    rad=DNP(mu,b,f)
+    zz=Exp(-b**2/NPparam(1)**2)
+    zetaNP=zetaMUpert(mu,b,f)*zz+zetaSL(mu,rad,f)*(1d0-zz)
+end function zetaNP
  
-  zz=Exp(-b**2/NPparam(1)**2)
-  zetaNP=zetaMUpert(mu,b,f)*zz+zetaSL(mu,b,f)*(1d0-zz)
- end function zetaNP
- 
- !!! this is the table of replica prameters extracted in fit BSV19.
- !!! -2 is suggested for initialization replica
- !!! -1 is the best fit
- !!! 0 is the mean reaplics
- !!! 1 -- 100 replicas
- function ReplicaParameters(rep)
- integer::rep
- real*8::ReplicaParameters(1:2)
- real,parameter,dimension(1:2)::replicas=(/2.2824d0, 0.025d0/)
- 
- ReplicaParameters=replicas
- 
- end function ReplicaParameters
+!!! In SV19 model the replica parameters are stored in separate file.
+subroutine GetReplicaParameters(rep,NParray)
+    integer,intent(in)::rep
+    real(dp),allocatable,intent(out)::NParray(:)
+    real(dp),parameter,dimension(1:2)::replica=(/2.2824d0, 0.025d0/)
+    
+    allocate(NParray(1:2))
+
+    NParray=replica
+
+end subroutine GetReplicaParameters
+
+end module TMDR_model

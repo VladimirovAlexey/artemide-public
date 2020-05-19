@@ -15,6 +15,9 @@ Fpath=/usr/bin/f95
 
 #options for COMILATOR to compile QCDinput. e.g. link to LHA
 FOPT=$(shell lhapdf-config --ldflags)
+#### for debuging -g -fbacktrace -ffpe-trap=zero,overflow,underflow
+#FOPT=-L/home/vla18041/LinkData2/LHAPDF/Installation/lib -lLHAPDF -lstdc++
+#FOPT=-L/home/alexey/WorkingFiles/LHAPDF/Intallation/lib -lLHAPDF -lstdc++
 
 ################################################################### LIST OF FILES ####################################
 SOURCEDIR       = $(aTMDeHOME)/src
@@ -24,19 +27,21 @@ MOD		= $(aTMDeHOME)/mod
 HDIR		= $(aTMDeHOME)/harpy
 
 aTMDeFILES = \
-$(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90 \
-$(SOURCEDIR)/CommonCode/IO_functions.f90 \
+$(SOURCEDIR)/Code/aTMDe_Numerics.f90 \
+$(SOURCEDIR)/Code/IO_functions.f90 \
+$(SOURCEDIR)/Code/IntegrationRoutines.f90 \
 $(SOURCEDIR)/LeptonCutsDY.f90 \
 $(SOURCEDIR)/aTMDe_setup.f90 \
 $(SOURCEDIR)/QCDinput.f90 \
 $(SOURCEDIR)/EWinput.f90 \
 $(SOURCEDIR)/TMD_AD.f90 \
+$(SOURCEDIR)/Model/TMDR_model.f90 \
 $(SOURCEDIR)/TMDR.f90 \
-$(SOURCEDIR)/uTMDPDF-MODELinterface.f90 \
+$(SOURCEDIR)/Model/uTMDPDF_model.f90 \
 $(SOURCEDIR)/uTMDPDF.f90 \
-$(SOURCEDIR)/uTMDFF-MODELinterface.f90 \
+$(SOURCEDIR)/Model/uTMDFF_model.f90 \
 $(SOURCEDIR)/uTMDFF.f90 \
-$(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 \
+$(SOURCEDIR)/Model/lpTMDPDF_model.f90 \
 $(SOURCEDIR)/lpTMDPDF.f90 \
 $(SOURCEDIR)/TMDs.f90 \
 $(SOURCEDIR)/TMDF.f90 \
@@ -45,11 +50,37 @@ $(SOURCEDIR)/TMDX_DY.f90 \
 $(SOURCEDIR)/TMDX_SIDIS.f90 \
 $(SOURCEDIR)/aTMDe_control.f90 
 
-CommonFiles=\
-$(SOURCEDIR)/CommonCode/Twist2Convolution.f90 \
-$(SOURCEDIR)/CommonCode/Twist2Grid.f90 \
-$(SOURCEDIR)/CommonCode/Twist2Convolution-VAR.f90 \
-$(SOURCEDIR)/CommonCode/Twist2Grid-VAR.f90
+Twist2Files=\
+$(SOURCEDIR)/Code/Twist2/Twist2Convolution.f90 \
+$(SOURCEDIR)/Code/Twist2/Twist2Grid.f90 \
+$(SOURCEDIR)/Code/Twist2/Twist2Convolution-VAR.f90 \
+$(SOURCEDIR)/Code/Twist2/Twist2Grid-VAR.f90
+
+TMD_ADFiles=\
+$(SOURCEDIR)/Code/TMD_AD/AD_primary.f90 \
+$(SOURCEDIR)/Code/TMD_AD/AD_secondary.f90 \
+$(SOURCEDIR)/Code/TMD_AD/AD_atMu.f90 \
+$(SOURCEDIR)/Code/TMD_AD/exactZetaLine.f90
+
+TMDRFiles=\
+$(SOURCEDIR)/Code/TMDR/type1.f90 \
+$(SOURCEDIR)/Code/TMDR/type2.f90 \
+$(SOURCEDIR)/Code/TMDR/type3.f90
+
+uTMDPDFFiles=\
+$(SOURCEDIR)/Code/uTMDPDF/coeffFunc.f90 \
+$(SOURCEDIR)/Code/uTMDPDF/convolutions.f90 \
+$(SOURCEDIR)/Code/uTMDPDF/modelTest.f90
+
+uTMDFFFiles=\
+$(SOURCEDIR)/Code/uTMDFF/coeffFunc.f90 \
+$(SOURCEDIR)/Code/uTMDFF/convolutions.f90 \
+$(SOURCEDIR)/Code/uTMDFF/modelTest.f90
+
+lpTMDPDFFiles=\
+$(SOURCEDIR)/Code/lpTMDPDF/coeffFunc.f90 \
+$(SOURCEDIR)/Code/lpTMDPDF/convolutions.f90 \
+$(SOURCEDIR)/Code/lpTMDPDF/modelTest.f90
 
 ExtraFiles=\
 $(SOURCEDIR)/DYcoeff-func.f90
@@ -63,17 +94,19 @@ $(SOURCEDIR)/Model/uTMDPDF_model.f90
 aTMDeOBJ = \
 $(OBJ)/aTMDe_Numerics.o \
 $(OBJ)/IO_functions.o \
+$(OBJ)/IntegrationRoutines.o \
 $(OBJ)/LeptonCutsDY.o \
 $(OBJ)/aTMDe_setup.o \
 $(OBJ)/QCDinput.o \
 $(OBJ)/EWinput.o\
 $(OBJ)/TMD_AD.o\
+$(OBJ)/TMDR_model.o\
 $(OBJ)/TMDR.o\
-$(OBJ)/uTMDPDF-MODELinterface.o \
+$(OBJ)/uTMDPDF_model.o \
 $(OBJ)/uTMDPDF.o \
-$(OBJ)/uTMDFF-MODELinterface.o \
+$(OBJ)/uTMDFF_model.o \
 $(OBJ)/uTMDFF.o\
-$(OBJ)/lpTMDPDF-MODELinterface.o \
+$(OBJ)/lpTMDPDF_model.o \
 $(OBJ)/lpTMDPDF.o \
 $(OBJ)/TMDs.o \
 $(OBJ)/TMDF.o \
@@ -85,7 +118,8 @@ $(OBJ)/aTMDe_control.o
 #these are utility object needed to compale any artemide module
 aTMDeUTILITY = \
 $(OBJ)/aTMDe_Numerics.o \
-$(OBJ)/IO_functions.o
+$(OBJ)/IO_functions.o \
+$(OBJ)/IntegrationRoutines.o
 
 
 ################################################################### COMPILATION OF ARTEMIDE ####################################
@@ -99,33 +133,23 @@ update: $(BIN)/update-const
 	./bin/update-const $(TARGET)
 
 
-obj: $(aTMDeOBJ) $(aTMDeFILES) $(aTMDeMODEL) $(CommonFiles)
+obj: $(aTMDeOBJ) $(aTMDeFILES) $(aTMDeMODEL) $(Twist2Files) $(TMD_ADFiles) $(TMDRFiles) $(uTMDPDFFiles) $(uTMDFFFiles) $(lpTMDFFFiles)
 
-$(OBJ)/aTMDe_Numerics.o: $(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90
-	$(FC) -c $(SOURCEDIR)/CommonCode/aTMDe_Numerics.f90
-	mv *.o $(OBJ)
-	mv *.mod $(MOD)
-
-$(OBJ)/IO_functions.o: $(SOURCEDIR)/CommonCode/IO_functions.f90 $(OBJ)/aTMDe_Numerics.o
-	$(FC) -c $(SOURCEDIR)/CommonCode/IO_functions.f90 -I$(MOD)
+$(OBJ)/aTMDe_Numerics.o: $(SOURCEDIR)/Code/aTMDe_Numerics.f90
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_Numerics.f90
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/uTMDPDF-MODELinterface.o: $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(aTMDeUTILITY)
-	$(FC) -c $(SOURCEDIR)/uTMDPDF-MODELinterface.f90 -I$(MOD)
-	mv *.o $(OBJ)
-	mv *.mod $(MOD)
-	
-$(OBJ)/uTMDFF-MODELinterface.o: $(SOURCEDIR)/uTMDFF-MODELinterface.f90 $(SOURCEDIR)/Model/uTMDFF_model.f90 $(aTMDeUTILITY)
-	$(FC) -c $(SOURCEDIR)/uTMDFF-MODELinterface.f90 -I$(MOD)
+$(OBJ)/IO_functions.o: $(SOURCEDIR)/Code/IO_functions.f90 $(OBJ)/aTMDe_Numerics.o
+	$(FC) -c $(SOURCEDIR)/Code/IO_functions.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/lpTMDPDF-MODELinterface.o: $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(aTMDeUTILITY)
-	$(FC) -c $(SOURCEDIR)/lpTMDPDF-MODELinterface.f90 -I$(MOD)
+$(OBJ)/IntegrationRoutines.o: $(SOURCEDIR)/Code/IntegrationRoutines.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/IO_functions.o
+	$(FC) -c $(SOURCEDIR)/Code/IntegrationRoutines.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
-	
+
 $(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90 $(aTMDeUTILITY)
 	mkdir -p obj
 	mkdir -p mod
@@ -144,32 +168,56 @@ $(OBJ)/EWinput.o: $(SOURCEDIR)/EWinput.f90 $(aTMDeUTILITY)
 	$(FC) -c $(SOURCEDIR)/EWinput.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
+	
+$(OBJ)/uTMDPDF_model.o: $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/uTMDPDF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
 
-$(OBJ)/uTMDPDF.o: $(SOURCEDIR)/uTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
+$(OBJ)/uTMDPDF.o: $(SOURCEDIR)/uTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDPDF_model.f90 $(Twist2Files) $(aTMDeUTILITY) $(uTMDPDFFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/uTMDPDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
+
+$(OBJ)/uTMDFF_model.o: $(SOURCEDIR)/Model/uTMDFF_model.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/uTMDFF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
 	
-$(OBJ)/uTMDFF.o: $(SOURCEDIR)/uTMDFF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDFF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
+$(OBJ)/uTMDFF.o: $(SOURCEDIR)/uTMDFF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/uTMDFF_model.f90 $(Twist2Files) $(aTMDeUTILITY) $(uTMDFFFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/uTMDFF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
-
-$(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(CommonFiles) $(aTMDeUTILITY)
+	
+$(OBJ)/lpTMDPDF_model.o: $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/lpTMDPDF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
+$(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/lpTMDPDF_model.f90 $(Twist2Files) $(aTMDeUTILITY) $(lpTMDPDFFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/lpTMDPDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMD_AD.o: $(SOURCEDIR)/TMD_AD.f90 $(aTMDeUTILITY)
+$(OBJ)/TMD_AD.o: $(SOURCEDIR)/TMD_AD.f90 $(aTMDeUTILITY) $(TMD_ADFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMD_AD.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QCDinput.o $(OBJ)/TMD_AD.o $(aTMDeUTILITY)
+$(OBJ)/TMDR_model.o: $(SOURCEDIR)/Model/TMDR_model.f90 $(aTMDeUTILITY) $(TMD_ADFiles) $(OBJ)/TMD_AD.o
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/TMDR_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
+$(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QCDinput.o $(OBJ)/TMD_AD.o $(aTMDeUTILITY) $(TMDRFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDR.f90 -I$(MOD)
 	mv *.o $(OBJ)

@@ -72,7 +72,8 @@ implicit none
   
   public::TMDX_DY_XSetup,TMDX_DY_Initialize,TMDX_DY_SetCuts,TMDX_DY_SetScaleVariation,&
     TMDX_DY_setProcess,TMDX_DY_ShowStatistic,TMDX_DY_ResetCounters,TMDX_DY_IsInitialized
-  public::  CalcXsec_DY,CalcXsec_DY_Yint,CalcXsec_DY_Qint_Yint,CalcXsec_DY_PTint_Qint_Yint,CalcXsec_DY_Qint,xSec_DY,xSec_DY_List
+  public::  CalcXsec_DY,CalcXsec_DY_Yint,CalcXsec_DY_Qint_Yint,CalcXsec_DY_PTint_Qint_Yint,CalcXsec_DY_Qint,xSec_DY,xSec_DY_List,&
+    xSec_DY_List_BINLESS
   
  interface TMDX_DY_SetCuts
     module procedure SetCuts_sym,SetCuts_asym
@@ -381,7 +382,7 @@ contains
     s_global=s
     Q_global=Q
     y_global=y
-    
+        
 !     if(includeCuts_global) then
 !       call SetCutParameters(pT1_global,pT2_global,eta_min_global,eta_max_global)
 !     end if
@@ -460,6 +461,7 @@ contains
   SELECT CASE(process(2))
     case(-10221191)
 	uniPart=1d0
+	cutPrefactor=1d0
     CASE(1)
 	!4 pi aEm^2/3 /Nc/Q^2/s
 	uniPart=pix4/9d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
@@ -1016,6 +1018,7 @@ contains
    real(dp):: X,qT_in
    CallCounter=CallCounter+1
    var=kinematicArray(qt_in,s_global,Q_global,y_global)
+   
    X=PreFactor1(process_global(1))*xSec(var,process_global,includeCuts_global,CutParameters_global)
   end subroutine xSecSingle
   
@@ -1573,5 +1576,77 @@ contains
     !$OMP END PARALLEL DO
     deallocate(nn)
   end subroutine xSec_DY_List
+  
+  subroutine xSec_DY_List_BINLESS(X,process,s,qT,Q,y,includeCuts,CutParameters)
+    integer,intent(in),dimension(:,:)::process			!the number of process
+    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
+    real(dp),intent(in),dimension(:)::qT			!(qtMin,qtMax)
+    real(dp),intent(in),dimension(:)::Q				!(Qmin,Qmax)
+    real(dp),intent(in),dimension(:)::y				!(ymin,ymax)
+    logical,intent(in),dimension(:)::includeCuts		!include cuts
+    real(dp),intent(in),dimension(:,:)::CutParameters	        !(p1,p2,eta1,eta2)
+    real(dp),dimension(:),intent(out)::X
+    
+    real(dp),allocatable,dimension(:,:)::vv
+    integer :: i,length
+    
+    length=size(s)
+    
+    !!! cheking sizes
+    if(size(X)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of xSec and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of process and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(qT)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of qT and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(y)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of y and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(Q)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of Q and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(includeCuts)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: sizes of includeCuts and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(CutParameters,1)/=length) then
+      write(*,*) 'ERROR: arTeMiDe_D_BINLESSY: xSec_DY_List: sizes of CutParameters and s lists are not equal.'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,2)/=3) then
+      write(*,*) 'ERROR: arTeMiDe_DY_BINLESS: xSec_DY_List: process list must be (:,1:3).'
+      write(*,*) 'Evaluation stop'
+      stop
+    end if    
+    
+    CallCounter=CallCounter+length
+    
+    allocate(vv(1:length,1:7))
+    
+    !$OMP PARALLEL DO DEFAULT(SHARED)
+    
+     do i=1,length
+       vv(i,1:7)=kinematicArray(qt(i),s(i),Q(i),y(i))
+       X(i)=PreFactor1(process(i,1))*xSec(vv(i,1:7),process(i,1:3),includeCuts(i),CutParameters(i,1:4))
+       
+     end do
+    !$OMP END PARALLEL DO
+    deallocate(vv)
+  end subroutine xSec_DY_List_BINLESS
   
 end module TMDX_DY

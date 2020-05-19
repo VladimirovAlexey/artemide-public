@@ -124,7 +124,7 @@
 *p1  : Order of evolution
  NNLO
 *p2  : Type of evolution solution (1 = improved D solution ,2 = improved gamma solution, 3 = fixed mu)
-           4
+           3
 *B   : ---- Parameters of NP model ----
 *p1  : Length of lambdaNP
            2

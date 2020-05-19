@@ -71,11 +71,11 @@ implicit none
   !!!------------------------------Global Integration definitions-------------------
   !-integration over Z
   real(dp) :: toleranceZ=0.0005d0
-  !!! SA = adaptive simpson, S5 = Simpson with 5-points
+  !!! SA = adaptive simpson, S5 = Simpson with 5-points, I0 = center point x size
   character(len=4)::methodZ='SA'
   !-integration over X
   real(dp) :: toleranceX=0.0005d0
-  !!! SA = adaptive simpson, S5 = Simpson with 5-points
+  !!! SA = adaptive simpson, S5 = Simpson with 5-points, I0 = center point x size
   character(len=4)::methodX='SA'
   
   
@@ -83,7 +83,7 @@ implicit none
 	  TMDX_SIDIS_XSetup,TMDX_SIDIS_SetCuts,TMDX_SIDIS_IsInitialized,TMDX_SIDIS_ResetCounters,TMDX_SIDIS_SetScaleVariation
   
   public::CalcXsec_SIDIS,CalcXsec_SIDIS_Zint_Xint_Qint,CalcXsec_SIDIS_PTint_Zint_Xint_Qint,xSec_SIDIS,xSec_SIDIS_List,&
-	  xSec_SIDIS_List_forharpy
+	  xSec_SIDIS_List_forharpy,xSec_SIDIS_BINLESS_List_forharpy
   
   interface TMDX_SIDIS_setProcess
     module procedure TMDX_setProcess1,TMDX_setProcess3,TMDX_setProcess30
@@ -209,7 +209,7 @@ contains
      read(51,*) toleranceZ
      call MoveTO(51,'*p4  ')
      read(51,*) methodZ
-     if((.not.(methodZ=='SA'.or.methodZ=='S5')).and.outputLevel>0) then
+     if((.not.(methodZ=='SA'.or.methodZ=='S5'.or.methodZ=='I0')).and.outputLevel>0) then
       write(*,*) ErrorString(' method for z-bin-integration is unknow: '//methodZ,moduleName)
       write(*,*) color('switching to Adaptive-Simpson',c_red)
       methodZ='SA'
@@ -218,7 +218,7 @@ contains
      read(51,*) toleranceX
      call MoveTO(51,'*p6  ')
      read(51,*) methodX
-     if((.not.(methodX=='SA'.or.methodX=='S5')).and.outputLevel>0) then
+     if((.not.(methodX=='SA'.or.methodX=='S5'.or.methodX=='I0')).and.outputLevel>0) then
       write(*,*) ErrorString(' method for x-bin-integration is unknow: '//methodX,moduleName)
       write(*,*) color('switching to Adaptive-Simpson',c_red)
       methodX='SA'
@@ -559,9 +559,9 @@ contains
     var(10)=var(9)
   end if
   end subroutine SetPT
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR PREFACTORS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!! hard coefficeint taken from 1004.3653 up to 2-loop
   !!! it takes global values of Q,order
@@ -815,32 +815,38 @@ contains
       
       if(zmax > 1d0) then
 	  if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
-	  zmax=1d0
+        zmax=1d0
       end if
       if(zmin < 0.000001d0) then
-	  write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
-	  stop
+        write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
+        stop
       end if
       
       if(zMin<zMax) then
-	Xsec_Zint=integralOverZpoint_S(var,process,zMin,zMax)
+        if(methodZ=='I0') then !!!! central point estimation        
+            call SetZ((Zmin+zMax)/2d0,var)
+            Xsec_Zint=Xsec(var,process)*(zMax-zMin)
+            
+        else !!!! so far only Simpsons        
+            Xsec_Zint=integralOverZpoint_S(var,process,zMin,zMax)
+        end if
       else
-	Xsec_Zint=0d0
+        Xsec_Zint=0d0
       end if
     else    
       ! no integration over Z
       
       if(zmax > 1d0) then
-	 if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
-	  zmin=1d0
-      end if
-      if(zmin < 0.000001d0) then
-	  write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
-	  stop
-      end if
-      
-      call SetZ((Zmin+zMax)/2d0,var)
-      Xsec_Zint=Xsec(var,process)
+        if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
+            zmin=1d0
+        end if
+        if(zmin < 0.000001d0) then
+            write(*,*) ErrorString('lower limit of z-integration is < 10^{-6}. Evaluation stop.',moduleName)
+            stop
+        end if
+        
+        call SetZ((Zmin+zMax)/2d0,var)
+        Xsec_Zint=Xsec(var,process)
     end if
     
   end function Xsec_Zint
@@ -941,41 +947,48 @@ contains
       !!! in the case process=3 the input is y, which is to be transformed to X
       !!! evaluate corresponding y's
       if(process(1)==3) then
-	xmin=XfromSYQ2(var(11),xmin_in,var(3))
-	xmax=XfromSYQ2(var(11),xmax_in,var(3))
+        xmin=XfromSYQ2(var(11),xmin_in,var(3))
+        xmax=XfromSYQ2(var(11),xmax_in,var(3))
       else
-	xmin=xmin_in
-	xmax=xmax_in
+        xmin=xmin_in
+        xmax=xmax_in
       end if
     
       if(xmax > 1d0) then
-	  if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
-	  xmax=1d0
-      end if
-      if(xmin < 0.000001d0) then
-	  write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
-	  stop
+        if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
+            xmax=1d0
+        end if
+        if(xmin < 0.000001d0) then
+            write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
+        stop
       end if
       
       !! in case of cut we determine recut values
       if(doCut) then
-	xmin=xMinWithCuts(xmin,var,Cuts)
-	xmax=xMaxWithCuts(xmax,var,Cuts)
+        xmin=xMinWithCuts(xmin,var,Cuts)
+        xmax=xMaxWithCuts(xmax,var,Cuts)
       end if
       
-      if(xmin<xmax) then 
-	Xsec_Zint_Xint=integralOverXpoint_S(var,process,doZ,zMin,zMax,xmin,xmax)
+      if(xmin<xmax) then
+        if(methodX=='I0') then !! central point estimaton
+            call SetX((xMin+xMax)/2d0,var)
+            Xsec_Zint_Xint=Xsec_Zint(var,process,doZ,zMin,zMax)*(xMax-xMin)
+        else !!! so far only Simpsons
+            Xsec_Zint_Xint=integralOverXpoint_S(var,process,doZ,zMin,zMax,xmin,xmax)
+        end if
       else!!! it is possible that cuts cut out the integration range completely
-	Xsec_Zint_Xint=0d0
+        Xsec_Zint_Xint=0d0
       end if
       
     else
       !! no integration
       !! just single point
       if(process(1)==3) then
-	xmin=XfromSYQ2(var(11),(xmin_in+xmax_in)/2d0,var(3))
+        xmin=XfromSYQ2(var(11),(xmin_in+xmax_in)/2d0,var(3))
+        xmax=XfromSYQ2(var(11),(xmin_in+xmax_in)/2d0,var(3))
       else
-	xmin=(xmin_in+xmax_in)/2d0
+        xmin=xmin_in
+        xmax=xmax_in
       end if
       
       if(xmin > 1d0) then
@@ -989,14 +1002,15 @@ contains
       
       !! in case of cut we determine recut values
       if(doCut) then
-	xmin=xMinWithCuts(xmin,var,Cuts)
-	xmax=xMaxWithCuts(xmin,var,Cuts)+0.000001d0
+        xmin=xMinWithCuts(xmin,var,Cuts)
+        xmax=xMaxWithCuts(xmin,var,Cuts)+0.000001d0
       end if
+      
       if(xmin<=xmax) then 
-	call SetX(xMin,var)!!! I am not sure that it is needed
-	Xsec_Zint_Xint=Xsec_Zint(var,process,doZ,zMin,zMax)
+        call SetX((xMin+xMax)/2d0,var)
+        Xsec_Zint_Xint=Xsec_Zint(var,process,doZ,zMin,zMax)
       else!!! it is possible that cuts cut out the integration range completely
-	Xsec_Zint_Xint=0d0
+        Xsec_Zint_Xint=0d0
       end if
     end if
     
@@ -1125,7 +1139,6 @@ contains
       
       if(Qmin<Qmax) then 
 	Xsec_Zint_Xint_Qint=integralOverQpoint_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,Qmin,Qmax,doCut,Cuts)
-! 	Xsec_Zint_Xint_Qint=integralOverQ2point_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,Qmin**2,Qmax**2,doCut,Cuts)
       else!!! it is possible that cuts cut out the integration range completely
 	Xsec_Zint_Xint_Qint=0d0
       end if
@@ -1133,9 +1146,12 @@ contains
     else
       ! no integration over Q
       if(process(1)==2) then
-	Qmin=QfromSXY(var(11),var(4), (Qmin_in+Qmax_in)/2d0)
+        ! y depends on Q linearly, thus there is avarages of transformed is transfromed avarage
+	Qmin=QfromSXY(var(11),var(4), Qmin_in)
+	Qmax=QfromSXY(var(11),var(4), Qmax_in)
       else
-	Qmin=(Qmin_in+Qmax_in)/2d0
+	Qmin=Qmin_in
+	Qmax=Qmax_in
       end if
       
       !! in case of cut we determine recut values
@@ -1150,9 +1166,9 @@ contains
       end if
       
       if(Qmin<=Qmax) then
-	call SetQ(Qmin,var)
+	call SetQ((Qmin+Qmax)/2d0,var)
 	Xsec_Zint_Xint_Qint=Xsec_Zint_Xint(var,process,doZ,zMin,zMax,doX,xmin,xmax,doCut,Cuts)
-      else!!! it is possible that cuts cut out the integration range completely
+      else!!! it is possible that cuts cut out the integration range completely        
 	Xsec_Zint_Xint_Qint=0d0
       end if
     end if
@@ -1347,7 +1363,7 @@ contains
   
   !!! the variable doPT check should the integration over pT be performed
   !!! if doZ=true, the integration is done
-  !!! if doZ=facle the single value (at xMin) is returned
+  !!! if doZ=false the single value (at xMin) is returned
   function Xsec_Zint_Xint_Qint_PTint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,doPT,ptMin_in,ptMax_in,doCut,Cuts,Num)
     real(dp),dimension(1:13),intent(in) :: var
     real(dp),dimension(1:4),intent(in) :: Cuts
@@ -1369,8 +1385,8 @@ contains
     if(doPT) then
       
       if(mod(num,2)>0) then 
-	write(*,*) ErrorString('number of Simpson sections is odd. Evaluation stop.',moduleName)
-	stop
+        write(*,*) ErrorString('number of Simpson sections is odd. Evaluation stop.',moduleName)
+        stop
       end if
       !!!!!!!!!!!!!!!!!!!fixed number Simpsons
       deltaPT=(PTmax-PTmin)/Num
@@ -1406,6 +1422,8 @@ contains
       
       call SetPT((PTmin+PTmax)/2d0,var)
       Xsec_Zint_Xint_Qint_PTint=Xsec_Zint_Xint_Qint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,doCut,Cuts)
+      
+!       write(*,*) (PTmin+PTmax)/2d0," --> ",Xsec_Zint_Xint_Qint_PTint
     end if
     
   end function Xsec_Zint_Xint_Qint_PTint
@@ -1857,7 +1875,94 @@ contains
   xSecFULL=PreFactor1(proc(1))*Xsec_Zint_Xint_Qint_PTint(var,proc,&
 		    .true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax,doCut,Cuts,Num)
   end function xSecFULL
+
+  !!!! problem is that f2py does not like optional arguments.. in any form
+  subroutine xSec_SIDIS_BINLESS_List_forharpy(xx,process,s,pT,z,x,Q,masses)
+    integer,intent(in),dimension(:,:)::process			!the number of process
+    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
+    real(dp),intent(in),dimension(:)::pT			!(pt)
+    real(dp),intent(in),dimension(:)::z				!(z)
+    real(dp),intent(in),dimension(:)::x				!(x)
+    real(dp),intent(in),dimension(:)::Q				!(Q)        
+    real(dp),intent(in),dimension(:,:)::masses		!(mass_target,mass-product)GeV
+    real(dp),dimension(:),intent(out)::xx
+    integer :: i,length
+    
+    length=size(s)
+    CallCounter=CallCounter+length
+    
+    !!! cheking sizes
+    if(size(xx)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of xSec and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,1)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of process and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(pT)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of pT and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(x)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of x and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(Q)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of Q and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(z)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of z and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    if(size(process,2)/=3) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: process list must be (:,1:3).',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+    
+   CallCounter=CallCounter+length
+   
+   if(size(masses,1)/=length) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: sizes of masses and s lists are not equal.',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+        if(size(masses,2)/=2) then
+      write(*,*) ErrorString('xSec_SIDIS_BINLESS_List: mass list must be (:,1:2).',moduleName)
+      write(*,*) 'Evaluation stop'
+      stop
+    end if
+   
+   !$OMP PARALLEL DO DEFAULT(SHARED)
+    do i=1,length
+    xx(i)=xSecBINLESS(process(i,1:3),s(i),pt(i),z(i),x(i),Q(i),masses(i,1)**2,masses(i,2)**2)
+    end do
+    !$OMP END PARALLEL DO
+  end subroutine xSec_SIDIS_BINLESS_List_forharpy
   
+
+  !!! helper to incapsulate PARALLEL variables
+  !!! evaluate cross-section without integrations over bins, and without cuts
+  function xSecBINLESS(proc,s,pt,z,x,Q,m1,m2)
+  real(dp)::s,pt,z,x,Q,xSecBINLESS,var(1:13),m1,m2
+  integer::proc(1:3)
   
+  var=kinematicArray(pt,s,z,x,Q,m1,m2)
+  
+!    write(*,*) 'aTMD:1  ',var
+!    write(*,*) 'aTMD:2  ',proc,m1,m2
+!    write(*,*) 'aTMD:3  ',.false.,z,z,.false.,x,x,.false.,Q,Q,.false.,pt,pt
+  
+  xSecBINLESS=PreFactor1(proc(1))*Xsec_Zint_Xint_Qint_PTint(var,proc,&
+		    .false.,z,z,.false.,x,x,.false.,Q,Q,.false.,pt,pt,.false.,(/0d0,1d0,0d0,1d9/),4)
+  end function xSecBINLESS
   
 end module TMDX_SIDIS
