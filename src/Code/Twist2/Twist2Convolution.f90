@@ -17,11 +17,20 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Supplimentary functions !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
+!---------------------------------------------------------------------------------------
+!Used global variables:
+! outputlevel, moduleName
+! lambdaNP, FNP, bSTAR, mu_OPE
+! QCDinput functions
+! aTMDe_Numerics, IO_functions functions
+! + variables defined in Twist2Convolution-VAR.f90
+
 !!Evaluate Log[mu^2 bT^2/4/Exp(-2Gamma_E)]
 !! the b here is b*, this funciton is used only in Coefficeint functions
 function LogMuB(mu,bT)
-  real(dp)::bT,mu,LogMuB
-  LogMuB=2d0*Log(bSTAR(bT,lambdaNP)*mu*C0_inv_const)
+    real(dp)::LogMuB
+    real(dp),intent(in)::bT,mu
+    LogMuB=2d0*Log(bSTAR(bT,lambdaNP)*mu*C0_inv_const)
 end function LogMuB  
 
 
@@ -42,14 +51,15 @@ end function LogMuB
 !---------------------------------------------------------------------
 function Common_lowScale5(x,bT,hadron)
   real(dp),dimension(-5:5)::Common_lowScale5
-  real(dp) :: x, bT
-  integer::hadron,j
+  real(dp),intent(in) :: x, bT
+  integer,intent(in)::hadron
   
   real(dp) :: alpha,alphaAt1
   real(dp) :: Lmu,Nf,LmuAt1, NfAt1
   
   real(dp),dimension(-5:5) :: deltaPart
   real(dp),dimension(-5:5) :: convolutionPart
+  integer :: j
   
    xCurrent=x
    !! for extrimely small-values of b we freeze its value at b=10^{-6}.
@@ -139,14 +149,16 @@ function Common_lowScale5(x,bT,hadron)
 !---------------------------------------------------------------------
 function Common_lowScale50(x,bT,hadron)
   real(dp),dimension(-5:5)::Common_lowScale50
-  real(dp) :: x, bT
-  integer::hadron,j
+  real(dp),intent(in) :: x, bT
+  integer,intent(in)::hadron
   
   real(dp) :: alpha,alphaAt1
   real(dp) :: Lmu,Nf,LmuAt1, NfAt1,dummy1,dummy2
   
   real(dp),dimension(-5:5) :: deltaPart
   real(dp),dimension(-5:5) :: convolutionPart
+  
+  integer :: j
   
    xCurrent=x
    !! for extrimely small-values of b we freeze its value at b=10^{-6}.
@@ -239,10 +251,11 @@ end function Common_lowScale50
 !!!		where f[x/z] is given by function xf, C[z] is given by coeff.
 !!!---
 recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
+    integer,intent(in)::hadron
     real(dp),dimension(-5:5)::res5,PDFs,value,eps,epspdf,vg7,vk15
     
     real(dp) :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon
-    integer :: j,i,hadron
+    integer :: j,i
     real(dp),dimension(1:parametrizationLength):: var
     real(dp):: alpha,Lmu,Nf
     real(dp),dimension(-5:5)::F0
@@ -422,10 +435,11 @@ recursive function MellinConvolutionVectorPart5(x0,x1,hadron) result(res5)
 !!!		where f[x/z] is given by function xf, C[z] is given by coeff.
 !!!---
 recursive function MellinConvolutionVectorPart50(x0,x1,hadron) result(res5)
+    integer,intent(in)::hadron
     real(dp),dimension(-5:5)::res5,PDFs,value,vg7,vk15,eps,epspdf,addV
     
     real(dp) :: x0,x1,xm,xr,z,PDFsum,CqMain,CqAnti,CqPrime,CqGluon,CgMain,CgQuark
-    integer :: j,i,hadron
+    integer :: j,i
     real(dp),dimension(1:parametrizationLength):: var
     real(dp):: alpha,Lmu,Nf
     real(dp),dimension(-5:5)::F0

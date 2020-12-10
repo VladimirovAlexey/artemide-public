@@ -40,42 +40,48 @@
 !---------------------------------------------------------------------
 !---------------------------------------------------------------------
 function uTMDFF_base5(z,bT,hadron)
-real(dp),dimension(-5:5)::uTMDFF_base5
-  real(dp) :: z, bT
-  integer::hadron,j
-  
+    real(dp),dimension(-5:5)::uTMDFF_base5
+    real(dp) :: z, bT
+    integer::hadron,j
+
     !!! variables for restoration only
-  real(dp),dimension(-5:5) :: fNP_grid,fNP_current
-  if(gridReady.and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-   uTMDFF_base5=ExtractFromGrid(z,bT,hadron)/z**2
-   
-   !!!!!!!!!!This is procedure of restoration of function from the initial grid
-   !!! if fNP is z-independent then the value can be obtained by TMDFF(initial) fNP(current)/fNP(initial)
-   if(.not.IsFnpZdependent) then
-    fNP_grid=FNP(z,0d0,bT,hadron,lambdaNP_grid)
-    fNP_current=FNP(z,0d0,bT,hadron,lambdaNP)
-    
-    do j=-5,5
-      if(fNP_grid(j)==0) then
-      if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
-       if(outputLevel>0) call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
-        messageCounter,messageTrigger,moduleName)
-      end if
-      uTMDFF_base5(j)=0
-       else
-      uTMDFF_base5(j)=uTMDFF_base5(j)*fNP_current(j)/fNP_grid(j)
-      end if
-    end do
-    
-  end if
-  
-  else!!!! calculation
-   
-  
-  uTMDFF_base5=Common_lowScale5(z,bT,hadron)/z**2
-  
- end if
- end function uTMDFF_base5
+    real(dp),dimension(-5:5) :: fNP_grid,fNP_current
+
+    !!!! if the coefficient function is not used at all. Just return fNP
+    if(order_global==-50) then
+        uTMDFF_base5=fNP(z,1d0,bT,hadron,lambdaNP)
+
+    !!! in the case the greed has been calculated
+    else if(gridReady.and. ANY(hadronsInGRID.eq.hadron)) then 
+        uTMDFF_base5=ExtractFromGrid(z,bT,hadron)/z**2
+
+        !!!!!!!!!!This is procedure of restoration of function from the initial grid
+        !!! if fNP is z-independent then the value can be obtained by TMDFF(initial) fNP(current)/fNP(initial)
+        if(.not.IsFnpZdependent) then
+            fNP_grid=FNP(z,0d0,bT,hadron,lambdaNP_grid)
+            fNP_current=FNP(z,0d0,bT,hadron,lambdaNP)
+
+            do j=-5,5
+                if(fNP_grid(j)==0) then
+                if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
+                if(outputLevel>0) &
+                    call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
+                        messageCounter,messageTrigger,moduleName)
+                end if
+                uTMDFF_base5(j)=0
+                else
+                uTMDFF_base5(j)=uTMDFF_base5(j)*fNP_current(j)/fNP_grid(j)
+                end if
+            end do
+
+        end if
+
+    !!!! finally just calculation
+    else
+    uTMDFF_base5=Common_lowScale5(z,bT,hadron)/z**2
+
+    end if
+end function uTMDFF_base5
 
 !---------------------------------------------------------------------
 !- This is the TMD function evaluated for all quarks simultaniously (-5..5) at x,bT,mu
@@ -85,38 +91,45 @@ real(dp),dimension(-5:5)::uTMDFF_base5
 !---------------------------------------------------------------------
 !---------------------------------------------------------------------
 function uTMDFF_base50(z,bT,hadron)
-real(dp),dimension(-5:5)::uTMDFF_base50
-  real(dp) :: z, bT
-  integer::hadron,j
-  
-  !!! variables for restoration only
-  real(dp),dimension(-5:5) :: fNP_grid,fNP_current
-  
-  if(gridReady .and. ANY(hadronsInGRID.eq.hadron)) then !!! in the case the greed has been calculated
-  uTMDFF_base50=ExtractFromGrid(z,bT,hadron)/z**2
-  
-  if(.not.IsFnpZdependent) then
-    fNP_grid=FNP(z,1d0,bT,hadron,lambdaNP_grid)
-    fNP_current=FNP(z,1d0,bT,hadron,lambdaNP)
-    
-    do j=-5,5
-      if(fNP_grid(j)==0) then
-      if(uTMDFF_base50(j)/=0) then
-      if(outputLevel>0) call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
-        messageCounter,messageTrigger,moduleName)
-      end if
-      uTMDFF_base50(j)=0
-       else
-      uTMDFF_base50(j)=uTMDFF_base50(j)*fNP_current(j)/fNP_grid(j)
-      end if
-    end do
-    
-  end if
-   
-   
-  else
-  uTMDFF_base50=Common_lowScale50(z,bT,hadron)/z**2
-  end if
+    real(dp),dimension(-5:5)::uTMDFF_base50
+    real(dp) :: z, bT
+    integer::hadron,j
+
+    !!! variables for restoration only
+    real(dp),dimension(-5:5) :: fNP_grid,fNP_current
+
+    !!!! if the coefficient function is not used at all. Just return fNP
+    if(order_global==-50) then
+
+        uTMDFF_base50=fNP(z,1d0,bT,hadron,lambdaNP)
+
+    !!! in the case the greed has been calculated
+    else if(gridReady .and. ANY(hadronsInGRID.eq.hadron)) then 
+        uTMDFF_base50=ExtractFromGrid(z,bT,hadron)/z**2
+
+        if(.not.IsFnpZdependent) then
+            fNP_grid=FNP(z,1d0,bT,hadron,lambdaNP_grid)
+            fNP_current=FNP(z,1d0,bT,hadron,lambdaNP)
+
+            do j=-5,5
+                if(fNP_grid(j)==0) then
+                if(uTMDFF_base50(j)/=0) then
+                if(outputLevel>0) &
+                    call Warning_Raise('error in restoration: original value is zero. TMDFF set to zero. b='//numToStr(bT),&
+                        messageCounter,messageTrigger,moduleName)
+                end if
+                uTMDFF_base50(j)=0
+                else
+                uTMDFF_base50(j)=uTMDFF_base50(j)*fNP_current(j)/fNP_grid(j)
+                end if
+            end do
+
+        end if
+
+    !!!!! finally just calculation
+    else
+        uTMDFF_base50=Common_lowScale50(z,bT,hadron)/z**2
+    end if
 end function uTMDFF_base50
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!

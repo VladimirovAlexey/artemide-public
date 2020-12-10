@@ -134,3 +134,17 @@ Num.of replicas:>=100
 Comments: 	Collections of extraction for SV19 fit of DY, SIDIS, DY+SIDIS
 		Incorporate models 7-11 from this list. Contains separate constants
         files, and replicas. Replicas are read from external files .rep
+	
+------------------------------------------------------------------------
+---------------------------------13-------------------------------------
+NAME:		BPV20
+TMDs:		SiversTMD
+Date:		04.12.2020
+Reference: 	[2012.?????]
+Num.of replicas:500
+Comments: 	Collections of extraction for Sivers function from the fit of SDY+SIDIS. 
+		The unpolarized functions and evolution are SV19_all=0, and Vpion19_all=0 (at nnlo and n3lo) (with NNPDF3.1+DSS+JAM(pion) input).
+		Separate constants for nnlo and n3lo cases. Replicas are read from external files .rep.
+		The replicas BPV20(nnlo) and BPV20(n3lo) are the main extraction.
+		The replicas BPV20(nnlo-noDY) and BPV20(n3lo-noDY) are the extraction from SIDIS only.
+		The replicas BPV20-NP(nnlo) and BPV20-NP(n3lo) are uncertanty bands due to SV19.

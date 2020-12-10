@@ -43,6 +43,8 @@ $(SOURCEDIR)/Model/uTMDFF_model.f90 \
 $(SOURCEDIR)/uTMDFF.f90 \
 $(SOURCEDIR)/Model/lpTMDPDF_model.f90 \
 $(SOURCEDIR)/lpTMDPDF.f90 \
+$(SOURCEDIR)/Model/SiversTMDPDF_model.f90 \
+$(SOURCEDIR)/SiversTMDPDF.f90 \
 $(SOURCEDIR)/TMDs.f90 \
 $(SOURCEDIR)/TMDF.f90 \
 $(SOURCEDIR)/TMDs_inKT.f90 \
@@ -52,9 +54,15 @@ $(SOURCEDIR)/aTMDe_control.f90
 
 Twist2Files=\
 $(SOURCEDIR)/Code/Twist2/Twist2Convolution.f90 \
-$(SOURCEDIR)/Code/Twist2/Twist2Grid.f90 \
+$(SOURCEDIR)/Code/Grids/TMDGrid-B.f90 \
 $(SOURCEDIR)/Code/Twist2/Twist2Convolution-VAR.f90 \
-$(SOURCEDIR)/Code/Twist2/Twist2Grid-VAR.f90
+$(SOURCEDIR)/Code/Grids/TMDGrid-B-VAR.f90
+
+Twist3Files=\
+$(SOURCEDIR)/Code/Grids/TMDGrid-B-2.f90 \
+$(SOURCEDIR)/Code/Grids/TMDGrid-B-VAR.f90 \
+$(SOURCEDIR)/Code/Twist3/Twist3Convolution.f90 \
+$(SOURCEDIR)/Code/Twist3/Twist3Convolution-VAR.f90 
 
 TMD_ADFiles=\
 $(SOURCEDIR)/Code/TMD_AD/AD_primary.f90 \
@@ -82,6 +90,16 @@ $(SOURCEDIR)/Code/lpTMDPDF/coeffFunc.f90 \
 $(SOURCEDIR)/Code/lpTMDPDF/convolutions.f90 \
 $(SOURCEDIR)/Code/lpTMDPDF/modelTest.f90
 
+SiversTMDPDFFiles=\
+$(SOURCEDIR)/Code/SiversTMDPDF/modelTest.f90 \
+$(SOURCEDIR)/Code/SiversTMDPDF/convolutions.f90
+
+TMDsFiles=\
+$(SOURCEDIR)/Code/TMDs/TMD-calls.f90 
+
+aTMDeSetupFiles=\
+$(SOURCEDIR)/Code/aTMDe_setup/const-modification.f90 
+
 ExtraFiles=\
 $(SOURCEDIR)/DYcoeff-func.f90
 
@@ -108,6 +126,8 @@ $(OBJ)/uTMDFF_model.o \
 $(OBJ)/uTMDFF.o\
 $(OBJ)/lpTMDPDF_model.o \
 $(OBJ)/lpTMDPDF.o \
+$(OBJ)/SiversTMDPDF_model.o \
+$(OBJ)/SiversTMDPDF.o \
 $(OBJ)/TMDs.o \
 $(OBJ)/TMDF.o \
 $(OBJ)/TMDs_inKT.o \
@@ -151,8 +171,8 @@ $(OBJ)/IntegrationRoutines.o: $(SOURCEDIR)/Code/IntegrationRoutines.f90 $(OBJ)/a
 	mv *.mod $(MOD)
 
 $(OBJ)/LeptonCutsDY.o: $(SOURCEDIR)/LeptonCutsDY.f90 $(aTMDeUTILITY)
-	mkdir -p obj
-	mkdir -p mod
+#	mkdir -p obj
+#	mkdir -p mod
 	$(FC) -c $(SOURCEDIR)/LeptonCutsDY.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
@@ -205,6 +225,18 @@ $(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Mode
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
+$(OBJ)/SiversTMDPDF_model.o: $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
+$(OBJ)/SiversTMDPDF.o: $(SOURCEDIR)/SiversTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 $(Twist3Files) $(aTMDeUTILITY) $(SiversTMDPDFFiles)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/SiversTMDPDF.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
 $(OBJ)/TMD_AD.o: $(SOURCEDIR)/TMD_AD.f90 $(aTMDeUTILITY) $(TMD_ADFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMD_AD.f90 -I$(MOD)
@@ -223,7 +255,7 @@ $(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QC
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(aTMDeUTILITY)
+$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(TMDsFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDs.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -253,7 +285,7 @@ $(OBJ)/TMDX_SIDIS.o: $(SOURCEDIR)/TMDX_SIDIS.f90 $(OBJ)/TMDs.o $(OBJ)/QCDinput.o
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/aTMDe_setup.o: $(SOURCEDIR)/aTMDe_setup.f90 $(aTMDeUTILITY)
+$(OBJ)/aTMDe_setup.o: $(SOURCEDIR)/aTMDe_setup.f90 $(aTMDeUTILITY) $(aTMDeSetupFiles)
 	$(FC) -c $(SOURCEDIR)/aTMDe_setup.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
@@ -270,7 +302,8 @@ clean:
 	$(RM) count $(OBJ)/*.o
 	$(RM) count $(MOD)/*.mod
 	$(RM) $(HDIR)/*.pyc
-	$(RM) $(HDIR)/artemide.so
+	$(RM) $(HDIR)/*.so
+	$(RM) $(HDIR)/__pycache__/*.*
 	
 program: 
 	echo $(TARGET)
@@ -300,4 +333,4 @@ harpy-signature:
 
 harpy: 
 	f2py -c --f90exec=$(Fpath) --f90flags=$(Fflags) $(FOPT) -lgomp -I$(MOD) $(aTMDeFILES) $(HDIR)/harpy.f90 $(HDIR)/artemide.pyf
-	mv artemide.so $(HDIR)
+	mv artemide*.so $(HDIR)

@@ -21,8 +21,8 @@ private
 
 !Current version of module
 character (len=8),parameter :: moduleName="lpTMDPDF"
-character (len=5),parameter :: version="v2.03" 
-!Last appropriate verion of constants-file
+character (len=5),parameter :: version="v2.05" 
+!Last appropriate version of constants-file
 integer,parameter::inputver=12
 
 INCLUDE 'Tables/G7K15.f90'
@@ -72,12 +72,13 @@ real(dp), dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
 integer :: counter,messageCounter
 
 INCLUDE 'Code/Twist2/Twist2Convolution-VAR.f90'
-INCLUDE 'Code/Twist2/Twist2Grid-VAR.f90'
+INCLUDE 'Code/Grids/TMDGrid-B-VAR.f90'
 
 !!--------------------------------- variables for the griding the TMD.---------------------------------------------
 logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated from the grid
 logical :: prepareGrid!!!idicator that grid must be prepared
 logical,parameter :: withGluon=.true.!!!indicator the gluon is needed in the grid
+logical :: IsFnpZdependent !!! indicator that the grid must be recalculated with the change of Lambda
 
 !!--------------------------------- variables for hadron composition---------------------------------------------
 integer::numberOfHadrons				!!!number of hadrons/components
@@ -99,7 +100,7 @@ end interface
 contains
 
 INCLUDE 'Code/Twist2/Twist2Convolution.f90'
-INCLUDE 'Code/Twist2/Twist2Grid.f90'
+INCLUDE 'Code/Grids/TMDGrid-B.f90'
 
 !! Coefficient function
 INCLUDE 'Code/lpTMDPDF/coeffFunc.f90'
@@ -178,35 +179,37 @@ subroutine lpTMDPDF_Initialize(file,prefix)
 
 
     SELECT CASE(trim(orderMain))
+        CASE ("NA")
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NA',color(" (TMD=fNP)",c_yellow)
+            order_global=-50
         CASE ("LO")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
-    order_global=0
-    if(outputLevel>0)write(*,*) WarningString('Initialize: lin.pol.gluon at LO are zero!',moduleName)
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
+            order_global=0
+            if(outputLevel>0)write(*,*) WarningString('Initialize: lin.pol.gluon at LO are zero!',moduleName)
         CASE ("LO+")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
-    order_global=0
-    if(outputLevel>0)write(*,*) WarningString('Initialize: lin.pol.gluon at LO are zero!',moduleName)
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
+            order_global=0
+            if(outputLevel>0)write(*,*) WarningString('Initialize: lin.pol.gluon at LO are zero!',moduleName)
         CASE ("NLO")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
-    order_global=1
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
+            order_global=1
         CASE ("NLO+")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
-    order_global=1
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
+            order_global=1
         CASE ("NNLO")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
-    order_global=2
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
+            order_global=2
         CASE ("NNLO+")
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
-    order_global=2
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
+            order_global=2
         CASE DEFAULT
-    if(outputLevel>0)write(*,*) WarningString('Initialize: unknown order for coefficient function. Switch to NLO.',moduleName)
-    if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
-    order_global=1
+            if(outputLevel>0) &
+                write(*,*) WarningString('Initialize: unknown order for coefficient function. Switch to NLO.',moduleName)
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
+            order_global=1
         END SELECT
 
-        if(outputLevel>2) then
-        write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
-        end if
+    if(outputLevel>2 .and. order_global>-1) write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
         
         !------ Compositeness
     call MoveTO(51,'*p2  ')
@@ -214,11 +217,11 @@ subroutine lpTMDPDF_Initialize(file,prefix)
 
     if(outputLevel>2) then
         if(IsComposite) then
-        write(*,'(A,I1)') ' |  Use compsite  =TRUE'
+            write(*,'(A,I1)') ' |  Use compsite  =TRUE'
         else
-        write(*,'(A,I1)') ' |  Use compsite  =FALSE'
+            write(*,'(A,I1)') ' |  Use compsite  =FALSE'
         end if
-        end if
+    end if
 
     !-------------parameters of NP model
     call MoveTO(51,'*B   ')
@@ -462,7 +465,7 @@ end subroutine lpTMDPDF_SetLambdaNP_usual
   
 !!! returns current value of NP parameters
 subroutine lpTMDPDF_CurrentNPparameters(var)
-    real(dp),dimension(1:lambdaNPlength)::var
+    real(dp),dimension(1:lambdaNPlength),intent(out)::var
     var=lambdaNP
 end subroutine lpTMDPDF_CurrentNPparameters
   

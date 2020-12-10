@@ -14,6 +14,17 @@
 !
 !				A.Vladimirov (08.10.2018)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!
+!!!!            THIS IS THE SAME CODE AS IN TMDGRID-B
+!!!!                THE ONLY DIFFERENCE THAT FNP is called without z-argument
+!!!!
+!---------------------------------------------------------------------------------------
+!Used global variables:
+! outputlevel, moduleName
+! numberOfHadrons, hadronsInGRID
+! lambdaNP_grid, lambdaNP, FNP
+! aTMDe_Numerics, IO_functions functions
+! + variables defined in TMDGrid-B-VAR.f90
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Griding functions  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -87,7 +98,7 @@ subroutine MakeGrid()
         boundaryValues(iX,0,h)=0d0
       end if
       
-    dummyfNP=FNP(x_local,x_local,b_local,hadronsInGRID(h),lambdaNP_grid)
+    dummyfNP=FNP(x_local,b_local,hadronsInGRID(h),lambdaNP_grid)
       
       !!!! if fNP=0, here, we check is C x f fNP=0, if so, we save 1, otherwise exception
       do j=-5,5
@@ -191,11 +202,13 @@ subroutine MakeGrid()
 end subroutine MakeGrid
   
 function ExtractFromGrid(x,bT,hadron)
+  real(dp),intent(in)::x,bT
+  integer,intent(in)::hadron
   real(dp),dimension(-5:5)::ExtractFromGrid
   real(dp),dimension(0:3,-5:5):: interI
   real(dp),dimension(-5:5)::dummyfNP
-  real(dp)::x,bT,indexX,indexB,fX,fB
-  integer::i,iX,iB,h,hadron
+  real(dp)::indexX,indexB,fX,fB
+  integer::i,iX,iB,h
   real(dp)::var1,var2,var3,var4 !!dummyvariables
   
   !!!searching for hadron
@@ -254,7 +267,7 @@ function ExtractFromGrid(x,bT,hadron)
     var2=3d0*(fX+1d0)*(fX-1d0)*(fX-2d0)
     var3=-3d0*(fX+1d0)*fX*(fX-2d0)
     var4=(fX+1d0)*fX*(fX-1d0)
-    ExtractFromGrid=FNP(x,x,bT,hadronsInGRID(h),lambdaNP_grid)*&
+    ExtractFromGrid=FNP(x,bT,hadronsInGRID(h),lambdaNP_grid)*&
 		    (var1*boundaryValues(iX-1,-5:5,h)+var2*boundaryValues(iX,-5:5,h)&
 			  +var3*boundaryValues(iX+1,-5:5,h)+var4*boundaryValues(iX+2,-5:5,h))/6d0/x
    
@@ -314,7 +327,7 @@ function ExtractFromGrid(x,bT,hadron)
     write(*,*) 'bT=',bT,' i=',i, ' extraction=',ExtractFromGrid(i)
     write(*,*) 'interI=',interI(0:3,i)
     
-    dummyfNP=FNP(x,x,bT,hadronsInGRID(h),lambdaNP_grid)
+    dummyfNP=FNP(x,bT,hadronsInGRID(h),lambdaNP_grid)
     write(*,*) 'fNP=', dummyfNP(i)
     
     stop

@@ -21,6 +21,7 @@ module IO_functions
   character(len=*), parameter :: c_green = '32'
   character(len=*), parameter :: c_green_bold = '32;1'
   character(len=*), parameter :: c_yellow = '33'
+  character(len=*), parameter :: c_yellow_bold = '33;1'
   character(len=*), parameter :: c_blue = '34'
   character(len=*), parameter :: c_magenta = '35'
   character(len=*), parameter :: c_cyan = '36'
@@ -48,9 +49,18 @@ contains
     integer,intent(in)::streem
     character(len=5)::pos
     character(len=300)::line
+    integer::IOstatus
     do
-      read(streem,'(A)') line    
-      if(line(1:5)==pos) exit
+        read(streem,'(A)',IOSTAT=IOstatus) line    
+        if(IOstatus>0) then 
+            write(*,*) ErrorString("Error in attemt to read the line ("//pos//")", "aTMDe_IO_system")
+            stop
+        else if(IOstatus<0) then
+            write(*,*) ErrorString("EndOfFile during search of the line ("//pos//")", "aTMDe_IO_system")
+            stop
+        else
+            if(line(1:5)==pos) exit
+        end if
     end do
  end subroutine MoveTO
  
@@ -86,6 +96,13 @@ contains
  character(len=8)::intToStr
  write(intToStr,"(I8)") num 
  end function intToStr
+ 
+!! convert an short integer number to a string
+function int4ToStr(num)
+ integer,intent(in)::num
+ character(len=4)::int4ToStr
+ write(int4ToStr,"(I4)") num 
+end function int4ToStr
  
  !!!Common format of Warning line in artemide
   function WarningString(str, moduleName) result(out)

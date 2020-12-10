@@ -22,4 +22,4 @@
   real(dp),dimension(-5:5)::Fcurrent !!!value of fNP(1)
   real(dp),dimension(-5:5) :: integralWeight
   !!!triger for calculation
-  logical:: IsMuXdependent, IsFnpZdependent
+  logical:: IsMuXdependent

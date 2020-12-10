@@ -1,6 +1,8 @@
 SV19 extraction: SIDIS with HERA20 & DSS with N3LO evolution
 NP parameters: (repN, params...)
 rep=0 (mean), rep=-1 (grid initialisation)
+*V   :Minimum version of constants file
+14
 *A   :NAME
 SV19-SIDIS-HERA20+DSS-n3lo
 *B   : Indexing of NP parameters 
@@ -12,7 +14,7 @@ SV19-SIDIS-HERA20+DSS-n3lo
 4, 10
 *5   : uTMDFF
 11, 14
-*10  : lpTMDPDF
+*11  : lpTMDPDF
 0, 0
 *C   : Num of replicas
 102

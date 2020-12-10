@@ -26,7 +26,7 @@ implicit none
 private
 
 !Current version of module
-character (len=5),parameter :: version="v2.03"
+character (len=5),parameter :: version="v2.04"
 character (len=7),parameter :: moduleName="TMDR"
 !Last appropriate verion of constants-file
 integer,parameter::inputver=10

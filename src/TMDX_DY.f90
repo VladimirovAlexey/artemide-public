@@ -565,6 +565,8 @@ contains
     FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))
     
     xSec=PreFactor2(var,process,incCut,CutParam)*FF    
+    
+    !write(*,*) "{",var(4),",",x1,"},"!,z1
   end function xSec
   
   !---------------------------------INTEGRATED over Y---------------------------------------------------------------
@@ -581,7 +583,7 @@ contains
         NumPT_auto=NumPTdefault
         return
     else
-        do i=1,5
+        do i=1,25
             if(rat>(40d0/2d0/i)) then
                 NumPT_auto=NumPTdefault+2*i
                 return
