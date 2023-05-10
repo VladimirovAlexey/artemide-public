@@ -25,9 +25,9 @@ implicit none
   
    !Current version of module
  character (len=7),parameter :: moduleName="TMDX-DY"
- character (len=5),parameter :: version="v2.02"
+ character (len=5),parameter :: version="v2.06"
  !Last appropriate verion of constants-file
-  integer,parameter::inputver=6
+  integer,parameter::inputver=21
   
   real(dp) :: tolerance=0.0005d0
   
@@ -54,9 +54,12 @@ implicit none
   logical:: includeCuts_global
   logical::usePIresum
   integer:: exactX1X2    !!!=1 if exact x's=true, =0 otherwise
+  integer:: exactScales  !!!=1 if exact hard scales = true, =0 otherwise
   
   !!! number of sections for PT-integral by default
   integer::NumPTdefault=4
+  !!! Maximum size of Q-bin. Larger bins are desected
+  real::maxQbinSize=30.
   
   real(dp)::c2_global!,muHard_global
   
@@ -127,7 +130,7 @@ contains
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared,dummyLogical,TMDPDFgrid
+    logical::initRequired,dummyLogical,TMDPDFgrid
     character(len=8)::orderMain
     integer::i,FILEver
     !$ integer:: omp_get_thread_num
@@ -166,9 +169,9 @@ contains
     !!! go to section TMD-DY
     call MoveTO(51,'*9   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not required. '
       started=.false.
       return
     end if
@@ -187,15 +190,23 @@ contains
 	orderH_global=1
       CASE ("NNLO")
 	orderH_global=2
+      CASE ("N2LO")
+	orderH_global=2
       CASE ("NNLO+")
 	orderH_global=2
       CASE ("NNNLO")
 	orderH_global=3
+      CASE ("N3LO") !!! same as NNNLO
+	orderH_global=3
+      CASE ("N3LO+")
+	orderH_global=3
+      CASE ("N4LO")
+	orderH_global=4
       CASE DEFAULT
 	if(outputLevel>0) write(*,*)  WarningString('try to set unknown order. Switch to NLO.',moduleName)
 	orderH_global=1
      END SELECT
-     if(outputLevel>2) write(*,*) '	artemide.TMDX_DY: the used order is ',trim(orderMain)
+     if(outputLevel>1) write(*,*) '	artemide.TMDX_DY: the used order is ',trim(orderMain)
      
      !!exact values of x1x2
      call MoveTO(51,'*p2   ')
@@ -205,17 +216,28 @@ contains
      else
       exactX1X2=0
      end if
-     if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_DY: qT/Q correction for x1 and x2 variables are included.'
+     if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_DY: qT/Q corrections for x1 and x2 variables are included.'
+     !! pi2 resummation
      call MoveTO(51,'*p3   ')
      read(51,*) usePIresum
      if(outputLevel>2 .and. usePIresum) write(*,*) '	artemide.TMDX_DY: pi-resummation in coef.function included.'
+     !!exact values for scales
+     call MoveTO(51,'*p4   ')
+     read(51,*) dummyLogical
+     if(dummyLogical) then 
+      exactScales=1
+     else
+      exactScales=0
+     end if
+     if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_DY: qT/Q correction for scales variables are included.'
      
      call MoveTO(51,'*B   ')
      call MoveTO(51,'*p1  ')
      read(51,*) tolerance
      call MoveTO(51,'*p2  ')
      read(51,*) NumPTdefault
-     
+     call MoveTO(51,'*p3  ')
+     read(51,*) maxQbinSize
 !$    if(outputLevel>1) write(*,*) '	artemide.TMDX_DY: parallel evaluation of cross-sections is to be used'
 !$    call MoveTO(51,'*C   ')
 !$    call MoveTO(51,'*p1  ')
@@ -442,7 +464,7 @@ contains
   function PreFactor2(kin,process, includeCuts_in,CutParam)
     real(dp),dimension(1:7),intent(in)::kin
     logical,intent(in)::includeCuts_in
-    real(dp)::PreFactor2,cutPrefactor,uniPart
+    real(dp)::PreFactor2,cutPrefactor,uniPart,scaleMu
     real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
   
@@ -457,40 +479,41 @@ contains
   
     
    !!!! universal part
-
+    scaleMu=sqrt(kin(4)+exactScales*kin(1)**2)
+    
   SELECT CASE(process(2))
     case(-10221191)
 	uniPart=1d0
 	cutPrefactor=1d0
     CASE(1)
 	!4 pi aEm^2/3 /Nc/Q^2/s
-	uniPart=pix4/9d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
-	    HardCoefficientDY(kin(3))*&
+	uniPart=pix4/9d0*(alphaEM(scaleMu)**2)/(kin(2)*kin(4))*&
+	    HardCoefficientDY(scaleMu)*&
 	    hc2*1d9!from GeV to pb
 	!!! IsySymmetric=.true.  !!! state is IsySymmetric-function
     CASE(2)
 	!4 pi aEm^2/3 /Nc/Q^2/s
-	uniPart=pix4/9d0*(alphaEM(kin(3))**2)/(kin(2)*kin(4))*&
-	    HardCoefficientDY(kin(3))*&
+	uniPart=pix4/9d0*(alphaEM(scaleMu)**2)/(kin(2)*kin(4))*&
+	    HardCoefficientDY(scaleMu)*&
 	    hc2*1d9!from GeV to pb
 	!!!IsySymmetric=.false.	!!! state is IsySymmetric-function
     CASE (3) !Zboson in the narrow-width approximation
 	!4 pi^2 aem/Nc/s Br(z->ee+mumu)
-	uniPart=pi2x4/3d0*alphaEM(kin(3))/kin(2)*&
-	    HardCoefficientDY(kin(3))*&
+	uniPart=pi2x4/3d0*alphaEM(scaleMu)/kin(2)*&
+	    HardCoefficientDY(scaleMu)*&
 	    hc2*1d9*&!from GeV to pb
 	    0.03645d0!Br from PDG, ee+mumu
     CASE (4) !Wboson in the narrow-width approximation
 	!4 pi^2 aem/Nc/s Br(z->ee+mumu)
-	uniPart=pi2x4/3d0**alphaEM(kin(3))/kin(2)*&
-	    HardCoefficientDY(kin(3))*&
+	uniPart=pi2x4/3d0**alphaEM(scaleMu)/kin(2)*&
+	    HardCoefficientDY(scaleMu)*&
 	    hc2*1d9*&!from GeV to pb
 	    0.1086d0!Br from PDG, ee+mumu
     CASE (5) !exclusive HIGGSboson production
 	! (2\pi) *pi Mh^2 as(mu)/36/s/vev^2 * H*cT^2
 	! (1.033)^2 is correction for mT mass in Ct at LO.
-	uniPart=(1d0/18d0)*MH2*(As(c2_global*kin(3))/VEVH)**2/kin(2)*&
-	   HardCoefficientHIGGS(kin(3))*(EffCouplingHFF(kin(3))**2)*1.0677023627519822d0*&
+	uniPart=(1d0/18d0)*MH2*(As(c2_global*scaleMu)/VEVH)**2/kin(2)*&
+	   HardCoefficientHIGGS(scaleMu)*(EffCouplingHFF(scaleMu)**2)*1.0677023627519822d0*&
 	    hc2*1d9!from GeV to pb
 	    
 	cutPrefactor=1d0 !!! cut-prefactor is different in this case! 
@@ -547,7 +570,7 @@ contains
   !!!! this is extended (and default) version of xSec, which include all parameters
   function xSec(var,process,incCut,CutParam)
     real(dp):: xSec,FF
-    real(dp)::x1,x2
+    real(dp)::x1,x2,scaleMu,scaleZeta
     real(dp),dimension(1:7),intent(in)::var
     logical,intent(in)::incCut
     real(dp),dimension(1:4),intent(in)::CutParam
@@ -559,10 +582,15 @@ contains
       return
     end if
     
+    !!! setting values of X
     x1=var(5)*var(7)
     x2=var(5)/var(7)
+    
+    !!! setting values of scales
+    scaleZeta=var(4)+exactScales*var(1)**2  !! zeta=Q2+qT^2
+    scaleMu=sqrt(scaleZeta)    
   
-    FF=TMDF_F(var(4),var(1),x1,x2,var(3)*c2_global,var(4),var(4),process(3))
+    FF=TMDF_F(var(4),var(1),x1,x2,scaleMu*c2_global,scaleZeta,scaleZeta,process(3))
     
     xSec=PreFactor2(var,process,incCut,CutParam)*FF    
     
@@ -704,7 +732,7 @@ contains
    real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
    real(dp) :: interX,X1,X2,X3,X4,X5
-   real(dp) :: value,valueAB,valueACB
+   real(dp) :: valueAB,valueACB
    real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
    real(dp),intent(in)::valueMax
    
@@ -737,20 +765,39 @@ contains
   end function integralOverYpoint_S_Rec
   
   !---------------------------------INTEGRATED over Q---------------------------------------------------------------
-  function Xsec_Qint(var,process,incCut,CutParam,Q_min,Q_max)
+  function Xsec_Qint(var,process,incCut,CutParam,Qmin_in,Qmax_in)
     real(dp),dimension(1:7)::var
     logical,intent(in)::incCut
     real(dp),dimension(1:4),intent(in)::CutParam
     integer,dimension(1:3),intent(in)::process
+    real(dp),intent(in):: Qmin_in,Qmax_in
     real(dp):: Xsec_Qint
-    real(dp):: Q_min,Q_max
+    integer::numSec,i
+    real(dp)::dQ
     
     if(TMDF_IsconvergenceLost()) then 
       Xsec_Qint=1d9
       return
     end if
+
+    !!! check how many maxQbins is inside the integration range (+1)
+    numSec=INT((Qmax_in-Qmin_in)/maxQbinSize)+1
+
+    if(numSec==1) then
+      !!! if the bin is smaller than maxQbinSize, integrate as is
+      Xsec_Qint=integralOverQpoint_S(var,process,incCut,CutParam,Qmin_in,Qmax_in)
+    else
+      !!! else divide to smaler bins and sum the integrals
+      dQ=(Qmax_in-Qmin_in)/numSec !!! size of new bins
+
+      Xsec_Qint=0d0
+      do i=0,numSec-1
+        Xsec_Qint=Xsec_Qint + &
+            integralOverQpoint_S(var,process,incCut,CutParam,Qmin_in+i*dQ,Qmin_in+(i+1)*dQ)
+      end do
+    end if
     
-    Xsec_Qint=integralOverQpoint_S(var,process,incCut,CutParam,Q_min,Q_max)
+
   end function Xsec_Qint
   
   !--------------Simpsons--------------------
@@ -831,25 +878,57 @@ contains
   
   !---------------------------------INTEGRATED over Y over Q---------------------------------------------------------------
   !!!! No need for check over Y they take a place within y-integration
-    !--------------Simpsons--------------------
-  !!!! parameter valueMax remembers the initial value of integral to weight the tolerance.
-  !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
-  !!!! Thus minimal number of points =9
-  !!!! taking into account minimum calls of y-integral we have  =81 points
+
+  !!!! to integrate over Q I use adaptive Simpson. (defined below)
+  !!!! before the integration over Q I check the size of Q-bin,
+  !!!! if Q-bin is large I split desect the integration range to smaller
   function Xsec_Qint_Yint(var,process,incCut,CutParam,Qmin_in,Qmax_in,ymin_in,ymax_in)
   real(dp),dimension(1:7)::var
   logical,intent(in)::incCut
    real(dp),dimension(1:4),intent(in)::CutParam
    integer,dimension(1:3),intent(in)::process
+   real(dp),intent(in) :: yMin_in,yMax_in,QMin_in,QMax_in
    real(dp):: Xsec_Qint_Yint
-   real(dp) :: X1,X2,X3,X4,X5
-   real(dp) :: yMin_in,yMax_in,QMin_in,QMax_in
-   real(dp)::valueMax,Q2,Q3,Q4,deltaQ
-   
-    if(TMDF_IsconvergenceLost()) then 
+   integer::numSec,i
+   real(dp)::dQ
+
+    if(TMDF_IsconvergenceLost()) then
       Xsec_Qint_Yint=1d9
       return
     end if
+
+    !!! check how many maxQbins is inside the integration range (+1)
+    numSec=INT((Qmax_in-Qmin_in)/maxQbinSize)+1
+
+    if(numSec==1) then
+      !!! if the bin is smaller than maxQbinSize, integrate as is
+      Xsec_Qint_Yint=Xsec_Qint_Yint_in(var,process,incCut,CutParam,Qmin_in,Qmax_in,ymin_in,ymax_in)
+    else
+      !!! else divide to smaler bins and sum the integrals
+      dQ=(Qmax_in-Qmin_in)/numSec !!! size of new bins
+
+      Xsec_Qint_Yint=0d0
+      do i=0,numSec-1
+        Xsec_Qint_Yint=Xsec_Qint_Yint + &
+            Xsec_Qint_Yint_in(var,process,incCut,CutParam,Qmin_in+i*dQ,Qmin_in+(i+1)*dQ,ymin_in,ymax_in)
+      end do
+    end if
+  end function Xsec_Qint_Yint
+
+  !--------------Simpsons--------------------
+  !!!! parameter valueMax remembers the initial value of integral to weight the tolerance.
+  !!!! First we evaluate over 5 points and estimate the integral, and then split it to 3+3 and send to adaptive
+  !!!! Thus minimal number of points =9
+  !!!! taking into account minimum calls of y-integral we have  =81 points
+  function Xsec_Qint_Yint_in(var,process,incCut,CutParam,Qmin_in,Qmax_in,ymin_in,ymax_in)
+  real(dp),dimension(1:7)::var
+  logical,intent(in)::incCut
+   real(dp),dimension(1:4),intent(in)::CutParam
+   integer,dimension(1:3),intent(in)::process
+   real(dp),intent(in) :: yMin_in,yMax_in,QMin_in,QMax_in
+   real(dp):: Xsec_Qint_Yint_in
+   real(dp) :: X1,X2,X3,X4,X5
+   real(dp)::valueMax,Q2,Q3,Q4,deltaQ
    
     deltaQ=QMax_in-QMin_in
    Q2=QMin_in+deltaQ/4d0
@@ -874,9 +953,9 @@ contains
       !!approximate integral value
    valueMax=deltaQ*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
-   Xsec_Qint_Yint=IntegralOverQYpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,yMin_in,yMax_in,X1,X2,X3,valueMax)+&
+   Xsec_Qint_Yint_in=IntegralOverQYpoint_S_Rec(var,process,incCut,CutParam,QMin_in,Q3,yMin_in,yMax_in,X1,X2,X3,valueMax)+&
 	IntegralOverQYpoint_S_Rec(var,process,incCut,CutParam,Q3,QMax_in,yMin_in,yMax_in,X3,X4,X5,valueMax)
-  end function Xsec_Qint_Yint
+  end function Xsec_Qint_Yint_in
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQYpoint_S_Rec(var,process,incCut,CutParam,&

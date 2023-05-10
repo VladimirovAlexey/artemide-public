@@ -45,6 +45,8 @@ $(SOURCEDIR)/Model/lpTMDPDF_model.f90 \
 $(SOURCEDIR)/lpTMDPDF.f90 \
 $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 \
 $(SOURCEDIR)/SiversTMDPDF.f90 \
+$(SOURCEDIR)/Model/wgtTMDPDF_model.f90 \
+$(SOURCEDIR)/wgtTMDPDF.f90 \
 $(SOURCEDIR)/TMDs.f90 \
 $(SOURCEDIR)/TMDF.f90 \
 $(SOURCEDIR)/TMDs_inKT.f90 \
@@ -68,7 +70,8 @@ TMD_ADFiles=\
 $(SOURCEDIR)/Code/TMD_AD/AD_primary.f90 \
 $(SOURCEDIR)/Code/TMD_AD/AD_secondary.f90 \
 $(SOURCEDIR)/Code/TMD_AD/AD_atMu.f90 \
-$(SOURCEDIR)/Code/TMD_AD/exactZetaLine.f90
+$(SOURCEDIR)/Code/TMD_AD/exactZetaLine.f90 \
+$(SOURCEDIR)/Code/TMD_AD/AD_Integral.f90 
 
 TMDRFiles=\
 $(SOURCEDIR)/Code/TMDR/type1.f90 \
@@ -93,6 +96,11 @@ $(SOURCEDIR)/Code/lpTMDPDF/modelTest.f90
 SiversTMDPDFFiles=\
 $(SOURCEDIR)/Code/SiversTMDPDF/modelTest.f90 \
 $(SOURCEDIR)/Code/SiversTMDPDF/convolutions.f90
+
+wgtTMDPDFFiles=\
+$(SOURCEDIR)/Code/wgtTMDPDF/coeffFunc.f90 \
+$(SOURCEDIR)/Code/wgtTMDPDF/convolutions.f90 \
+$(SOURCEDIR)/Code/wgtTMDPDF/modelTest.f90
 
 TMDsFiles=\
 $(SOURCEDIR)/Code/TMDs/TMD-calls.f90 
@@ -128,6 +136,8 @@ $(OBJ)/lpTMDPDF_model.o \
 $(OBJ)/lpTMDPDF.o \
 $(OBJ)/SiversTMDPDF_model.o \
 $(OBJ)/SiversTMDPDF.o \
+$(OBJ)/wgtTMDPDF_model.o \
+$(OBJ)/wgtTMDPDF.o \
 $(OBJ)/TMDs.o \
 $(OBJ)/TMDF.o \
 $(OBJ)/TMDs_inKT.o \
@@ -237,6 +247,18 @@ $(OBJ)/SiversTMDPDF.o: $(SOURCEDIR)/SiversTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCED
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
+$(OBJ)/wgtTMDPDF_model.o: $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
+$(OBJ)/wgtTMDPDF.o: $(SOURCEDIR)/wgtTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 $(Twist2Files) $(aTMDeUTILITY) $(wgtTMDPDFFiles)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/wgtTMDPDF.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+	
 $(OBJ)/TMD_AD.o: $(SOURCEDIR)/TMD_AD.f90 $(aTMDeUTILITY) $(TMD_ADFiles)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMD_AD.f90 -I$(MOD)
@@ -255,7 +277,7 @@ $(OBJ)/TMDR.o: $(SOURCEDIR)/TMDR.f90 $(SOURCEDIR)/Model/TMDR_model.f90 $(OBJ)/QC
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 	
-$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(TMDsFiles) $(aTMDeUTILITY)
+$(OBJ)/TMDs.o: $(SOURCEDIR)/TMDs.f90 $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(OBJ)/wgtTMDPDF.o $(SOURCEDIR)/Model/TMDs_model.f90 $(OBJ)/TMDR.o $(TMDsFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDs.f90 -I$(MOD)
 	mv *.o $(OBJ)

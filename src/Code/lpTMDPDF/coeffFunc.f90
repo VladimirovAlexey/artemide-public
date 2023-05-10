@@ -63,7 +63,7 @@
   subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
   real(dp)::Nf,alpha,LLambda,Lmu
   
-  CoeffSing1_q_q=(/0d0,0d0/)
+  CoeffSing1_q_q=(/0d0,0d0,0d0/)
   
   end subroutine Set_CoeffSing1_q_q
   
@@ -72,7 +72,7 @@
   subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
   real(dp)::Nf,alpha,Lmu
   
-  CoeffSing1_g_g=(/0d0,0d0/)
+  CoeffSing1_g_g=(/0d0,0d0,0d0/)
   
   end subroutine Set_CoeffSing1_g_g
   
@@ -187,11 +187,11 @@
  subroutine CheckCoefficient(as,Nf,Lmu,z)
  real(dp)::Lmu,as,z,Nf
  real(dp), dimension(1:parametrizationLength)::func
- real(dp), dimension(1:2)::func1
+ real(dp), dimension(1:3)::func1
  
   func=parametrizationString(z)
      
-  func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z)/)
+  func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z),Log(1d0-z)/(1d0-z)/)
  
  !!Q->Q
 !   call Set_CoeffSing1_q_q(as,Nf,Lmu) 

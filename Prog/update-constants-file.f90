@@ -38,7 +38,7 @@ implicit none
  end if
  
  !! output with the path
- write(*,*) " FILE: ",color(trim(path),c_black_bold)
+ write(*,*) " FILE: ",color(trim(path),c_green_bold)
  
  !! check for nessecity to update
  if(CheckConstantsFile(trim(path))) then
@@ -49,19 +49,19 @@ implicit none
  end if
  
  !!ask user
- write(*,*) color("  Do you want to update this file?  (y/n)",c_black_bold)
+ write(*,*) color("  Do you want to update this file?  (y/n)",c_green_bold)
  read(*,*) ask
  if(ask=='y') to_update=.true.
  if (.not.to_update) call exit(0)
  
- write(*,*) color("  Do you want to save backup copy of this file?  (y/n)",c_black_bold)
+ write(*,*) color("  Do you want to save backup copy of this file?  (y/n)",c_green_bold)
  read(*,*) ask
  if(ask=='n') save_backup=.false.
  
  !!! check for possibility to backup
  if(save_backup) then
   path_backup=trim(path)//"_backup"
-  write(*,*) '  backup copy will be saved to :',color(trim(path_backup),c_black_bold)
+  write(*,*) '  backup copy will be saved to :',color(trim(path_backup),c_green_bold)
   INQUIRE(FILE=trim(path_backup), EXIST=file_exists) 
     if(file_exists) then
       write(*,*) color('   backup file with such name already exists. Replace? (y/n)',c_red_bold)

@@ -14,10 +14,10 @@ implicit none
 
 private
 
-character (len=5),parameter :: version="v2.05"
+character (len=5),parameter :: version="v2.06"
 character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
-integer,parameter::inputVer=16
+integer,parameter::inputVer=21
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
@@ -50,6 +50,11 @@ character(len=100),allocatable::sets_of_uFFs(:)
 integer::number_of_lpPDFs
 integer,allocatable::enumeration_of_lpPDFs(:),replicas_of_lpPDFs(:)
 character(len=100),allocatable::sets_of_lpPDFs(:)
+
+!--------------------- hPDF parameters
+integer::number_of_hPDFs
+integer,allocatable::enumeration_of_hPDFs(:),replicas_of_hPDFs(:)
+character(len=100),allocatable::sets_of_hPDFs(:)
 
 !-------------------- TMDR options
 logical::include_TMDR
@@ -108,6 +113,20 @@ logical::SiversTMDPDF_IsComposite
 integer::number_of_SiversTMDPDFs
 integer,allocatable::enumeration_of_SiversTMDPDFs(:)
 
+!-------------------- wgtTMDPDF parameters
+logical::include_wgtTMDPDF
+integer::wgtTMDPDF_lambdaLength
+real(dp)::wgtTMDPDF_tolerance
+integer::wgtTMDPDF_maxIteration
+character*8::wgtTMDPDF_order
+logical::wgtTMDPDF_makeGrid,wgtTMDPDF_withGluon
+real(dp)::wgtTMDPDF_grid_bMax,wgtTMDPDF_grid_xMin,wgtTMDPDF_grid_slope
+integer::wgtTMDPDF_grid_SizeX,wgtTMDPDF_grid_SizeB
+real(dp),allocatable::wgtTMDPDF_lambdaNP_init(:)
+logical::wgtTMDPDF_IsComposite
+integer::number_of_wgtTMDPDFs
+integer,allocatable::enumeration_of_wgtTMDPDFs(:)
+
 !-------------------- TMDs parameters
 logical::include_TMDs
 
@@ -125,15 +144,16 @@ logical::include_TMDX_DY
 character*8::TMDX_DY_order
 real(dp)::TMDX_DY_tolerance
 integer::TMDX_DY_ptSECTION
-logical::TMDX_DY_exactX1X2,TMDX_DY_piResum
+logical::TMDX_DY_exactX1X2,TMDX_DY_piResum,TMDX_DY_exactScale
 integer::TMDX_DY_numProc
+real::TMDX_DY_maxQbinSize
 
 !-------------------- TMDX-SIDIS parameters
 logical::include_TMDX_SIDIS
 character*8::TMDX_SIDIS_order
 real(dp)::TMDX_SIDIS_tolerance
 integer::TMDX_SIDIS_ptSECTION
-logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_qTinX1Z1corr
+logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_qTinX1Z1corr,TMDX_SIDIS_exactScale
 integer::TMDX_SIDIS_numProc
 real(dp)::TMDX_SIDIS_toleranceZ,TMDX_SIDIS_toleranceX
 character(len=4)::TMDX_SIDIS_methodZ,TMDX_SIDIS_methodX
@@ -145,6 +165,7 @@ public::Set_TMDR_order,Set_TMDR_evolutionType,Set_TMDR_lengthNParray
 public::Set_uTMDPDF,Set_uTMDPDF_order,Set_uTMDPDF_gridEvaluation,Set_uTMDPDF_lengthNParray
 public::Set_uTMDFF,Set_uTMDFF_order,Set_uTMDFF_gridEvaluation,Set_uTMDFF_lengthNParray
 public::Set_lpTMDPDF,Set_lpTMDPDF_order,Set_lpTMDPDF_gridEvaluation,Set_lpTMDPDF_lengthNParray
+!public::Set_hTMDPDF,Set_hTMDPDF_order,Set_hTMDPDF_gridEvaluation,Set_hTMDPDF_lengthNParray
 contains
 
 INCLUDE 'Code/aTMDe_setup/const-modification.f90'
@@ -271,6 +292,19 @@ subroutine SetupDefault(order)
     enumeration_of_lpPDFs=(/-1/)
     replicas_of_lpPDFs=(/0/)
     sets_of_lpPDFs=(/trim('ABSENT')/)
+    
+    !-------------------Parameters for hPDFs evaluation
+    ! by definition we do not initiate any hPDF
+    number_of_hPDFs=0
+    if(allocated(enumeration_of_hPDFs)) deallocate(enumeration_of_hPDFs)
+    if(allocated(replicas_of_hPDFs)) deallocate(replicas_of_hPDFs)
+    if(allocated(sets_of_hPDFs)) deallocate(sets_of_hPDFs)
+    allocate(enumeration_of_hPDFs(1:1))
+    allocate(replicas_of_hPDFs(1:1))
+    allocate(sets_of_hPDFs(1:1))
+    enumeration_of_hPDFs=(/-1/)
+    replicas_of_hPDFs=(/0/)
+    sets_of_hPDFs=(/trim('ABSENT')/)
 
     !-------------------- parameters for TMDR
     include_TMDR=.true.
@@ -348,6 +382,26 @@ subroutine SetupDefault(order)
     allocate(enumeration_of_SiversTMDPDFs(1:1))
     enumeration_of_SiversTMDPDFs=(/-1/)
     
+    !-------------------- parameters for wgtTMDPDF
+    include_wgtTMDPDF=.false.
+    wgtTMDPDF_order=trim('LO')
+    wgtTMDPDF_IsComposite=.false.
+    wgtTMDPDF_makeGrid=.true.
+    wgtTMDPDF_withGluon=.false.
+    wgtTMDPDF_lambdaLength=1
+    call ReNewInitializationArray(wgtTMDPDF_lambdaNP_init,wgtTMDPDF_lambdaLength)! initialization values of parameters
+    wgtTMDPDF_tolerance=0.0001d0	!tolerance (i.e. relative integration tolerance -- in convolution integrals)
+    wgtTMDPDF_maxIteration=10000	!maxIteration for adaptive integration
+    wgtTMDPDF_grid_xMin=0.001d0
+    wgtTMDPDF_grid_bMax=100d0
+    wgtTMDPDF_grid_SizeX=250
+    wgtTMDPDF_grid_SizeB=500
+    wgtTMDPDF_grid_slope=10d0
+    number_of_wgtTMDPDFs=0
+    if(allocated(enumeration_of_wgtTMDPDFs)) deallocate(enumeration_of_wgtTMDPDFs)
+    allocate(enumeration_of_wgtTMDPDFs(1:1))
+    enumeration_of_wgtTMDPDFs=(/-1/)
+    
     
 
     !------------------ parameters for TMDs
@@ -368,9 +422,11 @@ subroutine SetupDefault(order)
     include_TMDX_DY=.true.
     TMDX_DY_tolerance=0.001d0	!tolerance (i.e. relative integration tolerance -- in kinematic integrals;)
     TMDX_DY_ptSECTION=4		!default number of sections for pt-bin integration
+    TMDX_DY_maxQbinSize=30. !default maximum size of the Q-bin integration
     TMDX_DY_order=trim(order)
     TMDX_DY_exactX1X2=.true.
     TMDX_DY_piResum=.false.
+    TMDX_DY_exactScale=.false.
     TMDX_DY_numProc=8
 
     !------------------ parameters for TMDX-SIDIS
@@ -382,6 +438,7 @@ subroutine SetupDefault(order)
     TMDX_SIDIS_M1corr=.true.
     TMDX_SIDIS_M2corr=.true.
     TMDX_SIDIS_qTinX1Z1corr=.true.
+    TMDX_SIDIS_exactScale=.false.
     TMDX_SIDIS_numProc=8
     TMDX_SIDIS_toleranceZ=TMDX_SIDIS_tolerance
     TMDX_SIDIS_methodZ='SA'		!SA=Simpson adaptive, S5=Simpson 5-point
@@ -525,6 +582,19 @@ subroutine CreateConstantsFile(file,prefix)
     end do
     write(51,"('*p4  : list of initialization replicas')")
     call writeShortIntegerList(51,replicas_of_lpPDFs)
+    
+    write(51,"(' ')")
+    write(51,"('*E   : ----hPDF sets----')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
+    write(51,*) number_of_hPDFs
+    write(51,"('*p2  : reference number for hadrons')")
+    call writeShortIntegerList(51,enumeration_of_hPDFs)
+    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    do i=1,number_of_hPDFs
+        write(51,*) trim(sets_of_hPDFs(i))
+    end do
+    write(51,"('*p4  : list of initialization replicas')")
+    call writeShortIntegerList(51,replicas_of_hPDFs)
 
 
     write(51,"(' ')")
@@ -751,11 +821,15 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_DY_exactX1X2
     write(51,"('*p3  : Use resummation of pi^2-corrections in hard coefficient')")
     write(51,*) TMDX_DY_piResum
+    write(51,"('*p4  : Use the exact values for factorization scales (include qT/Q correction)')")
+    write(51,*) TMDX_DY_exactScale
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
     write(51,*) TMDX_DY_tolerance
     write(51,"('*p2  : Minimal number of sections for pt-integration')")
     write(51,*) TMDX_DY_ptSECTION
+    write(51,"('*p3  : Maximum size of the Q-bin integration (larger bins are desected)')")
+    write(51,*) TMDX_DY_maxQbinSize
     write(51,"('*C   : ---- Parameters for parallel evaluation (used only if compiled with openMP) ----')")
     write(51,"('*p1  : Maximum number of processors to use')")
     write(51,*) TMDX_DY_numProc
@@ -780,6 +854,8 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_SIDIS_M2corr
     write(51,"('*p5  : Use transverse momentum corrections in x1 and z1')")
     write(51,*) TMDX_SIDIS_qTinX1Z1corr
+    write(51,"('*p6  : Use the exact values for factorization scales (include qT/Q correction)')")
+    write(51,*) TMDX_SIDIS_exactScale
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
     write(51,*) TMDX_SIDIS_tolerance
@@ -891,6 +967,53 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) SiversTMDPDF_grid_SizeB
     write(51,"('*p5  : slope scale of griding at smaller b (better not to change it :) )')")
     write(51,*) SiversTMDPDF_grid_slope
+    
+    write(51,"(' ')")
+    write(51,"(' ')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('# ----                         PARAMETERS OF wgtTMDPDF                  -----')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('*13  :')")
+    write(51,"('*p1  : initialize wgtTMDPDF module')")
+    write(51,*) include_wgtTMDPDF
+    write(51,"(' ')")
+    write(51,"('*A   : ---- Main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function (for tw-2 part only)')")
+    write(51,*) trim(wgtTMDPDF_order)
+    write(51,"('*p2  : Use composite TMD-function definition')")
+    write(51,*) wgtTMDPDF_IsComposite
+    write(51,"('*B   : ---- Parameters of NP model ----')")
+    write(51,"('*p1  : Length of lambdaNP (used in fNP and tw-3 part)')")
+    write(51,*) wgtTMDPDF_lambdaLength
+    write(51,"('*p2  : Initialization parameters (in column)')")
+    do i=1,wgtTMDPDF_lambdaLength
+        write(51,*) wgtTMDPDF_lambdaNP_init(i)
+    end do
+    write(51,"('*C   : ---- Numerical evaluation parameters ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
+    write(51,*) wgtTMDPDF_tolerance
+    write(51,"('*p2  : Maximum number of iterations (for adaptive integration)')")
+    write(51,*) wgtTMDPDF_maxIteration
+    write(51,"('*D   : ---- Grid preparation options ----')")
+    write(51,"('*p1  : Prepare grid')")
+    write(51,*) wgtTMDPDF_makeGrid
+    write(51,"('*p2  : Include gluon TMDs into the grid')")
+    write(51,*) wgtTMDPDF_withGluon
+    write(51,"('*p3  : total number of PDFs added to the grid')")
+    write(51,*) number_of_wgtTMDPDFs
+    write(51,"('*p4  : reference numbers for hadrons')")
+    call writeShortIntegerList(51,enumeration_of_wgtTMDPDFs)
+    write(51,"('*E   : ---- Parameters of grid ----')")
+    write(51,"('*p1  : xGrid_Min the minimal value of x in grid (max=1), make sure that it is enough)')")
+    write(51,*) wgtTMDPDF_grid_xMin
+    write(51,"('*p2  : the maximum bT in grid (min=0), for larger approximate extrapolation is done')")
+    write(51,*) wgtTMDPDF_grid_bMax
+    write(51,"('*p3  : GridSizeX (250 is enough for 10^-8 presicion, for grid up to 10^-5)')")
+    write(51,*) wgtTMDPDF_grid_SizeX
+    write(51,"('*p4  : GridSizeB (750 is enough for ~10^-6 presicion, 500 for 10^-5 presicion)')")
+    write(51,*) wgtTMDPDF_grid_SizeB
+    write(51,"('*p5  : slope scale of griding at smaller b (better not to change it :) )')")
+    write(51,*) wgtTMDPDF_grid_slope
 
     CLOSE (51, STATUS='KEEP') 
 
@@ -1020,7 +1143,7 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) replicas_of_uFFs
 
     if(FILEversion>=3) then
-        !-------PDF for uTMDPDF
+        !-------PDF for lpTMDPDF
         call MoveTO(51,'*D   ')
         call MoveTO(51,'*p1  ')
 
@@ -1040,6 +1163,29 @@ subroutine ReadConstantsFile(file,prefix)
         end do
         call MoveTO(51,'*p4  ')
         read(51,*) replicas_of_lpPDFs
+    end if
+    
+    if(FILEversion>=18) then
+        !-------helicity PDF
+        call MoveTO(51,'*E   ')
+        call MoveTO(51,'*p1  ')
+
+        read(51,*) number_of_hPDFs
+        if(allocated(enumeration_of_hPDFs)) deallocate(enumeration_of_hPDFs)
+        if(allocated(replicas_of_hPDFs)) deallocate(replicas_of_hPDFs)
+        if(allocated(sets_of_hPDFs)) deallocate(sets_of_hPDFs)
+        allocate(enumeration_of_hPDFs(1:number_of_hPDFs))
+        allocate(sets_of_hPDFs(1:number_of_hPDFs))
+        allocate(replicas_of_hPDFs(1:number_of_hPDFs))    
+
+        call MoveTO(51,'*p2  ')
+        read(51,*) enumeration_of_hPDFs
+        call MoveTO(51,'*p3  ')
+        do i=1,number_of_hPDFs
+            read(51,*) sets_of_hPDFs(i)
+        end do
+        call MoveTO(51,'*p4  ')
+        read(51,*) replicas_of_hPDFs
     end if
 
     !# ----                           PARAMETERS OF EWinput                  -----
@@ -1267,11 +1413,19 @@ subroutine ReadConstantsFile(file,prefix)
         call MoveTO(51,'*p3  ')
         read(51,*) TMDX_DY_piResum
     end if
+    if(FILEversion>=17) then
+        call MoveTO(51,'*p4  ')
+        read(51,*) TMDX_DY_exactScale
+    end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_DY_tolerance
     call MoveTO(51,'*p2  ')
     read(51,*) TMDX_DY_ptSECTION
+    if(FILEversion>=21) then
+        call MoveTO(51,'*p3  ')
+        read(51,*) TMDX_DY_maxQbinSize
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_DY_numProc
@@ -1293,6 +1447,10 @@ subroutine ReadConstantsFile(file,prefix)
     if(FILEversion>=9) then
         call MoveTO(51,'*p5  ')
         read(51,*) TMDX_SIDIS_qTinX1Z1corr
+    end if
+    if(FILEversion>=20) then
+        call MoveTO(51,'*p6  ')
+        read(51,*) TMDX_SIDIS_exactScale
     end if
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
@@ -1372,7 +1530,7 @@ subroutine ReadConstantsFile(file,prefix)
     end if
     
     if(FILEversion>=15) then
-    !# ----                           PARAMETERS OF lpTMDPDF                  -----
+    !# ----                           PARAMETERS OF SiversTMDPDF                  -----
         call MoveTO(51,'*12  ')
         call MoveTO(51,'*p1  ')
         read(51,*) include_SiversTMDPDF
@@ -1401,6 +1559,10 @@ subroutine ReadConstantsFile(file,prefix)
         read(51,*) SiversTMDPDF_withGluon
         call MoveTO(51,'*p3  ')
         read(51,*) number_of_SiversTMDPDFs        
+        if(allocated(enumeration_of_SiversTMDPDFs)) deallocate(enumeration_of_SiversTMDPDFs)
+        allocate(enumeration_of_SiversTMDPDFs(1:number_of_SiversTMDPDFs))
+        call MoveTO(51,'*p4  ')
+        read(51,*) enumeration_of_SiversTMDPDFs
         call MoveTO(51,'*E   ')
         call MoveTO(51,'*p1  ')
         read(51,*) SiversTMDPDF_grid_xMin
@@ -1414,6 +1576,55 @@ subroutine ReadConstantsFile(file,prefix)
         read(51,*) SiversTMDPDF_grid_slope
     else
         write(*,*) 'aTMDe_setup: parameters of Sivers functions set default. (const-ver. < 15)'
+    end if
+    
+    if(FILEversion>=19) then
+    !# ----                           PARAMETERS OF wgtTMDPDF                  -----
+        call MoveTO(51,'*13  ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) include_wgtTMDPDF
+        call MoveTO(51,'*A   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) wgtTMDPDF_order        
+        call MoveTO(51,'*p2  ')
+        read(51,*) wgtTMDPDF_IsComposite
+        call MoveTO(51,'*B   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) wgtTMDPDF_lambdaLength
+        call ReNewInitializationArray(wgtTMDPDF_lambdaNP_init,wgtTMDPDF_lambdaLength)!!!!we need to redo (and reallocate) the initialization of the NP-array        
+        call MoveTO(51,'*p2  ')      
+        do i=1,wgtTMDPDF_lambdaLength
+            read(51,*) wgtTMDPDF_lambdaNP_init(i)
+        end do
+        call MoveTO(51,'*C   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) wgtTMDPDF_tolerance
+        call MoveTO(51,'*p2  ')
+        read(51,*) wgtTMDPDF_maxIteration
+        call MoveTO(51,'*D   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) wgtTMDPDF_makeGrid
+        call MoveTO(51,'*p2  ')
+        read(51,*) wgtTMDPDF_withGluon
+        call MoveTO(51,'*p3  ')
+        read(51,*) number_of_wgtTMDPDFs        
+        if(allocated(enumeration_of_wgtTMDPDFs)) deallocate(enumeration_of_wgtTMDPDFs)
+        allocate(enumeration_of_wgtTMDPDFs(1:number_of_wgtTMDPDFs))
+        call MoveTO(51,'*p4  ')
+        read(51,*) enumeration_of_wgtTMDPDFs     
+        call MoveTO(51,'*E   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) wgtTMDPDF_grid_xMin
+        call MoveTO(51,'*p2  ')
+        read(51,*) wgtTMDPDF_grid_bMax
+        call MoveTO(51,'*p3  ')
+        read(51,*) wgtTMDPDF_grid_SizeX
+        call MoveTO(51,'*p4  ')
+        read(51,*) wgtTMDPDF_grid_SizeB
+        call MoveTO(51,'*p5  ')
+        read(51,*) wgtTMDPDF_grid_slope
+    else
+        write(*,*) 'aTMDe_setup: parameters of worm-geat T functions set default. (const-ver. < 19)'
     end if
 
 

@@ -63,7 +63,8 @@ function uTMDPDF_base5(x,bT,hadron)
                 if(fNP_grid(j)==0) then
                 if(fNP_current(j)/=0 .and. ((j/=0).or.(.not.withGluon))) then
                 if(outputLevel>0) &
-                    call Warning_Raise('error in restoration: original value is zero. TMDPDF set to zero. b='//numToStr(bT),&
+                    call Warning_Raise('error in restoration: original value is zero. TMDPDF set to zero. b='&
+                        //numToStr(bT)//' x='//numToStr(x)//' f='//numToStr(j),&
                         messageCounter,messageTrigger,moduleName)
                 end if
                 uTMDPDF_base5(j)=0!!!! this is case then 0/0

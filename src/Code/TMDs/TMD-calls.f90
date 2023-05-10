@@ -430,3 +430,103 @@ function SiversTMDPDF_50_optimal(x,bt,hadron)
     SiversTMDPDF_50_optimal=SiversTMDPDF_lowScale50(x,bT,hadron)
 
 end function SiversTMDPDF_50_optimal
+
+
+!!!!!!!!!!!!!!!!!!!wgtTMDPDF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!!!!!! upolarized TMDFF
+! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+function wgtTMDPDF_5_Ev(x,bt,muf,zetaf,hadron)
+    real(dp)::wgtTMDPDF_5_Ev(-5:5)
+    real(dp),intent(in):: x,bt,muf,zetaf
+    integer,intent(in)::hadron
+    real(dp):: mui,Rkernel
+
+    SELECT CASE(EvolutionType)
+    CASE(1)!!!! improved D
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
+    CASE(2)!!!! improved gamma
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+    CASE(3)!!!! fixed mu
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+    CASE(4)!!!! exact solution via zeta-line
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+    END SELECT
+    wgtTMDPDF_5_Ev=Rkernel*wgtTMDPDF_lowScale5(x,bT,hadron)
+
+    !!! forcefully set =0 below threshold
+    if(muf<mBOTTOM) then
+        wgtTMDPDF_5_Ev(5)=0_dp
+        wgtTMDPDF_5_Ev(-5)=0_dp
+    end if
+    if(muf<mCHARM) then
+        wgtTMDPDF_5_Ev(4)=0_dp
+        wgtTMDPDF_5_Ev(-4)=0_dp
+    end if
+
+end function wgtTMDPDF_5_Ev
+
+!!!!!!!! upolarized TMDFF
+! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+function wgtTMDPDF_50_Ev(x,bt,muf,zetaf,hadron)
+    real(dp)::wgtTMDPDF_50_Ev(-5:5)
+    real(dp),intent(in):: x,bt,muf,zetaf
+    integer,intent(in)::hadron
+    real(dp):: mui,Rkernel ,RkernelG   
+
+    SELECT CASE(EvolutionType)
+    CASE(1)!!!! improved D
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),1)
+        RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,c1_global*mu0(bt),0)
+    CASE(2)!!!! improved gamma
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+        RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
+    CASE(3)!!!! fixed mu
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+        RkernelG=TMDR_Rzeta(bt,muf,zetaf,0)
+    CASE(4)!!!! exact solution via zeta-line
+        mui=c3_global*mu_LOW(bt)
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,mui,1)
+        RkernelG=TMDR_Rzeta(bt,muf,zetaf,mui,0)
+    END SELECT
+    !wgtTMDPDF_50_Ev=Rkernel*wgtTMDPDF_lowScale50(x,bT,hadron)
+    !wgtTMDPDF_50_Ev(0)=wgtTMDPDF_50_Ev(0)*RkernelG/Rkernel
+    wgtTMDPDF_50_Ev=wgtTMDPDF_lowScale50(x,bT,hadron)*&
+        (/Rkernel,Rkernel,Rkernel,Rkernel,Rkernel,RkernelG,Rkernel,Rkernel,Rkernel,Rkernel,Rkernel/)
+
+    !!! forcefully set =0 below threshold
+    if(muf<mBOTTOM) then
+        wgtTMDPDF_50_Ev(5)=0_dp
+        wgtTMDPDF_50_Ev(-5)=0_dp
+    end if
+    if(muf<mCHARM) then
+        wgtTMDPDF_50_Ev(4)=0_dp
+        wgtTMDPDF_50_Ev(-4)=0_dp
+    end if
+
+end function wgtTMDPDF_50_Ev
+
+! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+function wgtTMDPDF_5_optimal(x,bt,hadron)
+    real(dp)::wgtTMDPDF_5_optimal(-5:5)
+    real(dp),intent(in):: x,bt
+    integer,intent(in)::hadron
+
+    wgtTMDPDF_5_optimal=wgtTMDPDF_lowScale5(x,bT,hadron)
+
+end function wgtTMDPDF_5_optimal
+
+! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+function wgtTMDPDF_50_optimal(x,bt,hadron)
+    real(dp)::wgtTMDPDF_50_optimal(-5:5)
+    real(dp),intent(in):: x,bt
+    integer,intent(in)::hadron
+
+    wgtTMDPDF_50_optimal=wgtTMDPDF_lowScale50(x,bT,hadron)
+
+end function wgtTMDPDF_50_optimal

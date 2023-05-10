@@ -19,7 +19,7 @@ implicit none
 private
 
  !Current version of module
- character (len=5),parameter :: version="v2.04"
+ character (len=5),parameter :: version="v2.06"
  character (len=7),parameter :: moduleName="TMD_AD"
  
  logical::started=.false.
@@ -50,33 +50,39 @@ real(dp),parameter::dFF=5d0/96d0      !d_F^{abcd}d_F^{abcd}/(N^2-1)
 !!! beta function (up to 5 loops) (numeration starts from 0)
 real(dp),dimension(0:4,NfMIN:NfMAX)::beta_internal
 
-!!! gamma cusp for quark/gluon (up to 4 loops) (numeration starts from 0)
-real(dp),dimension(0:3,NfMIN:NfMAX)::GammaCuspQ_internal
-real(dp),dimension(0:3,NfMIN:NfMAX)::GammaCuspG_internal
+!!! gamma cusp for quark/gluon (up to 5 loops) (numeration starts from 0)
+real(dp),dimension(0:4,NfMIN:NfMAX)::GammaCuspQ_internal
+real(dp),dimension(0:4,NfMIN:NfMAX)::GammaCuspG_internal
 
 
-!!! gammaV for quark/gluon (up to 3 loops) (numeration starts from 1)
-real(dp),dimension(1:3,NfMIN:NfMAX)::GammaVQ_internal
-real(dp),dimension(1:3,NfMIN:NfMAX)::GammaVG_internal
+!!! gammaV for quark/gluon (up to 4 loops) (numeration starts from 1)
+real(dp),dimension(1:4,NfMIN:NfMAX)::GammaVQ_internal
+real(dp),dimension(1:4,NfMIN:NfMAX)::GammaVG_internal
+
+!!!! Roots of beta-function betaRoots(n,k,Nf) \beta(a)=0
+!!!! Depending on Nf and k, these can be complex or real. Each case special
+COMPLEX*16,dimension(1:4,1:4,NfMIN:NfMAX)::betaRoots_internal
+!!!! coefficients of integral Gamma/2
+COMPLEX*16,dimension(1:4,0:4,NfMIN:NfMAX)::GammaIntegral_Q_internal
+COMPLEX*16,dimension(1:4,0:4,NfMIN:NfMAX)::GammaIntegral_G_internal
+
+!!! d^{(n,k)} for quark/gluon (up to 4 loops) (numeration starts from 1)
+real(dp),dimension(1:4,0:4,NfMIN:NfMAX)::d_nk_Q_internal
+real(dp),dimension(1:4,0:4,NfMIN:NfMAX)::d_nk_G_internal
 
 
-!!! d^{(n,k)} for quark/gluon (up to 3 loops) (numeration starts from 1)
-real(dp),dimension(1:3,0:3,NfMIN:NfMAX)::d_nk_Q_internal
-real(dp),dimension(1:3,0:3,NfMIN:NfMAX)::d_nk_G_internal
+!!! d^{(n,k,l)} (resummed coefficients) for quark/Gluon (up to 4 loops/no tree)(numeration starts from 0/)
+real(dp),dimension(1:4,0:4,0:4,NfMIN:NfMAX)::d_nkl_Q_internal
+real(dp),dimension(1:4,0:4,0:4,NfMIN:NfMAX)::d_nkl_G_internal
 
+!!! v^{(n,k)} for quark/Gluon (up to 4 loops )(numeration starts from 0)
+real(dp),dimension(0:4,0:5,NfMIN:NfMAX)::v_nk_Q_internal
+real(dp),dimension(0:4,0:5,NfMIN:NfMAX)::v_nk_G_internal
 
-!!! d^{(n,k,l)} (resummed coefficients) for quark/Gluon (up to 3 loops/no tree)(numeration starts from 0/)
-real(dp),dimension(1:3,0:3,0:3,NfMIN:NfMAX)::d_nkl_Q_internal
-real(dp),dimension(1:3,0:3,0:3,NfMIN:NfMAX)::d_nkl_G_internal
-
-!!! v^{(n,k)} for quark/Gluon (up to 3 loops )(numeration starts from 0)
-real(dp),dimension(0:3,0:4,NfMIN:NfMAX)::v_nk_Q_internal
-real(dp),dimension(0:3,0:4,NfMIN:NfMAX)::v_nk_G_internal
-
-!!! OMEGA^{(n,k)} for quark/Gluon (up to 3 loops )(numeration starts from 0)
+!!! OMEGA^{(n,k)} for quark/Gluon (up to 5 loops )(numeration starts from 0)
 !!! Each terms is multiplied by its own functional coefficeint.
-real(dp),dimension(0:3,1:4,NfMIN:NfMAX)::OMEGA_nk_Q_internal
-real(dp),dimension(0:3,1:4,NfMIN:NfMAX)::OMEGA_nk_G_internal
+real(dp),dimension(0:4,1:5,NfMIN:NfMAX)::OMEGA_nk_Q_internal
+real(dp),dimension(0:4,1:5,NfMIN:NfMAX)::OMEGA_nk_G_internal
 !!! 2 beta0/Gamma0
 real(dp),dimension(NfMIN:NfMAX)::pFACTOR_Q_internal
 real(dp),dimension(NfMIN:NfMAX)::pFACTOR_G_internal
@@ -92,7 +98,7 @@ integer::orderZETA      !for zeta-line
 public:: TMD_AD_Initialize
 !public:: betaQCD,GammaCusp_q,GammaCusp_g,gammaV_q, gammaV_g,dnk_q,dnk_g,dnkl_q,dnkl_g
 !public:: vnk_q,vnk_g,OMEGA_q,OMEGA_g,pFACTOR_q,pFACTOR_g
-public:: zetaMUpert,gammaV,Dpert,Dresum,GammaCusp,zetaSL
+public:: zetaMUpert,gammaV,Dpert,Dresum,GammaCusp,zetaSL,RADEvolution,zFUNC
 
 contains
 
@@ -104,9 +110,13 @@ INCLUDE 'Code/TMD_AD/AD_secondary.f90'
 INCLUDE 'Code/TMD_AD/AD_atMu.f90'
 !!! Routines for the exact zeta-line
 INCLUDE 'Code/TMD_AD/exactZetaLine.f90'
+!!! Routines for the analytical evaluation of RGE-integrals
+INCLUDE 'Code/TMD_AD/AD_Integral.f90'
 
 subroutine TMD_AD_Initialize(oCusp,oV,oD,oDresum,oZETA)
     integer,intent(in)::oCusp,oV,oD,oDresum,oZETA
+    
+    real(dp)::aa
     
     if(started) return
     
@@ -135,6 +145,11 @@ subroutine TMD_AD_Initialize(oCusp,oV,oD,oDresum,oZETA)
     call SetVnkGluon()
     call SetOMEGAnkQuark()
     call SetOMEGAnkGluon()
+    
+    !---------Set values for integrals
+    call SetBetaRoots()
+    call SetIntegralCoefficeintsGAMMA_Q()
+    call SetIntegralCoefficeintsGAMMA_G()   
     
     started=.true.
 

@@ -29,8 +29,8 @@ real(dp)::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 public::alphaEM,EWinput_Initialize,EWinput_IsInitialized
 
 !!-Z-gamma DY
-real(dp),public::paramU,paramD,paramS,paramC,paramB,paramL
-real(dp),public::paramMIXU,paramMIXD,paramMIXS,paramMIXC,paramMIXB,paramMIXL
+real(dp),public::paramU,paramD,paramS,paramC,paramB,paramL,paramL_A
+real(dp),public::paramMIXU,paramMIXD,paramMIXS,paramMIXC,paramMIXB,paramMIXL,paramMIXL_A
 !!-W DY
 real(dp),public::paramW_UD,paramW_US,paramW_UB,paramW_CD,paramW_CS,paramW_CB,paramW_L
 
@@ -64,7 +64,7 @@ contains
   character(len=*)::file
   character(len=*),optional::prefix
   character(len=300)::path
-  logical::initRequared
+  logical::initRequired
   real(dp)::dummy
   integer::FILEver
   
@@ -96,9 +96,9 @@ contains
     !!! check do we need initialisation?
     call MoveTO(51,'*2   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-      if(outputLevel>1) write(*,*)'artemide.EWinput: initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+      if(outputLevel>1) write(*,*)'artemide.EWinput: initialization is not required. '
       started=.false.
       return
     end if
@@ -229,7 +229,7 @@ contains
  ef=-1d0/3d0
  t3=-0.5d0
  paramS=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXC=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ paramMIXS=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
  
  !---------------C-quark
  ef=2d0/3d0
@@ -248,6 +248,9 @@ contains
  t3=-0.5d0
  paramL=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
  paramMIXL=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ !!! asymetric combinations
+ paramL_A=(4d0*Abs(ef)*sW2**2-1)/(8d0*sW2*cW2)
+ paramMIXL_A=-t3*ef/(2d0*Sqrt(sw2*cw2))
  
  !-------------------------------------------------------
  !---  W-boson interaction

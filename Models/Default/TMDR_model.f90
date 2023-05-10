@@ -13,7 +13,7 @@
 module TMDR_model
 use aTMDe_Numerics
 use IO_functions
-use TMD_AD, only : Dresum,zetaMUpert,zetaSL
+use TMD_AD, only : Dresum,Dpert,zetaMUpert,zetaSL,RADEvolution
 implicit none
 
 private
@@ -47,8 +47,8 @@ contains
 subroutine ModelInitialization(InitialNPParams)  
     real(dp),intent(in):: InitialNPParams(:)
 
-    if(size(InitialNPParams)<2) then
-        write(*,*) color('SV19-model: Number NP parameters for TMDR is less then 2',c_red)
+    if(size(InitialNPParams)<3) then
+        write(*,*) color('ART23-model: Number NP parameters for TMDR is less then 3',c_red)
         write(*,*) 'Evaluation STOP'
         stop
     end if
@@ -56,7 +56,8 @@ subroutine ModelInitialization(InitialNPParams)
     allocate(NPparam(1:size(InitialNPParams)))
     NPparam=InitialNPParams
     
-    write(*,*) color(">>>  The model for TMD evolution is SV19. Please, cite [1912.06532]   <<<",c_cyan)
+    write(*,*) &
+    color(">>>  The model for TMD evolution is ART23. Please, cite [1907.10356]&[2305.????]   <<<",c_cyan)
 
 end subroutine ModelInitialization 
 
@@ -70,47 +71,49 @@ subroutine ModelUpdate(newNPParams)
 end subroutine ModelUpdate
   
  
-!!! This is the rapidity anomalous dimension non-pertrubative model
+!!! This is the rapidity anomalous dimension non-perturbative model
 !!! In your evaluation take care that the saddle point is inside the pertrubative regeme
-!!! Use function Dpert(mu,b,f) for D pertrubative, use Dresum for D resum
+!!! Use function Dpert(mu,b,f) for D perturbative, use Dresum for D resum
 function DNP(mu,b,f)
     real(dp),intent(in)::mu,b
     integer,intent(in)::f
     real(dp)::bSTAR
-
+    
     bSTAR=b/SQRT(1_dp+b**2/NPparam(1)**2)
-    DNP=Dresum(mu,bSTAR,1)+NPparam(2)*bSTAR*b  !!!! D*+gK b b*, it smoother turns perturbative to b^2 assimptotic
+
+    DNP=Dpert(C0_const/bSTAR*NPparam(4),bSTAR,1)+RADEvolution(C0_const/bSTAR*NPparam(4),mu,1)&
+                +NPparam(2)*b*bSTAR+NPparam(3)*b*bSTAR*Log(bSTAR/NPparam(1))
     
 end function DNP
   
 !! This is the non-pertrubative shape of zeta_mu line.
-!! It MUST follow the equipotential line in pertrubative regime (at small-b), at the level pf PT accuracy.
+!! It MUST follow the equipotential line in perturbative regime (at small-b), at the level pf PT accuracy.
 !! Otherwice, your evolution is completely broken.
 !! Use zetaMUpert for perturbative values, use zetaSL for exact values
 function zetaNP(mu,b,f)
     real(dp),intent(in)::mu,b
     integer,intent(in)::f
-    real(dp)::zz,rad
+    real(dp)::zz,rad,w1,w2
     
     rad=DNP(mu,b,f)
-    zz=Exp(-b**2/NPparam(1)**2)
+
+    !! this ofset is required to guaranty a good numerical bahavior at b->0.
+    !! In principle, zz=0 also works
+    zz=Exp(-b**2/0.01d0)
+
     zetaNP=zetaMUpert(mu,b,f)*zz+zetaSL(mu,rad,f)*(1d0-zz)
+
 end function zetaNP
  
 !!! In SV19 model the replica parameters are stored in separate file.
 subroutine GetReplicaParameters(rep,NParray)
     integer,intent(in)::rep
     real(dp),allocatable,intent(out)::NParray(:)
-    integer::i
+    real(dp),parameter,dimension(1:2)::replica=(/2.2824d0, 0.025d0,0d0/)
     
-    allocate(NParray(1:size(NPparam)))
+    allocate(NParray(1:2))
 
-    write(*,*) warningstring("set model replica via artemide-control module","SV19")
-    write(*,*) warningstring("some generic NP values returned","SV19")
-    NParray(1)=1d0
-    do i=2,size(NPparam)
-        NParray(1)=0.001d0
-    end do
+    NParray=replica
 
 end subroutine GetReplicaParameters
 

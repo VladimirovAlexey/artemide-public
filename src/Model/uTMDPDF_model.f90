@@ -61,7 +61,7 @@ subroutine ModelInitialization(NPstart)
     allocate(NPparam(1:size(NPstart)))
     NPparam=NPstart
     
-    write(*,*) color(">>>  The model for uTMDPDF is Vpion19 & BSV19. Please, cite [1902.08474]&[1907.10356]   <<<",c_cyan)
+    write(*,*) color(">>>  The model for uTMDPDF for ART23   <<<",c_cyan)
     
 end subroutine ModelInitialization
 
@@ -82,22 +82,44 @@ function FNP(x,z,bT,hadron,lambdaNP)
   real(dp),intent(in)::x,z,bT    
   integer,intent(in)::hadron
   real(dp),intent(in)::lambdaNP(:)
-  real*8::FNP0
+  real*8::FNP0,FNPu,FNPd,FNPubar,FNPdbar,FNPr
 
-   real*8::bb,w1,w2,w3
+   real*8::bb,w1,w2,w3,wu,wd,wubar,wdbar,wr,wcommon
    
    if(hadron==1) then
    
     bb=bT**2
-    w1=lambdaNP(1)*(1-x)+x*lambdaNP(2)+x*(1-x)*lambdaNP(5)
-    w2=lambdaNP(3)*x**lambdaNP(4)+lambdaNP(6)
-   
-    if(w2<0d0 .or. w1<0d0) then
-    FNP0=-1d0
+
+    wu=lambdaNP(1)*(1-x)+x*lambdaNP(2)
+    wd=lambdaNP(3)*(1-x)+x*lambdaNP(4)
+    wubar=lambdaNP(5)*(1-x)+x*lambdaNP(6)
+    wdbar=lambdaNP(7)*(1-x)+x*lambdaNP(8)
+    wr=lambdaNP(9)*(1-x)+x*lambdaNP(10)
+    !wcommon=(lambdaNP(11)*x**2+lambdaNP(12))
+
+
+    if(wu<0d0 .or. wd<0d0 .or. wubar<0d0 .or. wdbar<0d0 .or. wr<0d0 .or. wcommon<0d0) then
+        FNPu=Exp(-10d0*bb)
+        FNPd=Exp(-10d0*bb)
+        FNPubar=Exp(-10d0*bb)
+        FNPdbar=Exp(-10d0*bb)
+        FNPr=Exp(-10d0*bb)
     else
-    FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
+        FNPu=1d0/cosh(wu*bT)
+        FNPd=1d0/cosh(wd*bT)
+        FNPubar=1d0/cosh(wubar*bT)
+        FNPdbar=1d0/cosh(wdbar*bT)
+        FNPr=1d0/cosh(wr*bT)
     end if
-    !FNP0=1d0
+
+
+    FNP=(/&
+    FNPr,FNPr,FNPr,FNPubar,FNPdbar,&
+    0d0,&
+    FNPd,FNPu,FNPr,FNPr,FNPr/)
+
+
+
   else 
       bb=bT**2
       w1=(lambdaNP(7)+(1-x)**2*lambdaNP(8))
@@ -107,9 +129,11 @@ function FNP(x,z,bT,hadron,lambdaNP)
       else
       FNP0=Exp(-w1*bb/sqrt(1+w2*bb))
       end if
+
+      FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
       
   end if
-  FNP=FNP0*(/1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0,1d0/)
+
 
   end function FNP
   
@@ -122,14 +146,22 @@ pure function bSTAR(bT,lambdaNP)
     real(dp),intent(in)::lambdaNP(:)
 
     bSTAR=bT/sqrt(1d0+(bT/500d0)**2)
+    !bSTAR=bT/(1d0+bT*2/C0_const)
+    !bSTAR=bT/sqrt(1+(bT/1.)**2)
 
 end function bSTAR
   
     !!!!This function is the mu(x,b), which is used inside the OPE
-pure function mu_OPE(z,bt)
+pure function mu_OPE(z,bt,c4)
     real(dp),intent(in)::z,bt
+    real(dp),intent(in),optional::c4
 
-    mu_OPE=C0_const*1d0/bT+2d0
+    if(present(c4)) then
+        mu_OPE=C0_const*c4/bT+2d0
+        !mu_OPE=C0_const/bT*sqrt(1+(bT/1.)**2)
+    else
+        mu_OPE=C0_const/bT+2d0
+    end if
 
     if(mu_OPE>1000d0) then
         mu_OPE=1000d0

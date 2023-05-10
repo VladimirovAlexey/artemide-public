@@ -70,6 +70,8 @@ end subroutine SetBetaFunction
 
 !!!! sets the values of cusp anomalous dimension
 !!!! the 4-loop expression is taken from [2001.11377] (appendix C)
+!!!! the 5-loop expression is taken from [1812.11818] formula (13), central value(!!) 
+!!!!      only nf=3,4,5 avalible
 subroutine SetGammaCuspQuark()
     integer::n
     
@@ -107,12 +109,25 @@ subroutine SetGammaCuspQuark()
                 -88400d0/81d0*zeta2 -352d0/3d0*zeta2*zeta3 +3608d0/5d0*(zeta2**2)-20032d0/105d0*(zeta2**3)))
     end do
     
+    !! 5-loop
+    do n=NfMIN,NfMAX
+        if(n<=3) then
+            GammaCuspQ_internal(4,n)=4d0*CF*32417.5d0
+        else if(n==4) then
+            GammaCuspQ_internal(4,n)=4d0*CF*19949.2d0
+        else
+            GammaCuspQ_internal(4,n)=4d0*CF*12468.3d0
+        end if
+    end do    
+        
 end subroutine SetGammaCuspQuark
 
 !!!! sets the values of cusp anomalous dimension
 !!!! the values up to 3-loop are the same as for the quark *CA/CF
 !!!! the explicit 4-loop expression is not given yet.
 !!!! Instead, I use the numeric values for given in [1805.09638]
+!!!! the 5-loop expression is taken as CA/CF from [1812.11818] formula (13), central value(!!) 
+!!!!      only nf=3,4,5 avalible,
 subroutine SetGammaCuspGluon()
     integer::n
     
@@ -139,11 +154,23 @@ subroutine SetGammaCuspGluon()
         GammaCuspG_internal(3,n)=40880.d0 - 11714.d0*n + 440.0488d0*(n**2) + 7.362774d0*(n**3)
     end do
     
+    !! 5-loop
+    do n=NfMIN,NfMAX
+        if(n<=3) then
+            GammaCuspG_internal(4,n)=4d0*CA*32417.5d0
+        else if(n==4) then
+            GammaCuspG_internal(4,n)=4d0*CA*19949.2d0
+        else
+            GammaCuspG_internal(4,n)=4d0*CA*12468.3d0
+        end if
+    end do
+    
 end subroutine SetGammaCuspGluon
 
 !!!! sets the values of vector FF anomalous dimension
 !!!! it is defined with factor 2 (standard for TMD physics)
 !!!! 3-loop expression is taken from [1004.3653]
+!!!! 4-loop expression is taken from [2202.04660] (aux-file, 2,3-loops confirmed)
 subroutine SetGammaVQuark()
     integer::n
     
@@ -171,12 +198,17 @@ subroutine SetGammaVQuark()
             +(CA**2)*(-139345d0/2916d0 -7163d0/81d0*zeta2 -83d0*zeta4 +3526d0/9d0*zeta3 -88d0/3d0*zeta2*zeta3 -136d0*zeta5))
     end do
     
+        !! 4-loop
+    do n=NfMIN,NfMAX
+        GammaVQ_internal(4,n)=-24503.6d0 + 7857.17d0*n - 414.043d0*n**2 - 6.51577d0*n**3
+    end do 
     
 end subroutine SetGammaVQuark
 
 !!!! sets the values of vector FF anomalous dimension
 !!!! it is defined with factor 2 (standard for TMD physics)
 !!!! 3-loop expression is taken from [1004.3653]
+!!!! 4-loop expression is taken from [2202.04660] (aux-file, 2,3-loops confirmed)
 subroutine SetGammaVGluon()
     integer::n
     
@@ -201,10 +233,16 @@ subroutine SetGammaVGluon()
             -(CF**2)*n -11d0/9d0*CF*(n**2))
     end do    
     
+    !! 4-loop
+    do n=NfMIN,NfMAX
+        GammaVG_internal(4,n)=-84790.4d0 + 29077.5d0*n - 906.871d0*n**2 - 2.90651d0*n**3
+    end do 
+    
 end subroutine SetGammaVGluon
 
 !!!! sets the values of finite part for RAD
 !!!! Expression is taken from [1707.07606]
+!!!! 4-loop expression is taken from aux-files in [2205.02249]
 subroutine SetDn0Quark()
     integer::n
     
@@ -227,11 +265,17 @@ subroutine SetDn0Quark()
                             +CF*(n**2)*(928d0/729d0 +16d0/9d0*zeta3)
     end do    
     
+    !! 4-loop
+    do n=NfMIN,NfMAX
+        d_nk_Q_internal(4,0,n)=350.834d0 - 2428.14d0*n + 378.306d0*n**2 - 8.07192d0*n**3
+    end do  
+    
 end subroutine SetDn0Quark
 
 !!!! sets the values of finite part for RAD
 !!!! Expression is taken from [1707.07606]
 !!!! at this order the differance between quark and gluon is CA/CF
+!!!! 4-loop expression is taken from aux-files in [2205.02249] (there is no CA/CF any more)
 subroutine SetDn0Gluon()
     integer::n
     
@@ -252,6 +296,11 @@ subroutine SetDn0Gluon()
                             +(CA**2)*n*(-31313d0/729d0 +412d0/81d0*zeta2 +452d0/27d0*zeta3 -10d0/3d0*zeta4)&
                             +CF*CA*n*(-1711d0/54d0 +152d0/9d0*zeta3 +8d0*zeta4)&
                             +CA*(n**2)*(928d0/729d0 +16d0/9d0*zeta3)
-    end do    
+    end do 
+    
+    !! 4-loop
+    do n=NfMIN,NfMAX
+        d_nk_G_internal(3,0,n)=-333.77d0 - 5506.38d0*n + 851.188d0*n**2 - 18.1618d0*n**3
+    end do
     
 end subroutine SetDn0Gluon

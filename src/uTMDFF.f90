@@ -57,22 +57,16 @@ real(dp) :: tolerance=0.0001d0!!! relative tolerance of the integration
 integer :: maxIteration=5000
 
 !------------------------------Variables for coefficient function etc-------------------------------
-integer,parameter::parametrizationLength=25
+integer,parameter::parametrizationLength=36
+
 !!!!!Coefficient lists
-!! { Log[1-z], log[1-z]^2, log[1-z]^3  !exact
-!!   1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
-!! Log[z], log[z]^2, Log[z]^3 !exact
-!! 1 (exact), z, z^2
-!! zLog[z]/(1-z), z Log[z], z^2 Log[z]
-!! z Log[z]^2/(1-z), z Log[z]^2,  z Log[z]^3
-!! (Log[z]/(1-z)+1)Log[1-z], Log[z]Log[1-z],  zLog[z]Log[1-z],
-!! (1-z)/z Log[1-z], (1-z)Log[1-z], (1-z) Log[1-z]^2 }
-!! The Lmu^2 part is exact the later parts are fitted, but exact if posible (e.g. Lmu and Nf parts for q->q)
+!!!!! contain exact asymptotic z->0, and z->1.
+!!!!! regular part fit by some function, such that all coefficeint without polylog [main log,large-nf] are exact
 real(dp),dimension(1:parametrizationLength) :: Coeff_q_q, Coeff_q_g, Coeff_g_q, Coeff_g_g, Coeff_q_qb, Coeff_q_qp
 
 !! This is list of coefficeints for the encoding the singular at x->1
-!! { 1/(1-x), (Log[1-x]/(1-x))_+}
-real(dp), dimension(1:2) :: CoeffSing1_q_q,CoeffSing1_g_g
+!! { 1/(1-x), (Log[1-x]/(1-x))_+, (Log[1-x]^2/(1-x))_+,}
+real(dp), dimension(1:3) :: CoeffSing1_q_q,CoeffSing1_g_g
 
 integer:: counter,messageCounter
 
@@ -97,6 +91,9 @@ logical::IsComposite=.false.					!!!flag to use the composite TMD
 public::uTMDFF_Initialize,uTMDFF_SetLambdaNP,uTMDFF_resetGrid,uTMDFF_SetScaleVariation,uTMDFF_CurrentNPparameters
 public::uTMDFF_IsInitialized
 public::uTMDFF_lowScale5,uTMDFF_lowScale50
+public::uTMDFF_SetFFreplica
+
+! public::CheckCoefficient
 
 interface uTMDFF_SetLambdaNP
     module procedure uTMDFF_SetLambdaNP_usual,uTMDFF_SetReplica_optional
@@ -127,7 +124,7 @@ subroutine uTMDFF_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared
+    logical::initRequired
     character(len=8)::orderMain
     logical::bSTAR_lambdaDependent
     integer::i,FILEver
@@ -171,9 +168,9 @@ subroutine uTMDFF_Initialize(file,prefix)
 
     call MoveTO(51,'*5   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-        if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+        if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not required. '
         started=.false.
         return
     end if
@@ -202,9 +199,18 @@ subroutine uTMDFF_Initialize(file,prefix)
         CASE ("NNLO")
             if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
             order_global=2
+        CASE ("N2LO")
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
+            order_global=2
         CASE ("NNLO+")
             if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
             order_global=2
+        CASE ("NNNLO")
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNNLO'
+            order_global=3
+        CASE ("N3LO")
+            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: N3LO'
+            order_global=3
         CASE DEFAULT
             if(outputLevel>0) write(*,*) &
                 WarningString('Initialize: unknown order for coefficient function. Switch to NLO.',moduleName)
@@ -351,41 +357,59 @@ end subroutine uTMDFF_Initialize
 
   
     !! call for parameters from the model
-subroutine uTMDFF_SetReplica_optional(num,buildGrid, gluonRequared)
+subroutine uTMDFF_SetReplica_optional(num,buildGrid, gluonRequired)
     integer, intent(in):: num
-    logical,optional:: buildGrid,gluonRequared
+    logical,optional:: buildGrid,gluonRequired
     real(dp),allocatable::NParray(:)
 
     call GetReplicaParameters(num,NParray)
 
     if(present(buildGrid)) then
-        if(present(gluonRequared)) then
-            call uTMDFF_SetLambdaNP_usual(NParray,buildGrid=buildGrid,gluonRequared=gluonRequared)
+        if(present(gluonRequired)) then
+            call uTMDFF_SetLambdaNP_usual(NParray,buildGrid=buildGrid,gluonRequired=gluonRequired)
         else
             call uTMDFF_SetLambdaNP_usual(NParray,buildGrid=buildGrid)
         end if
     else
-        if(present(gluonRequared)) then
-            call uTMDFF_SetLambdaNP_usual(NParray,gluonRequared=gluonRequared)
+        if(present(gluonRequired)) then
+            call uTMDFF_SetLambdaNP_usual(NParray,gluonRequired=gluonRequired)
         else
             call uTMDFF_SetLambdaNP_usual(NParray)
         end if
     end if
   
 end subroutine uTMDFF_SetReplica_optional
+
+!! call QCDinput to change the PDF replica number
+!! unset the grid, since it should be recalculated fro different PDF replica.
+subroutine uTMDFF_SetFFreplica(rep,hadron)
+    integer,intent(in):: rep,hadron
+    logical::newPDF
+
+    call QCDinput_SetFFreplica(rep,hadron,newPDF)
+    if(newPDF) then
+        gridReady=.false.
+        call uTMDFF_resetGrid()
+    else
+        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,' is the same as the used one. Nothing is done!')") &
+        moduleName, rep
+    end if
+
+end subroutine uTMDFF_SetFFreplica
+
 !!!Sets the non-pertrubative parameters lambda
 !!! carries additionl option to build the grid
-!!! if need to build grid, specify the gluon requared directive.
-subroutine uTMDFF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
+!!! if need to build grid, specify the gluon required directive.
+subroutine uTMDFF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequired)
     real(dp),intent(in)::lambdaIN(:)
-    logical,optional :: buildGrid,gluonRequared
+    logical,optional :: buildGrid,gluonRequired
     real(dp),dimension(1:lambdaNPlength)::lambdaOLD
     logical::IsNewValues
     integer::i,ll
     messageCounter=0
 
     if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequared)) withGluon=gluonRequared
+    if(present(gluonRequired)) withGluon=gluonRequired
 
     ll=size(lambdaIN)
     if(ll<lambdaNPlength) then 
@@ -463,12 +487,12 @@ subroutine uTMDFF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
 end subroutine uTMDFF_SetLambdaNP_usual
   
 !!! This subroutine ask for the grid reconstruction (or destruction)
-subroutine uTMDFF_resetGrid(buildGrid,gluonRequared)
-    logical,optional::buildGrid,gluonRequared
+subroutine uTMDFF_resetGrid(buildGrid,gluonRequired)
+    logical,optional::buildGrid,gluonRequired
     logical::previousState
 
     if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequared)) withGluon=gluonRequared
+    if(present(gluonRequired)) withGluon=gluonRequired
 
     previousState=gridReady
     gridReady=.false.

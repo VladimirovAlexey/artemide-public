@@ -106,6 +106,24 @@ function Dresum(mu,bT,f)
     LL=2_dp*LOG(bT*mu*C0_inv_const)
     
     X=betaQCD(0,Nf)*alpha*LL
+    
+    
+    !!! in many models D evaluated at X=0, to speed up these computations I explicitely state it
+    if(abs(X)<1d-7) then
+    Dresum=0_dp
+    if(f==0) then !! gluon case
+        do n=2,orderDresum
+            Dresum=Dresum+alpha**n*dnk_G(n,0,Nf)
+        end do
+    else !! quark case
+        do n=2,orderDresum
+            Dresum=Dresum+alpha**n*dnk_Q(n,0,Nf)
+        end do
+    end if
+    
+    !!! complete case
+    else    
+    
     lX=Log(1_dp-X)
     
     if(f==0) then !! gluon case
@@ -143,6 +161,8 @@ function Dresum(mu,bT,f)
         write(*,*) 'Evaluation STOP'
         stop
     end if
+    
+    end if
 end function Dresum
 
 !-------------------zeta-lines -------------------------------------
@@ -156,38 +176,47 @@ function zetaMUpert(mu,bt,f)
   integer::Nf,n,k
   real(dp)::alpha,LL,val,iter
   
-  if(orderZETA<0) then
+  if(orderZETA>0) then !!! NLO,NNLO,...
+  
+    LL=2_dp*LOG(bt*mu*C0_inv_const)
+    alpha=As(mu)
+    Nf=ActiveNf(mu)    
+    
+    !!!!! Important!!!!
+    !! the perturbative value for zeta, must be taken 1-order higher
+    !! because there double logarithms ~~beta0 L
+    !! For 4-loop it requires 5-loop rad... The value which contains it is set to zero v(4,0)=0.
+    if(f==0) then !!! gluon
+        val=vnk_g(0,0,Nf)
+        
+        do n=1,orderZETA-1
+            iter = 0_dp
+            do k=0,n+1           
+                iter=iter+(LL**k)*vnk_g(n,k,Nf)            
+            end do
+            val=val+(alpha**n)*iter
+        end do   
+        
+    else !!!! quark
+        val=vnk_q(0,0,Nf)
+        
+        do n=1,orderZETA
+            iter = 0_dp
+            do k=0,n+1
+                iter=iter+(LL**k)*vnk_q(n,k,Nf)
+            end do            
+            val=val+(alpha**n)*iter
+        end do
+    end if
+  
+    zetaMUpert=mu*C0_const/bT*EXP(-val)
+  
+  else if (orderZETA==0) then   !!! LO 
+    zetaMUpert=mu*C0_const/bT
+    
+  else !!!! just in case
     zetaMUpert=1_dp
-    return
   end if
-  
-  LL=2_dp*LOG(bt*mu*C0_inv_const)
-  alpha=As(mu)
-  Nf=ActiveNf(mu)
-  
-  if(f==0) then !!! gluon
-    val=vnk_g(0,0,Nf)
-    
-    do n=1,orderZETA
-        iter = 0_dp
-        do k=0,orderZETA+1            
-            iter=iter+(LL**k)*vnk_g(n,k,Nf)
-        end do
-        val=val+(alpha**n)*iter
-    end do   
-  else !!!! quark
-    val=vnk_q(0,0,Nf)
-    
-    do n=1,orderZETA
-        iter = 0_dp
-        do k=0,orderZETA+1
-            iter=iter+(LL**k)*vnk_q(n,k,Nf)
-        end do
-        val=val+(alpha**n)*iter
-    end do
-  end if
-  
-  zetaMUpert=mu*C0_const/bT*EXP(-val)
   
 end function zetaMUpert
  

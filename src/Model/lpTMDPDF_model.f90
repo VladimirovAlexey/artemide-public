@@ -100,10 +100,16 @@ pure function bSTAR(bT,lambdaNP)
 end function bSTAR
   
 !!!!This function is the mu(x,b), which is used inside the OPE
-pure function mu_OPE(z,bt)
+pure function mu_OPE(z,bt,c4)
     real(dp),intent(in)::z,bt
+    real(dp),intent(in),optional::c4
 
-    mu_OPE=C0_const*1d0/bT+2d0
+    if(present(c4)) then
+        mu_OPE=C0_const*c4/bT+2d0
+        !mu_OPE=C0_const/bT*sqrt(1+(bT/1.)**2)
+    else
+        mu_OPE=C0_const/bT+2d0
+    end if
 
     if(mu_OPE>1000d0) then
         mu_OPE=1000d0

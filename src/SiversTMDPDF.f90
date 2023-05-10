@@ -103,7 +103,7 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared
+    logical::initRequired
     character(len=8)::orderMain
     logical::bSTAR_lambdaDependent
     integer::i,FILEver
@@ -147,9 +147,9 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
 
     call MoveTO(51,'*12   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-        if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+        if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not required. '
         started=.false.
         return
     end if
@@ -174,7 +174,7 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
                 WarningString('Initialize: unknown order for coefficient function. Switch to LO.',moduleName)
             if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
             order_global=0
-        END SELECT
+    END SELECT
 
     if(outputLevel>2 .and. order_global>-1) write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
         
@@ -268,7 +268,7 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
 
     call ModelInitialization(lambdaNP)
 
-        !!!!!!!Checking the lambda-dependance of bSTAR
+    !!!!!!!Checking the lambda-dependance of bSTAR
     bSTAR_lambdaDependent=testbSTAR()
 
     if(bSTAR_lambdaDependent) then
@@ -292,22 +292,22 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
 end subroutine SiversTMDPDF_Initialize
 
 !! call for parameters from the model
-subroutine SiversTMDPDF_SetReplica_optional(num,buildGrid, gluonRequared)
+subroutine SiversTMDPDF_SetReplica_optional(num,buildGrid, gluonRequired)
     integer,intent(in):: num
-    logical,optional,intent(in):: buildGrid,gluonRequared
+    logical,optional,intent(in):: buildGrid,gluonRequired
     real(dp),allocatable::NParray(:)
 
     call GetReplicaParameters(num,NParray)
 
     if(present(buildGrid)) then
-    if(present(gluonRequared)) then
-        call SiversTMDPDF_SetLambdaNP_usual(NParray,buildGrid=buildGrid,gluonRequared=gluonRequared)
+    if(present(gluonRequired)) then
+        call SiversTMDPDF_SetLambdaNP_usual(NParray,buildGrid=buildGrid,gluonRequired=gluonRequired)
     else
         call SiversTMDPDF_SetLambdaNP_usual(NParray,buildGrid=buildGrid)
     end if
     else
-    if(present(gluonRequared)) then
-        call SiversTMDPDF_SetLambdaNP_usual(NParray,gluonRequared=gluonRequared)
+    if(present(gluonRequired)) then
+        call SiversTMDPDF_SetLambdaNP_usual(NParray,gluonRequired=gluonRequired)
     else
         call SiversTMDPDF_SetLambdaNP_usual(NParray)
     end if
@@ -317,27 +317,27 @@ end subroutine SiversTMDPDF_SetReplica_optional
 
 !! call QCDinput to change the PDF replica number
 !! unset the grid, since it should be recalculated fro different PDF replica.
-subroutine SiversTMDPDF_SetPDFreplica(rep)
-    integer,intent(in):: rep
-
-    call QCDinput_SetPDFreplica(rep)
-    gridReady=.false.  
-    call SiversTMDPDF_resetGrid()
+subroutine SiversTMDPDF_SetPDFreplica(rep,hadron)
+    integer,intent(in):: rep,hadron
+    
+    if(outputLevel>0) write(*,*) &
+                WarningString('Cannot change PDF replica. No PDFs for Sivers. NOTHING IS DONE!',moduleName)
+    
 end subroutine SiversTMDPDF_SetPDFreplica
 
 !!!Sets the non-pertrubative parameters lambda
 !!! carries additionl option to build the grid
-!!! if need to build grid, specify the gluon requared directive.
-subroutine SiversTMDPDF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequared)
+!!! if need to build grid, specify the gluon required directive.
+subroutine SiversTMDPDF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequired)
     real(dp),intent(in)::lambdaIN(:)
-    logical,optional,intent(in) :: buildGrid,gluonRequared
+    logical,optional,intent(in) :: buildGrid,gluonRequired
     real(dp),dimension(1:lambdaNPlength)::lambdaOLD
     logical::IsNewValues
     integer::i,ll
     messageCounter=0
 
     if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequared)) withGluon=gluonRequared
+    if(present(gluonRequired)) withGluon=gluonRequired
 
     ll=size(lambdaIN)
     if(ll<lambdaNPlength) then 
@@ -421,12 +421,12 @@ subroutine SiversTMDPDF_CurrentNPparameters(var)
 end subroutine SiversTMDPDF_CurrentNPparameters
 
 !!! This subroutine ask for the grid reconstruction (or destruction)
-subroutine SiversTMDPDF_resetGrid(buildGrid,gluonRequared)
-    logical,optional,intent(in)::buildGrid,gluonRequared
+subroutine SiversTMDPDF_resetGrid(buildGrid,gluonRequired)
+    logical,optional,intent(in)::buildGrid,gluonRequired
     logical::previousState
 
     if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequared)) withGluon=gluonRequared
+    if(present(gluonRequired)) withGluon=gluonRequired
 
     previousState=gridReady
     gridReady=.false.

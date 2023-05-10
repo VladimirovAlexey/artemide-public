@@ -333,7 +333,7 @@ function ExtractFromGrid(x,bT,hadron)
   do i=-5,5
    if(ISNAN(ExtractFromGrid(i))) then
     
-    write(*,*) ErrorString('grid extraction produced NaN. EVALUSTION STOP',moduleName)
+    write(*,*) ErrorString('grid extraction produced NaN. EVALUATION STOP',moduleName)
     write(*,*) '----- information on last call -----'
     write(*,*) 'bT=',bT,' i=',i, ' extraction=',ExtractFromGrid(i)
     write(*,*) 'interI=',interI(0:3,i)

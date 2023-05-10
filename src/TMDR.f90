@@ -26,7 +26,7 @@ implicit none
 private
 
 !Current version of module
-character (len=5),parameter :: version="v2.04"
+character (len=5),parameter :: version="v2.06"
 character (len=7),parameter :: moduleName="TMDR"
 !Last appropriate verion of constants-file
 integer,parameter::inputver=10
@@ -72,10 +72,10 @@ integer::NPlength=0
 !! array of non-pertrubative parameters
 real(dp),allocatable,dimension(:):: NPparam
 
-public::TMDR_R,TMDR_Rzeta
+public::TMDR_R,TMDR_Rzeta,TMDR_Rzeta_harpy
 public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ,TMDR_IsInitialized,TMDR_CurrentNPparameters
 
-public::DNP!,GammaCusp,gammaV
+!public::DNP!,GammaCusp,gammaV
 
 
 
@@ -114,7 +114,7 @@ subroutine TMDR_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared
+    logical::initRequired
     character(len=8)::orderMain
     integer::i,FILEver
     
@@ -148,9 +148,9 @@ subroutine TMDR_Initialize(file,prefix)
     
     call MoveTO(51,'*3   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+      if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not required. '
       started=.false.
       return
     end if
@@ -159,69 +159,99 @@ subroutine TMDR_Initialize(file,prefix)
     call MoveTO(51,'*p1  ')
     read(51,*) orderMain
     
+    !!!!! IMPORTANT
+    !!!!! Gamma cusp start from Gamma0, i.e. orderCusp=0 = as^1    
     SELECT CASE(orderMain)
       CASE ("LO")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
-	orderCusp=1
+	orderCusp=0
 	orderV=0
 	orderD=0
 	orderDresum=0
-	orderZETA=-1
+	orderZETA=0
       CASE ("LO+")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
-	orderCusp=1
+	orderCusp=0
 	orderV=1
 	orderD=1
 	orderDresum=0
 	orderZETA=0
       CASE ("NLO")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO'
-	orderCusp=2
+	orderCusp=1
 	orderV=1
 	orderD=1
 	orderDresum=1
 	orderZETA=1
       CASE ("NLO+")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NLO+'
-	orderCusp=2
+	orderCusp=1
 	orderV=2
 	orderD=2
 	orderDresum=1
 	orderZETA=1
       CASE ("NNLO")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
-	orderCusp=3
+	orderCusp=2
+	orderV=2
+	orderD=2
+	orderDresum=2
+	orderZETA=2
+      CASE ("N2LO")
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO'
+	orderCusp=2
 	orderV=2
 	orderD=2
 	orderDresum=2
 	orderZETA=2
       CASE ("NNLO+")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNLO+'
-	orderCusp=4!3
+	orderCusp=2
 	orderV=3
 	orderD=3
 	orderDresum=3!2
 	orderZETA=3!2
       CASE ("NNNLO")
 	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NNNLO'
-	orderCusp=4
+	orderCusp=3
 	orderV=3
 	orderD=3
 	orderDresum=3
 	orderZETA=3
+      CASE ("N3LO") !!! same as NNNLO
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: N3LO'
+	orderCusp=3
+	orderV=3
+	orderD=3
+	orderDresum=3
+	orderZETA=3
+      CASE ("N3LO+")
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: N3LO+'
+	orderCusp=3
+	orderV=4
+	orderD=4
+	orderDresum=3
+	orderZETA=3
+      CASE ("N4LO")
+	if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: N4LO'
+	orderCusp=4
+	orderV=4
+	orderD=4
+	orderDresum=4
+	orderZETA=4
       CASE DEFAULT
 	if(outputLevel>0) write(*,*) &
                 WarningString(' Initialize:try to set unknown ADs orders. Switch to NLO.',modulename)
 	if(outputLevel>1) write(*,*)  trim(moduleName)//' Order set: NLO'
-	orderCusp=2
+	orderCusp=1
 	orderV=1
 	orderD=1
 	orderDresum=1
 	orderZETA=1
-     END SELECT
+    END SELECT
       
      if(outputLevel>2) then
-      write(*,'(A,I1)') ' |  GammaCusp     =as^',orderCusp
+      write(*,'(A,I1)') ' |  GammaCusp     =as^',orderCusp+1
       write(*,'(A,I1)') ' |  gammaV        =as^',orderV
       write(*,'(A,I1)') ' |  D             =as^',orderD
       write(*,'(A,I1)') ' |  Dresum        =as^',orderDresum

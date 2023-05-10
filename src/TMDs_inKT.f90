@@ -20,7 +20,7 @@ implicit none
 private
 
 character (len=10),parameter :: moduleName="TMDs-inKT"
-character (len=5),parameter :: version="v2.04"
+character (len=5),parameter :: version="v2.06"
 !Last appropriate verion of constants-file
 integer,parameter::inputver=1
 
@@ -60,7 +60,7 @@ integer::messageTrigger=5
 public::TMDs_inKT_Initialize,TMDs_inKT_ShowStatistic,TMDs_inKT_IsInitialized,TMDs_inKT_ResetCounters
     
 real(dp),dimension(-5:5),public::uTMDPDF_kT_50,uTMDPDF_kT_5,uTMDFF_kT_5,uTMDFF_kT_50,lpTMDPDF_kT_50,&
-    SiversTMDPDF_kT_5,SiversTMDPDF_kT_50
+    SiversTMDPDF_kT_5,SiversTMDPDF_kT_50,wgtTMDPDF_kT_5,wgtTMDPDF_kT_50
 public::testTMD_kT
 
 interface uTMDPDF_kT_5
@@ -91,6 +91,14 @@ interface SiversTMDPDF_kT_50
     module procedure SiversTMDPDF_kT_50_Ev,SiversTMDPDF_kT_50_optimal
 end interface
 
+interface wgtTMDPDF_kT_5
+    module procedure wgtTMDPDF_kT_5_Ev,wgtTMDPDF_kT_5_optimal
+end interface
+
+interface wgtTMDPDF_kT_50
+    module procedure wgtTMDPDF_kT_50_Ev,wgtTMDPDF_kT_50_optimal
+end interface
+
 contains 
 function TMDs_inKT_IsInitialized()
     logical::TMDs_inKT_IsInitialized
@@ -102,7 +110,7 @@ subroutine TMDs_inKT_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
     character(len=300)::path,line
-    logical::initRequared
+    logical::initRequired
     integer::FILEver
 
     if(started) return
@@ -134,9 +142,9 @@ subroutine TMDs_inKT_Initialize(file,prefix)
 
     call MoveTO(51,'*8   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) initRequared
-    if(.not.initRequared) then
-        if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not requared. '
+    read(51,*) initRequired
+    if(.not.initRequired) then
+        if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not required. '
         started=.false.
         return
     end if
@@ -361,6 +369,35 @@ function SiversTMDPDF_kT_50_optimal(x,qT,hadron)
     integer::hadron
     SiversTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,14,hadron) 
 end function SiversTMDPDF_kT_50_optimal
+
+!---------------------------------------------------wgtTMDPDF
+function wgtTMDPDF_kT_5_Ev(x,qT,mu,zeta,hadron)
+    real(dp)::wgtTMDPDF_kT_5_Ev(-5:5)
+    real(dp)::x,qT,mu,zeta
+    integer::hadron
+    wgtTMDPDF_kT_5_Ev=Fourier(x,qT,mu,zeta,15,hadron) 
+end function wgtTMDPDF_kT_5_Ev
+
+function wgtTMDPDF_kT_50_Ev(x,qT,mu,zeta,hadron)
+    real(dp)::wgtTMDPDF_kT_50_Ev(-5:5)
+    real(dp)::x,qT,mu,zeta
+    integer::hadron
+    wgtTMDPDF_kT_50_Ev=Fourier(x,qT,mu,zeta,16,hadron) 
+end function wgtTMDPDF_kT_50_Ev
+
+function wgtTMDPDF_kT_5_optimal(x,qT,hadron)
+    real(dp)::wgtTMDPDF_kT_5_optimal(-5:5)
+    real(dp)::x,qT
+    integer::hadron
+    wgtTMDPDF_kT_5_optimal=Fourier(x,qT,10d0,10d0,17,hadron) 
+end function wgtTMDPDF_kT_5_optimal
+
+function wgtTMDPDF_kT_50_optimal(x,qT,hadron)
+    real(dp)::wgtTMDPDF_kT_50_optimal(-5:5)
+    real(dp)::x,qT
+    integer::hadron
+    wgtTMDPDF_kT_50_optimal=Fourier(x,qT,10d0,10d0,18,hadron) 
+end function wgtTMDPDF_kT_50_optimal
  
 !------------------------------------------FOURIER--------------------------------
 !!!This is the defining module function
@@ -410,7 +447,7 @@ function Fourier(x,qT_in,mu,zeta,num,hadron)
     SELECT CASE(num)
         CASE(9,10)
             n=2
-        CASE(11,12,13,14)
+        CASE(11,12,13,14,15,16,17,18)
             n=1            
         CASE DEFAULT
             n=0
@@ -523,6 +560,20 @@ function Integrand(b,x,mu,zeta,num,hadron)
 
         CASE(14) !!! SiversTMDPDF  quarks+gluon OPTIMAL
             Integrand=SiversTMDPDF_50(x,b,hadron)
+            
+        CASE(15) !!! wgtTMDPDF  quarks
+            Integrand=wgtTMDPDF_5(x,b,mu,zeta,hadron)
+            Integrand(0)=0d0
+
+        CASE(16) !!! SiversuTMDPDF  quarks+gluon
+            Integrand=wgtTMDPDF_50(x,b,mu,zeta,hadron)
+
+        CASE(17) !!! wgtTMDPDF  quarks OPTIMAL
+            Integrand=wgtTMDPDF_5(x,b,hadron)
+            Integrand(0)=0d0
+
+        CASE(18) !!! wgtTMDPDF  quarks+gluon OPTIMAL
+            Integrand=wgtTMDPDF_50(x,b,hadron)
 
         CASE DEFAULT
         write(*,*) ErrorString('undefined TMD: ',moduleName)

@@ -63,7 +63,7 @@ contains
         end if
     end do
  end subroutine MoveTO
- 
+  
  !!! write list of short integers (I5) to streem spliting by commas
  !!! used to fill constants-file
  subroutine writeShortIntegerList(streem, list)
