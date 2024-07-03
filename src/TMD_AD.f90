@@ -116,8 +116,6 @@ INCLUDE 'Code/TMD_AD/AD_Integral.f90'
 subroutine TMD_AD_Initialize(oCusp,oV,oD,oDresum,oZETA)
     integer,intent(in)::oCusp,oV,oD,oDresum,oZETA
     
-    real(dp)::aa
-    
     if(started) return
     
     !setting orders

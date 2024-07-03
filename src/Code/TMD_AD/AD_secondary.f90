@@ -340,7 +340,7 @@ subroutine SetVnkGluon()
     do n=NfMIN,NfMAX
         B1=betaQCD(1,n)/betaQCD(0,n)
         B2=betaQCD(2,n)/betaQCD(0,n)
-        B2=betaQCD(3,n)/betaQCD(0,n)
+        B3=betaQCD(3,n)/betaQCD(0,n)
         
         G1=GammaCusp_g(1,n)/GammaCusp_g(0,n)
         G2=GammaCusp_g(2,n)/GammaCusp_g(0,n)

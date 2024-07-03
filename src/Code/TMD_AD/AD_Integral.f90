@@ -13,7 +13,7 @@
 !!!! The zeroth terms is G0/(-2b0) (common)
 !!!! k=number of root. The expression is given by Lagrange decomposition
 subroutine SetIntegralCoefficeintsGAMMA_Q()
-    integer::n,i,j,k,l
+    integer::n,i,j,k
     real(dp)::G1,G2,G3,G4,BB
     COMPLEX(dp)::ps
     
@@ -60,7 +60,7 @@ end subroutine SetIntegralCoefficeintsGAMMA_Q
 !!!! The zeroth terms is G0/(-2b0) (common)
 !!!! k=number of root. The expression is given by Lagrange decomposition
 subroutine SetIntegralCoefficeintsGAMMA_G()
-    integer::n,i,j,k,l
+    integer::n,i,j,k
     real(dp)::G1,G2,G3,G4,BB
     COMPLEX(dp)::ps
     
@@ -122,7 +122,7 @@ function GammaIntegral_Q(a0,a1,loop,nf)
         inter=inter+GammaIntegral_Q_internal(loop,i,nf)*LOG((a1-betaRoots_internal(loop,i,nf))/(a0-betaRoots_internal(loop,i,nf)))        
     end do    
     !!!! common factor (I use index=1, it is not defined for loop=0)
-    GammaIntegral_Q=GammaIntegral_Q_internal(1,0,nf)*dreal(inter)
+    GammaIntegral_Q=GammaIntegral_Q_internal(1,0,nf)*real(inter,dp)
 end function GammaIntegral_Q
 
 !!!! Compute the integral
@@ -143,7 +143,7 @@ function GammaIntegral_G(a0,a1,loop,nf)
     do i=1,loop
         inter=inter+GammaIntegral_G_internal(loop,i,nf)*LOG((a1-betaRoots_internal(loop,i,nf))/(a0-betaRoots_internal(loop,i,nf)))       
     end do
-    GammaIntegral_G=GammaIntegral_G_internal(1,0,nf)*dreal(inter)
+    GammaIntegral_G=GammaIntegral_G_internal(1,0,nf)*real(inter,dp)
 end function GammaIntegral_G
 
 

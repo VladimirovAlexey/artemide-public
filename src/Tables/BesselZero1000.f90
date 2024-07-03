@@ -1,6 +1,6 @@
 !!!!This is table of zeros of bessel function J0,..,J3 up to 1000
 !!!!
-!!!! the table is j0,j1,j2,j3(1-root),j0,j1,j2,j3(2-root)
+!!!! the table is j0,j1,j2,j3(1-root),j0,j1,j2,j3(2-root),...
 !!!! udated for v1.41 (12.03.2019) (A.Vladimirov)
 
 real(dp),dimension(0:3,1:Nmax),parameter::JZero=reshape((/&

@@ -15,22 +15,22 @@ pure function parametrizationString(z)
   real(dp)::lz,l1z,zz
   real(dp),dimension(1:parametrizationLength)::parametrizationString
 
-  zz=1d0-z
+  zz=1._dp-z
   lz=Log(z)
-  l1z=Log(1d0-z)
+  l1z=Log(1._dp-z)
 
   parametrizationString=(/&
     l1z,l1z**2,l1z**3,l1z**4,l1z**5,&
-    1d0/z,lz/z,lz**2/z,&
+    1._dp/z,lz/z,lz**2/z,&
     lz,lz**2,lz**3,lz**4,lz**5,&  !!!<--- exact part, approximate part --->
-    1d0,z,z*zz,&
-    z*(lz/zz+1d0),z*lz**2/zz,z*lz**3/zz,&
+    1._dp,z,z*zz,&
+    z*(lz/zz+1._dp),z*lz**2/zz,z*lz**3/zz,&
     z*lz,z*lz**2,z*lz**3,z*lz**4,&
     z*zz*lz,z*zz*lz**2,z*zz*lz**3,&
     zz*l1z,zz*l1z**2,zz*l1z**3,&
     z*zz*l1z,z*zz*l1z**2,z*zz*l1z**3,&
     lz*l1z,z*lz*l1z,z*zz*lz*l1z,&
-    l1z/zz*(1-z**2+2*lz),zz/z*(l1z+z)&
+    l1z/zz*(1._dp-z**2+2*lz),zz/z*(l1z+z)&
     /)
 
 end function parametrizationString
@@ -40,22 +40,22 @@ end function parametrizationString
     !!! it is used to estimate integration error at z~1
 pure function parametrizationStringAt1(z)
   real(dp),intent(in)::z
-  real(dp)::lz,l1z,zz
+  real(dp)::l1z,zz
   real(dp),dimension(1:parametrizationLength)::parametrizationStringAt1
-    zz=1d0-z
+    zz=1._dp-z
     l1z=Log(zz)
      parametrizationStringAt1=(/ &
-          zz*(l1z-1), & !Log[1-x]
+          zz*(l1z-1d0), & !Log[1-x]
           zz*(2d0-2d0*l1z+l1z**2),&  ! Log^2[1-x]
-	      zz*(-6d0+6d0*l1z-3d0*l1z**2+l1z**3),& !Log^3[1-x]
-	      zz*(24d0 - 24d0*l1z + 12d0*l1z**2 - 4d0*l1z**3 + l1z**4),& !Log^4[1-x]
-	      zz*(-120d0 + 120d0*l1z - 60d0*l1z**2 + 20d0*l1z**3 - 5d0*l1z**4 + l1z**5),& !Log^5[1-x]
-	      zz,& !1/x
-	      0d0, 0d0, &! log[x]/x, log[x]^2/x
-	      0d0,0d0,0d0,0d0,0d0,& !!log[x],Log[x]^2,Log[x]^3,Log[x]^4,Log[x]^5
-	      zz, zz, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
-	      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
-	      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0 /) !!! rest
+          zz*(-6d0+6d0*l1z-3d0*l1z**2+l1z**3),& !Log^3[1-x]
+          zz*(24d0 - 24d0*l1z + 12d0*l1z**2 - 4d0*l1z**3 + l1z**4),& !Log^4[1-x]
+          zz*(-120d0 + 120d0*l1z - 60d0*l1z**2 + 20d0*l1z**3 - 5d0*l1z**4 + l1z**5),& !Log^5[1-x]
+          zz,& !1/x
+          0d0, 0d0, &! log[x]/x, log[x]^2/x
+          0d0,0d0,0d0,0d0,0d0,& !!log[x],Log[x]^2,Log[x]^3,Log[x]^4,Log[x]^5
+          zz, zz, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
+          0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
+          0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0 /) !!! rest
   
 end function parametrizationStringAt1
 
@@ -69,11 +69,11 @@ pure function C_q_q_delta(alpha,Nf,Lmu)
   
  C_q_q_delta=1d0
  
-  if(order_global>=1) then
+  if(orderMain>=1) then
       !!!checked (3.12.17) AV!!!
       C_q_q_delta=C_q_q_delta+alpha*(-4d0/3d0*zeta2-4d0*Lmu)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
       !!!checked (3.12.17) AV!!!
      C_q_q_delta=C_q_q_delta+alpha*alpha*(&
      -2416d0/81d0-134d0/3d0*zeta2+448d0/9d0*zeta3+200d0/9d0*zeta4+&
@@ -81,7 +81,7 @@ pure function C_q_q_delta(alpha,Nf,Lmu)
      Lmu*(-14d0-140d0/3d0*zeta2+16d0/3d0*zeta3+Nf*(4d0/9d0+40d0/9d0*zeta2))+&
      Lmu**2*(-14d0+4d0/3d0*Nf-128d0/9d0*zeta2))
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
     C_q_q_delta=C_q_q_delta+alpha**3*(&
     Nf**2*(2800d0/19683d0 - (496d0*zeta2)/81d0 - (3712d0*zeta3)/729d0 - (88d0*zeta4)/81d0)&
     +Nf*(212644d0/6561d0 + (224116d0*zeta2)/729d0 + (83452d0*zeta3)/729d0 - (5960d0*zeta2*zeta3)/81d0 &
@@ -111,17 +111,17 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
   
   C_g_g_delta=1d0
  
-  if(order_global>=1) then
+  if(orderMain>=1) then
   !!!checked (20.11.17) AV!!!
       C_g_g_delta=C_g_g_delta+alpha*(-3d0*zeta2-(11d0-2d0/3d0*Nf)*Lmu)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
   !!!checked (23.06.22) AV!!!
      C_g_g_delta=C_g_g_delta+alpha*alpha*(&
     -112d0 - 56d0*Nf**2/81d0 - 201d0*zeta2/2d0 - 72d0*Lmu**2*zeta2 +&
     Lmu*(-96d0 + 32d0*Nf/3d0 - 108d0*zeta3) + Nf*(548d0/27 + 5d0*zeta2 - 28d0*zeta3/3d0) + 154d0*zeta3 + 225d0*zeta4/4d0)
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
   C_g_g_delta=C_g_g_delta+alpha**3*(&
     Nf**3*(-752d0/2187d0 + (16d0*zeta3)/27d0)&
     + Nf**2*(-73577d0/2187d0 - (200d0*zeta2)/81d0 - (368d0*zeta3)/81d0 - (20d0*zeta4)/9d0)&
@@ -144,8 +144,9 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
 end function C_g_g_delta
   
   !!!!!coefficient function q<-q singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
+pure function Coeff_q_q_plus(alpha,Nf,Lmu)
   real(dp),intent(in)::Nf,alpha,Lmu
+  real(dp),dimension(1:3)::Coeff_q_q_plus
   real(dp)::s1,s2,s3
     
   s1=0d0!!!coeff 1/(1-x)
@@ -153,11 +154,11 @@ subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
   s3=0d0!!!coeff log(1-x)^2/(1-x)
   
 
-  if(order_global>=1) then    
+  if(orderMain>=1) then    
     !!!checked (20.11.17) AV!!!
     s1=s1+alpha*(-16d0/3d0)*Lmu
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !!!checked (21.11.17) AV!!!
     s1=s1+alpha*alpha*(&
        -3232d0/27d0+112d0*zeta3+448d0/81d0*Nf+&
@@ -166,7 +167,7 @@ subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
 
      s2=s2+alpha*alpha*(256d0/9d0*(Lmu**2))
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
     s1=s1+alpha**3*(&
       Nf**2*(-7424d0/2187d0 - (128d0*zeta3)/27d0)&
       + Nf*(332632d0/729d0 - (11680d0*zeta2)/243d0 - (15712d0*zeta3)/81d0 - (16d0*zeta4)/9d0)&
@@ -194,31 +195,32 @@ subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
   end if
   end if
 
-  CoeffSing1_q_q=(/s1,s2,s3/)
+  Coeff_q_q_plus=(/s1,s2,s3/)
   
-end subroutine Set_CoeffSing1_q_q
+end function Coeff_q_q_plus
   
   !!!!!coefficient function g<-g singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
+pure function Coeff_g_g_plus(alpha,Nf,Lmu)
   real(dp),intent(in)::Nf,alpha,Lmu
+  real(dp),dimension(1:3)::Coeff_g_g_plus
   real(dp)::s1,s2,s3
     
   s1=0d0!!!coeff 1/(1-x)
   s2=0d0!!!coeff log(1-x)/(1-x)
   s3=0d0!!!coeff log(1-x)^2/(1-x)
  
-  if(order_global>=1) then  
+  if(orderMain>=1) then  
   !!!checked (20.11.17) AV!!!
     s1=s1+alpha*(-12d0)*Lmu
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
   !!!checked (23.06.22) AV!!!
     s1=s1+alpha*alpha*(&
     -808d0/3d0 + Lmu**2*(66d0 - 4d0*Nf) + 112d0*Nf/9d0 + Lmu*(-268d0 + 40d0*Nf/3d0 + 108d0*zeta2) + 252d0*zeta3)
     
      s2=s2+alpha*alpha*144d0*(Lmu**2)
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
     s1=s1+alpha**3*(&
     Nf**2*(-1856d0/243d0 - (32d0*zeta3)/3d0) &
     +Nf*(83158d0/81d0 - (1160d0*zeta2)/9d0 - (3928d0*zeta3)/9d0 - 4d0*zeta4) &
@@ -237,36 +239,37 @@ subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
   end if
   end if
   
-  CoeffSing1_g_g=(/s1,s2,s3/)
+  Coeff_g_g_plus=(/s1,s2,s3/)
   
-end subroutine Set_CoeffSing1_g_g
+end function Coeff_g_g_plus
   
   !!!!!coefficient function q<-q regular-part  
-subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
+pure function Coeff_q_q_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_q_reg
+  real(dp),dimension(1:parametrizationLength)::inter
 
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_q=0d0
+  Coeff_q_q_reg=0d0
 
-  if(order_global>=1) then
+  if(orderMain>=1) then
 
     !!! checked AV(24.06.22) !!!!!
-    Coeff_q_q=Coeff_q_q+alpha*(/&
-	0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
-	0d0,0d0,0d0,&     !1/x, Log(x)/x,Log(x)^2/x
-	0d0,0d0,0d0,0d0,0d0, & !Log(x),Log^2(x),Log^3(x), Log^4(x),Log^5(x)
-	8d0/3d0*(1d0+Lmu),8d0/3d0*(Lmu-1d0),0d0,& !1,x,x(1-x)
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0,& !!
-	0d0,0d0,0d0/) !!
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha*(/&
+    0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
+    0d0,0d0,0d0,&     !1/x, Log(x)/x,Log(x)^2/x
+    0d0,0d0,0d0,0d0,0d0, & !Log(x),Log^2(x),Log^3(x), Log^4(x),Log^5(x)
+    8d0/3d0*(1d0+Lmu),8d0/3d0*(Lmu-1d0),0d0,& !1,x,x(1-x)
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0,& !!
+    0d0,0d0,0d0/) !!
 
   !------The kernels are calculated in mathematica
-    if(order_global>=2) then
+    if(orderMain>=2) then
 
     !!! checked AV(24.06.22) !!!!!
     inter(1:13)=(/&!!!exact part
@@ -308,9 +311,9 @@ subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
         -4.268366809337707d0, 2.834812467714212d0, 0.042367879919478484d0, -30.03064725982577d0, &
         -18.74489662606933d0, -4.661172640767598d0, 17.573591314678325d0, 8.044172905206903d0/)
 
-    Coeff_q_q=Coeff_q_q+alpha*alpha*inter
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
     inter(1:13)=(/&!!!exact part
       -37408d0/243d0 - (183152d0*Lmu)/81d0 - (45056d0*Lmu**2)/27d0 - (7424d0*Lmu**3)/27d0 &
       - (272d0*Nf)/729d0 + (26336d0*Lmu*Nf)/243d0 + (8192d0*Lmu**2*Nf)/81d0 &
@@ -423,38 +426,40 @@ subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
       58626.04751736368d0, 3697.8360885236484d0, 634.1178415829487d0, -80542.92378541816d0, &
       29465.93024506383d0, -27786.929046325393d0, 19715.215135342984d0, -30433.16116711433d0/)
     
-    Coeff_q_q=Coeff_q_q+alpha**3*inter
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha**3*inter
     end if
     end if
     end if
-end subroutine Set_Coeff_q_q
+    
+end function Coeff_q_q_reg
  
   !!!!!coefficient function q<-g regular-part  
-subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
+pure function Coeff_q_g_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_g_reg
+  real(dp),dimension(1:parametrizationLength)::inter
 
 
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_g=0d0
+  Coeff_q_g_reg=0d0
 
   !!! checked AV(24.06.22) !!!!!
-  if(order_global>=1) then
-    Coeff_q_g=Coeff_q_g+alpha*(/&
-	0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
-	0d0,0d0,0d0,&     !1/x, Log(x)/x,Log(x)^2/x
-	0d0,0d0,0d0,& !Log(x),Log^2(x),Log^3(x)
-	0d0,0d0,& !Log^4(x),Log^5(x)
-	-Lmu,0d0,2d0*(Lmu+1d0),& !1,x,x(1-x)
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0,& !..
-	0d0,0d0,0d0/) !..
+  if(orderMain>=1) then
+    Coeff_q_g_reg=Coeff_q_g_reg+alpha*(/&
+    0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
+    0d0,0d0,0d0,&     !1/x, Log(x)/x,Log(x)^2/x
+    0d0,0d0,0d0,& !Log(x),Log^2(x),Log^3(x)
+    0d0,0d0,& !Log^4(x),Log^5(x)
+    -Lmu,0d0,2d0*(Lmu+1d0),& !1,x,x(1-x)
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0,& !..
+    0d0,0d0,0d0/) !..
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
   !!! checked AV(24.06.22) !!!!!
   inter(1:13)= (/&!!!Exact part
       -5d0/3d0 + 26d0*Lmu**2/3d0, 10d0*Lmu/3d0, 5d0/9d0,& !log(1-x),log(1-x)^2,log(1-x)^3
@@ -484,9 +489,9 @@ subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
     1695.6115053273888d0, 12.800231678813827d0, 2.0928097435234276d0, 6665.395403675886d0, &
     4921.711750117209d0, -500.29279582171137d0, -2549.79132306537d0, 272.6427824324629d0/)
 
-    Coeff_q_g=Coeff_q_g+alpha*alpha*inter
+    Coeff_q_g_reg=Coeff_q_g_reg+alpha*alpha*inter
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
 
     inter(1:13)=(/&!!!exact part
      -22412d0/243d0 + Lmu**2*(910d0/3d0 - (260d0*Nf)/27d0) + Lmu**3*(238d0/9d0 - (68d0*Nf)/27d0) &
@@ -579,47 +584,48 @@ subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
      -3331360.7104325257d0, -159939.11874439236d0, -45147.96425971463d0, 252563.50461695628d0, &
      -2524447.0539041213d0, 1495477.2954864914d0, -45392.404861584015d0, 738745.8988557612d0/)
 
-    Coeff_q_g=Coeff_q_g+alpha**3*inter
+    Coeff_q_g_reg=Coeff_q_g_reg+alpha**3*inter
 
   end if
   end if
   end if
-end subroutine Set_Coeff_q_g
+end function Coeff_q_g_reg
   
     !!!!!coefficient function g<-q regular-part  
-subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
+pure function Coeff_g_q_reg(alpha,Nf,Lmu)
   real(dp), intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp), dimension(1:parametrizationLength)::Coeff_g_q_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_g_q=0d0
+  Coeff_g_q_reg=0d0
 
-  if(order_global>=1) then
-    Coeff_g_q=Coeff_g_q+alpha*(/&
+  if(orderMain>=1) then
+    Coeff_g_q_reg=Coeff_g_q_reg+alpha*(/&
       0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
       -16d0/3d0*Lmu,0d0,0d0,&     !1/x, Log(x)/x,Log[x]^2/x
       0d0,0d0,0d0,0d0,0d0,& !Log(x),Log^2(x),Log^3(x),Log^4(x),Log^5(x)
       16d0/3d0*Lmu,8d0/3d0*(1d0-Lmu),0d0,& !1,x,x(1-x)
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0,& !...
-	0d0,0d0,0d0/) !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0,& !...
+    0d0,0d0,0d0/) !...
 
   !------The kernels are calculated in mathematica
-    if(order_global>=2) then
+    if(orderMain>=2) then
     !!! checked AV(24.06.22) !!!!!
     inter(1:13)=(/ &!!Exact part
       -184d0/9d0 + 208d0*Lmu**2/9d0 + 32d0*Nf/27d0 + Lmu*(-208d0/3d0 + 32d0*Nf/9d0), & !log(1-x),
-	  -44d0/9d0 - 80d0*Lmu/9d0 + 8d0*Nf/9d0, &!log(1-x)^2
-	  -40d0/27d0,& !log(1-x)^3
-	  0d0,0d0, & !log[1-x]^4, Log[1-x]^5
+      -44d0/9d0 - 80d0*Lmu/9d0 + 8d0*Nf/9d0, &!log(1-x)^2
+      -40d0/27d0,& !log(1-x)^3
+      0d0,0d0, & !log[1-x]^4, Log[1-x]^5
       -12640d0/27d0 - 248d0*Lmu**2/3d0 + 896d0*Nf/81d0 + 352d0*zeta2/3d0 + Lmu*(-16d0 + 320d0*Nf/27d0 + 16d0*zeta2)&
-	  + 192d0*zeta3, & ! 1/x
-	  -32d0*Lmu**2,&     !Log(x)/x
-	  0d0, & ! log[x]^2/x
+      + 192d0*zeta3, & ! 1/x
+      -32d0*Lmu**2,&     !Log(x)/x
+      0d0, & ! log[x]^2/x
       -200d0/3d0 + 448d0*Lmu/9d0 - 224d0*Lmu**2/9d0,& ! log[x]
       112d0/9d0 - 224d0*Lmu/9d0, & !log[x]^2
       -112d0/27d0,& !Log^3(x)
@@ -659,9 +665,9 @@ subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
      1152.4124598008452d0, 26.348519296850707d0, 1.9731271688088206d0, 11838.586361348272d0, &
      5670.649765218949d0, -286.7508347433035d0, -3920.619711189592d0, 1269.1159656155107d0/)
 
-	Coeff_g_q=Coeff_g_q+alpha*alpha*inter
+    Coeff_g_q_reg=Coeff_g_q_reg+alpha*alpha*inter
 
-	if(order_global>=3) then
+    if(orderMain>=3) then
 
     inter(1:13)=(/ &!!Exact part
       -2606752d0/729d0 + Lmu**3*(1904d0/27d0 - (544d0*Nf)/81d0) - (224d0*Nf**2)/27d0 &
@@ -786,23 +792,25 @@ subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
     2271353.975985237d0, 133169.94967082897d0, 28841.22591650202d0, -3198342.1864987523d0, &
     779457.2094747808d0, -1090149.6774086975d0, 941888.7159622173d0, -994158.7838174688d0/)
 
-	Coeff_g_q=Coeff_g_q+alpha**3*inter
+    Coeff_g_q_reg=Coeff_g_q_reg+alpha**3*inter
 
   end if
   end if
   end if
-end subroutine Set_Coeff_g_q
+end function Coeff_g_q_reg
   
       !!!!!coefficient function g<-g regular-part  
-subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
+pure function Coeff_g_g_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_g_g_reg
+  real(dp),dimension(1:parametrizationLength)::inter
+  
 
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_g_g=0d0
+  Coeff_g_g_reg=0d0
 
-  if(order_global>=1) then
-    Coeff_g_g=Coeff_g_g+alpha*Lmu*(/&
+  if(orderMain>=1) then
+    Coeff_g_g_reg=Coeff_g_g_reg+alpha*Lmu*(/&
       0d0,0d0,0d0,0d0,0d0,& !log(1-x),log(1-x)^2,log(1-x)^3,log(1-x)^4,log(1-x)^5
       -12d0,0d0,0d0,&     !1/x, Log(x)/x,Log[x]^2/x
       0d0,0d0,0d0,0d0,0d0,& !Log(x),Log^2(x),Log^3(x),Log^4(x),Log^5(x)
@@ -815,16 +823,16 @@ subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
       0d0,0d0,0d0,& !..
       0d0,0d0,0d0/) !..
 
-    if(order_global>=2) then
+    if(orderMain>=2) then
       !!! checked AV(24.06.22) !!!
      inter(1:13)=(/ &!!Exact part
       6d0 - 144d0*Lmu - 144d0*Lmu**2 - 2d0*Nf, & !log(1-x),
-	  -36d0, &!log(1-x)^2
-	  0d0, 0d0,0d0, & !log[1-x]^3, log[1-x]^4, Log[1-x]^5
+      -36d0, &!log(1-x)^2
+      0d0, 0d0,0d0, & !log[1-x]^3, log[1-x]^4, Log[1-x]^5
       -3160d0/3d0 + Lmu**2*(-198d0 - (4d0*Nf)/9d0) + (226d0*Nf)/9d0 + 264d0*zeta2 + &
       Lmu*((244d0*Nf)/9d0 + 36d0*zeta2) + 432d0*zeta3, & ! 1/x
-	  -72d0*Lmu**2,&     !Log(x)/x
-	  0d0, & ! log[x]^2/x
+      -72d0*Lmu**2,&     !Log(x)/x
+      0d0, & ! log[x]^2/x
       -293d0 + (74d0*Nf)/3d0 + Lmu**2*(-72d0 + (16d0*Nf)/3d0) + Lmu*(12d0 + 24d0*Nf),& ! log[x]
        3d0 + 6d0*Nf + Lmu*(-72d0 + (16d0*Nf)/3d0), & !log[x]^2
       -12d0 + (8d0*Nf)/9d0,& !Log^3(x)
@@ -866,9 +874,9 @@ subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
     -39719.99391154532d0, -3459.316434977435d0, -539.4220461167924d0, 349237.40838496963d0, &
     93903.92860129807d0, 24720.14896600743d0, -108434.67427803481d0, 59112.06208671693d0/)
 
-     Coeff_g_g=Coeff_g_g+alpha*alpha*inter
+     Coeff_g_g_reg=Coeff_g_g_reg+alpha*alpha*inter
 
-     if(order_global>=3) then
+     if(orderMain>=3) then
 
      inter(1:13)=(/ &!!Exact part
      -14020d0/3d0 - 864d0*Lmu**3 + (56d0*Nf**2)/9d0 + Nf*(592d0/9d0 - (182d0*zeta2)/3d0) &
@@ -999,22 +1007,24 @@ subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
       12803895.946836378d0, 835429.123218491d0, 132111.5844099395d0, -43027963.51892143d0, &
       -1379746.8890004286d0, -6318383.538237535d0, 13323182.55528821d0, -9914427.904937435d0/)
 
-     Coeff_g_g=Coeff_g_g+alpha**3*inter
+     Coeff_g_g_reg=Coeff_g_g_reg+alpha**3*inter
 
   end if
   end if
   end if
-end subroutine Set_Coeff_g_g
+end function Coeff_g_g_reg
 
    !!!!!coefficient function q<-qb regular-part  
-subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
+pure function Coeff_q_qb_reg(alpha,Nf,Lmu)
   real(dp), intent(in) ::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_qb_reg
+  real(dp),dimension(1:parametrizationLength)::inter
+  
 
   ! the LO and NLO are zero, therefore calculation should be done only for order >=2
-  Coeff_q_qb=0d0
+  Coeff_q_qb_reg=0d0
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
 
     !!! checked AV(24.06.22) !!!
      inter(1:13)=(/ &!!Exact part
@@ -1041,9 +1051,9 @@ subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
     1624.4184400879947d0, 166.23015697183678d0, 25.322217832496175d0, -17317.17331275877d0, &
     -5122.288348120117d0, -1099.449659019894d0, 5451.427375012384d0, -2821.4902017469344d0/)
 
-     Coeff_q_qb=Coeff_q_qb+alpha*alpha*inter
+     Coeff_q_qb_reg=Coeff_q_qb_reg+alpha*alpha*inter
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
 
      inter(1:13)=(/ &!!Exact part
       0d0, 0d0, 0d0, 0d0, 0d0, & !log(1-x), log(1-x)^2, log[1-x]^3, log[1-x]^4, Log[1-x]^5
@@ -1108,22 +1118,23 @@ subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
     109204.71700366706d0, 7876.214076894238d0, 1214.6050948781424d0, -606430.380966919d0, &
     -112765.1374329637d0, -59211.74145105641d0, 180432.8596727076d0, -118492.80482198505d0/)
 
-     Coeff_q_qb=Coeff_q_qb+alpha**3*inter
+     Coeff_q_qb_reg=Coeff_q_qb_reg+alpha**3*inter
 
     end if
     end if
-end subroutine Set_Coeff_q_qb
+end function Coeff_q_qb_reg
   
      !!!!!coefficient function q<-qp regular-part  
-subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
+pure function Coeff_q_qp_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:37)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_qp_reg
+  real(dp),dimension(1:parametrizationLength)::inter
 
   ! the LO and NLO are zero, therefore calculation should be done only for order >=2
 
-  Coeff_q_qp=0d0
+  Coeff_q_qp_reg=0d0
   !------The kernels are calculated in mathematica
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !!! checked AV(24.06.22) !!!
      inter(1:13)=(/ &!!Exact part
       0d0, 0d0, 0d0, 0d0, 0d0, & !log(1-x), log(1-x)^2, log[1-x]^3, log[1-x]^4, Log[1-x]^5
@@ -1152,9 +1163,9 @@ subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
       -0.6834343481246384d0, -0.0210860129627325d0, -0.0033038547215126697d0, -0.1819525104954756d0, &
       -0.9790941516231819d0, 0.25627829419410336d0, 0.20543357146845326d0, 0.22088733720695408d0/)
 
-      Coeff_q_qp=Coeff_q_qp+alpha*alpha*inter
+      Coeff_q_qp_reg=Coeff_q_qp_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
     !!! checked AV(24.06.22) !!!
      inter(1:13)=(/ &!!Exact part
       0d0, 0d0, 0d0, 0d0, 0d0, & !log(1-x), log(1-x)^2, log[1-x]^3, log[1-x]^4, Log[1-x]^5
@@ -1239,46 +1250,48 @@ subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
       2588.140813926824d0, 662.2086466156652d0, 183.51086095936924d0, -74499.37187804801d0, &
       -31743.10247894145d0, -3511.1266352060857d0, 31106.518414717415d0, -6721.7208256652975d0/)
 
-      Coeff_q_qp=Coeff_q_qp+alpha**3*inter
+      Coeff_q_qp_reg=Coeff_q_qp_reg+alpha**3*inter
     end if
     end if
-end subroutine Set_Coeff_q_qp
+end function Coeff_q_qp_reg
   
-  !!! This function has been used during debuging
- subroutine CheckCoefficient(as,Nf,Lmu,z)
- real(dp)::Lmu,as,z,Nf,lz,l1z
- real(dp), dimension(1:37)::func
- real(dp), dimension(1:3)::func1
-
-  func=parametrizationString(z)
-
-  func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z),Log(1d0-z)**2/(1d0-z)/)
- 
- !!Q->Q
-!   call Set_CoeffSing1_q_q(as,Nf,Lmu)
-!   call Set_Coeff_q_q(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_q*func)!+SUM(CoeffSing1_q_q*func1)
-
-
-  
-  !!Q->G
-! !   call Set_Coeff_q_g(as,Nf,Lmu)
-! !   write(*,*) SUM(Coeff_q_g*func)
-
-!   !!Q->Q'
-!   call Set_Coeff_q_qp(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_qp*func)
-
-  !!Q->Qbar
-!   call Set_Coeff_q_qb(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_qb*func)
- 
-!  !! G->Q
-!    call Set_Coeff_g_q(as,Nf,Lmu)
-!    write(*,*) SUM(Coeff_g_q*func)
-
-!	!!G->G
-  call Set_CoeffSing1_g_g(as,Nf,Lmu)
-  call Set_Coeff_g_g(as,Nf,Lmu)
-  write(*,*) SUM(Coeff_g_g*func)!+SUM(CoeffSing1_g_g*func1)
- end subroutine CheckCoefficient
+!   !!! This function has been used during debuging
+!  subroutine CheckCoefficient(as,Nf,Lmu,z)
+!  real(dp),intent(in)::Lmu,as,z,Nf
+!  real(dp), dimension(1:parametrizationLength)::func
+!  real(dp), dimension(1:3)::func1
+!
+!   func=parametrizationString(z)
+!
+!   func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z),Log(1d0-z)**2/(1d0-z)/)
+!
+!   write(*,*) as,Nf,Lmu,z
+!
+!  !!Q->Q
+! !   call Set_CoeffSing1_q_q(as,Nf,Lmu)
+! !   call Set_Coeff_q_q(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_q*func)!+SUM(CoeffSing1_q_q*func1)
+!
+!
+!
+!   !!Q->G
+! ! !   call Set_Coeff_q_g(as,Nf,Lmu)
+! ! !   write(*,*) SUM(Coeff_q_g*func)
+!
+! !   !!Q->Q'
+! !   call Set_Coeff_q_qp(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_qp*func)
+!
+!   !!Q->Qbar
+! !   call Set_Coeff_q_qb(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_qb*func)
+!
+! !  !! G->Q
+! !    call Set_Coeff_g_q(as,Nf,Lmu)
+! !    write(*,*) SUM(Coeff_g_q*func)
+!
+! !    !!G->G
+! !   call Set_CoeffSing1_g_g(as,Nf,Lmu)
+! !   call Set_Coeff_g_g(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_g_g*func)!+SUM(CoeffSing1_g_g*func1)
+!  end subroutine CheckCoefficient

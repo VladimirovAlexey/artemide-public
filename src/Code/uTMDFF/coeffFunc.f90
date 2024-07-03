@@ -40,22 +40,22 @@ end function parametrizationString
     !!! it is used to estimate integration error at z~1
 pure function parametrizationStringAt1(z)
   real(dp),intent(in)::z
-  real(dp)::lz,l1z,zz
+  real(dp)::l1z,zz
   real(dp),dimension(1:parametrizationLength)::parametrizationStringAt1
     zz=1d0-z
     l1z=Log(zz)
      parametrizationStringAt1=(/ &
           zz*(l1z-1), & !Log[1-x]
           zz*(2d0-2d0*l1z+l1z**2),&  ! Log^2[1-x]
-	      zz*(-6d0+6d0*l1z-3d0*l1z**2+l1z**3),& !Log^3[1-x]
-	      zz*(24d0 - 24d0*l1z + 12d0*l1z**2 - 4d0*l1z**3 + l1z**4),& !Log^4[1-x]
-	      zz*(-120d0 + 120d0*l1z - 60d0*l1z**2 + 20d0*l1z**3 - 5d0*l1z**4 + l1z**5),& !Log^5[1-x]
-	      zz,& !1/x
-	      0d0, 0d0, 0d0,0d0,0d0,&! log[x]/x, log[x]^2/x, log[x]^3/x, log[x]^4/x, log[x]^4/x
-	      0d0,0d0,0d0,0d0,0d0,& !!log[x],Log[x]^2,Log[x]^3,Log[x]^4,Log[x]^5
-	      zz, zz, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
-	      0d0, 0d0, 0d0, 0d0, 0d0, 0d0,&
-	      0d0, 0d0, 0d0, 0d0, 0d0, 0d0 /) !!! rest
+          zz*(-6d0+6d0*l1z-3d0*l1z**2+l1z**3),& !Log^3[1-x]
+          zz*(24d0 - 24d0*l1z + 12d0*l1z**2 - 4d0*l1z**3 + l1z**4),& !Log^4[1-x]
+          zz*(-120d0 + 120d0*l1z - 60d0*l1z**2 + 20d0*l1z**3 - 5d0*l1z**4 + l1z**5),& !Log^5[1-x]
+          zz,& !1/x
+          0d0, 0d0, 0d0,0d0,0d0,&! log[x]/x, log[x]^2/x, log[x]^3/x, log[x]^4/x, log[x]^4/x
+          0d0,0d0,0d0,0d0,0d0,& !!log[x],Log[x]^2,Log[x]^3,Log[x]^4,Log[x]^5
+          zz, zz, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
+          0d0, 0d0, 0d0, 0d0, 0d0, 0d0,&
+          0d0, 0d0, 0d0, 0d0, 0d0, 0d0 /) !!! rest
 
 end function parametrizationStringAt1
 
@@ -68,17 +68,17 @@ pure function C_q_q_delta(alpha,Nf,Lmu)
   
  C_q_q_delta=1d0
  
-  if(order_global>=1) then
+  if(orderMain>=1) then
       !(checked 27.02.19 AV) (27.06.22 AV)
       C_q_q_delta=C_q_q_delta+alpha*(-4d0/3d0*zeta2-4d0*Lmu)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !-----
      C_q_q_delta=C_q_q_delta+alpha*alpha*(&
      -2416d0/81d0 + (Lmu**2)*(-14d0 + 4d0*Nf/3d0 - 128d0*zeta2/9d0) &
      + Nf*(352d0/243d0 + 20d0*zeta2/9d0 + 56d0*zeta3/27d0) +  Lmu*(-14d0 - 140d0*zeta2/3d0 + Nf*(4d0/9d0&
      + 40d0*zeta2/9d0) + 16d0*zeta3/3d0)- 134d0*zeta2/3d0 + 448d0*zeta3/9d0 + 200d0*zeta4/9d0 ) !!!+ 2360d0*zeta4/9d0
-  if(order_global>=3) then
+  if(orderMain>=3) then
      C_q_q_delta=C_q_q_delta+alpha**3*(&
      Lmu**3*(-84d0 - (16d0*Nf**2)/27d0 - (896d0*zeta2)/9d0 + Nf*(128d0/9d0 + (256d0*zeta2)/27d0) &
      - (4096d0*zeta3)/81d0) + (13954d0*zeta3)/81d0 + (30212d0*zeta2*zeta3)/27d0 - (244d0*zeta3**2)/3d0 &
@@ -104,17 +104,17 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
   
   C_g_g_delta=1d0
  
-  if(order_global>=1) then
+  if(orderMain>=1) then
       !(checked 27.02.19 AV) (27.06.22 AV)
       C_g_g_delta=C_g_g_delta+alpha*(-3d0*zeta2+(-11d0+2d0/3d0*Nf)*Lmu)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !---
      C_g_g_delta=C_g_g_delta+alpha*alpha*(&
      -112d0 - 56d0*(Nf**2)/81d0 - 201d0*zeta2/2d0 - 72d0*(Lmu**2)*zeta2 + Lmu*(-96d0 + 32d0*Nf/3d0 &
      - 108d0*zeta3) + Nf*(548d0/27d0 + 5d0*zeta2 - 28d0*zeta3/3d0) + 154d0*zeta3 + 225d0*zeta4/4d0) !!+ 2385d0*zeta4/4d0
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
      C_g_g_delta=C_g_g_delta+alpha**3*(&
       -698456d0/243d0 - (213865d0*zeta2)/54d0 + Nf**3*(-752d0/2187d0 + (16d0*zeta3)/27d0) &
       + (1489d0*zeta3)/9d0 - 576d0*Lmu**3*zeta3 + 429d0*zeta2*zeta3 + 2337d0*zeta3**2 &
@@ -133,7 +133,8 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
 end function C_g_g_delta
   
   !!!!!coefficient function q<-q singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
+pure function Coeff_q_q_plus(alpha,Nf,Lmu)
+  real(dp),dimension(1:3)::Coeff_q_q_plus
   real(dp),intent(in)::Nf,alpha,Lmu
   real(dp)::s1,s2,s3
     
@@ -142,18 +143,18 @@ subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
   s3=0d0!!!coeff log(1-x)^2/(1-x)
   
 
-  if(order_global>=1) then    
+  if(orderMain>=1) then
      !(checked 27.02.19 AV) (27.06.22 AV)
     s1=s1+alpha*(-16d0/3d0*Lmu)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !(checked 27.02.19 AV) (27.06.22 AV)
     s1=s1+alpha*alpha*(&
       -3232d0/27d0 + 448d0*Nf/81d0 + (Lmu**2)*(-8d0 + 16d0*Nf/9d0) + &
       Lmu*(-1072d0/9d0 + 160d0*Nf/27d0 + 352d0*zeta2/9d0) + 112d0*zeta3)
     s2=s2+alpha*alpha*(256d0/9d0*Lmu**2)
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
     s1=s1+alpha**3*(&
       -1188116d0/243d0 + (89632d0*zeta2)/81d0 + Lmu**3*(-208d0/9d0 + (320d0*Nf)/27d0 &
       - (64d0*Nf**2)/81d0 + (2048d0*zeta2)/27d0) + Lmu**2*(-9280d0/9d0 - (320d0*Nf**2)/81d0 &
@@ -170,12 +171,13 @@ subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
   end if
   end if
   end if
-  CoeffSing1_q_q=(/s1,s2,s3/)
+  Coeff_q_q_plus=(/s1,s2,s3/)
   
-end subroutine Set_CoeffSing1_q_q
+end function Coeff_q_q_plus
   
   !!!!!coefficient function g<-g singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
+function Coeff_g_g_plus(alpha,Nf,Lmu)
+  real(dp),dimension(1:3)::Coeff_g_g_plus
   real(dp),intent(in)::Nf,alpha,Lmu
   real(dp)::s1,s2,s3
     
@@ -183,11 +185,11 @@ subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
   s2=0d0!!!coeff log(1-x)/(1-x)
   s3=0d0!!!coeff log(1-x)^2/(1-x)
  
-  if(order_global>=1) then  
+  if(orderMain>=1) then
    !(checked 27.02.19 AV) (27.06.22 AV)
     s1=s1+alpha*(-12d0)*Lmu
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     !(checked 27.02.19 AV) (27.06.22 AV)
     s1=s1+alpha*alpha*(&
     -808d0/3d0 + (Lmu**2)*(66d0 - 4d0*Nf) + 112d0*Nf/9d0 +&
@@ -195,7 +197,7 @@ subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
 !     
     s2=s2+alpha*alpha*144d0*(Lmu**2)
 
-  if(order_global>=3) then
+  if(orderMain>=3) then
     !(checked 27.02.19 AV) (27.06.22 AV)
     s1=s1+alpha**3*(&
       -297029d0/27d0 + (8816d0*zeta2)/3d0 + Lmu**3*(242d0 - (88d0*Nf)/3d0 + (8d0*Nf**2)/9d0 + 864d0*zeta2) &
@@ -212,24 +214,25 @@ subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
   end if
   end if
   
-  CoeffSing1_g_g=(/s1,s2,s3/)
+  Coeff_g_g_plus=(/s1,s2,s3/)
   
-end subroutine Set_CoeffSing1_g_g
+end function Coeff_g_g_plus
   
   !!!!!coefficient function q->q
-subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
+function Coeff_q_q_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:36)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_q_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_q=0d0
+  Coeff_q_q_reg=0d0
 !
-  if(order_global>=1) then
+  if(orderMain>=1) then
     !(checked 27.02.19 AV) (27.06.22 AV)
-    Coeff_q_q=Coeff_q_q+alpha*(/&
-      0d0,0d0,0d0, 0d0, 0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3, log[1-z]^4, log[1-z]^5  !exact
-      0d0,0d0,0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z, Log[z]^4/z, Log[z]^5/z  !exact
-      16d0/3d0,0d0,0d0,0d0, 0d0,&		!Log[z], log[z]^2, Log[z]^3, log[z]^4, Log[z]^5 !exact
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha*(/&
+      0d0,0d0,0d0, 0d0, 0d0,&        !Log[1-z], log[1-z]^2, log[1-z]^3, log[1-z]^4, log[1-z]^5  !exact
+      0d0,0d0,0d0,0d0,0d0,0d0,&    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z, Log[z]^4/z, Log[z]^5/z  !exact
+      16d0/3d0,0d0,0d0,0d0, 0d0,&        !Log[z], log[z]^2, Log[z]^3, log[z]^4, Log[z]^5 !exact
       8d0/3d0*(1d0+Lmu),8d0/3d0*(Lmu-5d0), 0d0,&
       32d0/3d0, 0d0, 0d0,&
       -16d0/3d0, 0d0, 0d0,&
@@ -237,53 +240,53 @@ subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
       0d0, 0d0, 0d0, 0d0, 0d0/)
 
     !------The kernels are calculated in mathematica
-  if(order_global>=2) then
+  if(orderMain>=2) then
       !(checked 27.02.19 AV)
      inter(1:16)=(/&
       -200d0/9d0 + 256d0*Lmu/3d0 - 256d0*(Lmu**2)/9d0, &!Log[1-z]
       64d0/9d0, & !log[1-z]^2
-      0d0, 0d0, 0d0, &		!Log^2[1-z], log[1-z]^3, log[1-z]^4  !exact
-      0d0,0d0,0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
+      0d0, 0d0, 0d0, &        !Log^2[1-z], log[1-z]^3, log[1-z]^4  !exact
+      0d0,0d0,0d0,0d0,0d0,0d0,&    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
       1496d0/9d0-32d0*(Lmu**2)/9d0+Lmu*(248d0/9d0-16d0*Nf/9d0)-8d0*Nf-560d0*zeta2/9d0,&!Log[z]
-	  -130d0/9d0+88d0*Lmu/9d0+4d0*Nf/9d0, & !Log^2[z]
-	  -140d0/27d0, 0d0, 0d0/)		!Log[z], log[z]^2, Log[z]^3 !exact
+      -130d0/9d0+88d0*Lmu/9d0+4d0*Nf/9d0, & !Log^2[z]
+      -140d0/27d0, 0d0, 0d0/)        !Log[z], log[z]^2, Log[z]^3 !exact
 
-	  inter(17:36)=&
-	  (/ -0.888888888888889d0, -0.888888888888889d0, 0d0, 0d0, &
-	  0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
-	  0d0, 0d0, 0d0, 0d0&
-	  /)*Nf*Lmu**2&
-	  +  &
-	  (/ -1.185185185185185d0, -1.185185185185185d0, 0d0, -3.555555555555556d0, &
-	  0d0, 0d0, 1.777777777777778d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
-	  0d0, 0d0, 0d0, 0d0, 0d0&
-	  /)*Nf*Lmu&
-	  +  &
-	  (/ -3.654320987654321d0, 7.01234567901235d0, 0d0, -8.888888888888889d0, &
-	  0.8888888888888889d0, 0d0, 8.d0, -0.4444444444444444d0, &
-	  0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0&
-	  /)*Nf&
-	  + &
-	  (/ -3.111111111111111d0, 25.33333333333333d0, 0d0, -14.22222222222222d0, &
-	  0d0, 0d0, 10.66666666666667d0, 0d0, 0d0, 0d0, 0d0, 14.22222222222222d0, &
-	  0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0&
-	  /)*Lmu**2 &
-	  +  &
-	  (/ -10.83426619614309d0, 70.9435115816347d0, 0d0, -5.333333333333333d0, &
-	  40.88888888888889d0, 0d0, -24.d0, -31.11111111111111d0, 0d0, &
-	  0d0, 0d0, -56.88888888888889d0, 0d0, 0d0, 0d0, 0d0, &
-	  42.66666666666667d0, 42.66666666666667d0, -42.66666666666667d0, 0d0&
-	  /)*Lmu &
-	  +  &
-	  (/ -126.3853088284307d0, -17.288496146375d0, 457.8573648571505d0, -11.376584400133861d0, &
-	  -33.026470960317d0, -29.01610383405676d0, 324.6919301289853d0, 17.477762066110003d0, &
-	  23.805124211514354d0, -196.35241508570232d0, 20.87694875005565d0, 290.64815320800926d0, &
-	  -0.4394514401811413d0, -0.00127664405525959d0, 37.496309830013715d0, -3.1454576814270183d0, &
-	  -49.19558150692296d0, 85.96887438889961d0, 153.36042722188085d0, 62.22115690085759d0/)
+      inter(17:36)=&
+      (/ -0.888888888888889d0, -0.888888888888889d0, 0d0, 0d0, &
+      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
+      0d0, 0d0, 0d0, 0d0&
+      /)*Nf*Lmu**2&
+      +  &
+      (/ -1.185185185185185d0, -1.185185185185185d0, 0d0, -3.555555555555556d0, &
+      0d0, 0d0, 1.777777777777778d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
+      0d0, 0d0, 0d0, 0d0, 0d0&
+      /)*Nf*Lmu&
+      +  &
+      (/ -3.654320987654321d0, 7.01234567901235d0, 0d0, -8.888888888888889d0, &
+      0.8888888888888889d0, 0d0, 8.d0, -0.4444444444444444d0, &
+      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0&
+      /)*Nf&
+      + &
+      (/ -3.111111111111111d0, 25.33333333333333d0, 0d0, -14.22222222222222d0, &
+      0d0, 0d0, 10.66666666666667d0, 0d0, 0d0, 0d0, 0d0, 14.22222222222222d0, &
+      0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0&
+      /)*Lmu**2 &
+      +  &
+      (/ -10.83426619614309d0, 70.9435115816347d0, 0d0, -5.333333333333333d0, &
+      40.88888888888889d0, 0d0, -24.d0, -31.11111111111111d0, 0d0, &
+      0d0, 0d0, -56.88888888888889d0, 0d0, 0d0, 0d0, 0d0, &
+      42.66666666666667d0, 42.66666666666667d0, -42.66666666666667d0, 0d0&
+      /)*Lmu &
+      +  &
+      (/ -126.3853088284307d0, -17.288496146375d0, 457.8573648571505d0, -11.376584400133861d0, &
+      -33.026470960317d0, -29.01610383405676d0, 324.6919301289853d0, 17.477762066110003d0, &
+      23.805124211514354d0, -196.35241508570232d0, 20.87694875005565d0, 290.64815320800926d0, &
+      -0.4394514401811413d0, -0.00127664405525959d0, 37.496309830013715d0, -3.1454576814270183d0, &
+      -49.19558150692296d0, 85.96887438889961d0, 153.36042722188085d0, 62.22115690085759d0/)
 
-    Coeff_q_q=Coeff_q_q+alpha*alpha*inter
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
      inter(1:16)=(/&
       347680d0/243d0 + Lmu**3*(-7424d0/27d0 + (512d0*Nf)/27d0) - (43712d0*zeta2)/81d0 &
       + Nf*(-42736d0/729d0 + (3568d0*zeta2)/81d0) + Lmu**2*(-21248d0/27d0 + (512d0*Nf)/81d0 &
@@ -306,112 +309,113 @@ subroutine Set_Coeff_q_q(alpha,Nf,Lmu)
       -422d0/243d0 - (370d0*Lmu)/81d0 - (4d0*Nf)/27d0, &
       134d0/405d0/)
 
-	  inter(17:36)=&
-	  (/ 0.395061728395062d0,  0.395061728395062d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0 &
-	  /)*Nf**2*Lmu**3 &
-	  +  &
-	  (/ 0.790123456790123d0,  0.790123456790123d0,  0d0,  2.370370370370370d0,   &
-	  0d0,  0d0,  -1.185185185185185d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0 &
-	  /)*Nf**2*Lmu**2 &
-	  +  &
-	  (/ -0.658436213991770d0,  -0.658436213991770d0,  0.000006646661665956256d0,  7.901252623191405d0,   &
-	  -2.370369393039824d0,  0.0000001051287377209631d0,  -6.320984680374406d0,  1.185183653784385d0,   &
-	  -0.0000001040493847583887d0,  -0.000004388019163816241d0,  0.0000005803783465894928d0,  0.0000210610298627657d0,   &
-	  0.00000005367329796056104d0,  -0.0000000001165564763461417d0,  0.00000128081294438327d0,  -0.00000005629717700258444d0,   &
-	  0.00001486726713632128d0,  0.00001026801319586006d0,  0.0000007726427697087596d0,  0.000004317723336688416d0 &
-	  /)*Nf**2*Lmu &
-	  +  &
-	  (/ 1.649502965696999d0,  1.122753994503583d0,  0.00001823720067355565d0,  6.321034058160635d0,   &
-	  -3.292178686368146d0,  0.921810927344545d0,  -8.82303646597564d0,  2.436210114120259d0,   &
-	  -0.460905575256123d0,  -0.00001175111518140113d0,  0.000001550290154123572d0,  0.00005497828785022403d0,   &
-	  0.000000137813218278815d0,  -0.0000000003001551839516394d0, 0.000003331211735256033d0,  -0.0000001445675118615718d0,   &
-	  0.00003792360810804984d0,  0.00002662888660677162d0,  0.000002519834465779048d0,  0.00001122862903817708d0 &
-	  /)*Nf**2 &
-	  +  &
-	  (/ -1.185185185185185d0,  -20.14814814814815d0,  0d0,  9.481481481481481d0,   &
-	  0d0,  0d0,  -7.111111111111111d0,  0d0,   &
-	  0d0,  0d0,  0d0,  -9.481481481481481d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  0d0,  0d0,  0d0,  0d0 &
-	  /)*Nf*Lmu**3 &
-	  +  &
-	  (/ 27.23794331294561d0,  -97.6015628598939d0,  0d0,  -3.950617283950617d0,   &
-	  -27.25925925925926d0,  0d0,  4.740740740740741d0,  20.74074074074074d0,   &
-	  0d0,  0d0,  0d0,  -7.901234567901235d0,   &
-	  0d0,  0d0,  0d0,  0d0,   &
-	  -28.44444444444444d0,  -28.44444444444444d0,  28.44444444444444d0,  0d0 &
-	  /)*Nf*Lmu**2 &
-	  +  &
-	  (/ 180.1084175723685d0,  -245.8094598286008d0, -241.0425642824332d0,  -156.5582318048157d0,   &
-	  -6.081364713071015d0,  21.15677343468357d0,  -28.66596318600849d0,  45.75127400615632d0,   &
-	  -17.3876329711481d0,  122.8797470606384d0,  -12.78377412797905d0,  -144.3955152674698d0,   &
-	  0.916059677415882d0,  0.001049351119511121d0,  -40.19547657095027d0,  3.848957873348752d0,   &
-	  0.2375155392967963d0,  -192.4660943680877d0,  -27.22661741124765d0,  -43.19184587535115d0 &
-	  /)*Nf*Lmu &
-	  +  &
-	  (/ 224.5632837520682d0,  -38.8171541898427d0,  -1739.064804229186d0,  2148.88101586926d0,   &
-	  519.5338320734754d0,  135.7207359673928d0,  -1864.69754582409d0,  -369.5892119238029d0,   &
-	  -142.8782204760399d0,  456.800692339773d0,  -34.5320042240207d0,  686.07164398811d0,   &
-	  -4.444420013467424d0,  1.056805481674338d0,  32.65862850323677d0,  0.977487438124628d0,   &
-	  2201.287887314699d0,  707.854792341094d0,  -1024.899816578233d0,  114.5268315517728d0 &
-	  /)*Nf &
-	  +  &
- 	  (/ -150.7636565436621d0,  148.6590280656929d0,  -21.29097314204883d0,  -152.3072584481715d0,   &
-	  -12.30437452642475d0,  0.1767046945230637d0,  112.0562612182513d0,  11.65293957935564d0,   &
-	  -0.1758147499739741d0,  8.159427190277d0,  -0.905782415992485d0,  160.0269041677232d0,   &
-	  -37.94781893263169d0,  0.00004259433166843154d0,  -0.527055363432896d0,  0.02286439735345148d0,   &
-	  -45.11158158383627d0,  -59.09630887089385d0,  23.58938336385421d0,  -3.187774019456777d0 &
-	  /)*Lmu**3 &
-	  +  &
-	  (/ -579.675025157712d0,  1513.187936819728d0,  -2854.114915084704d0, -10442.38400870205d0,   &
-	  734.5175450719109d0,  116.4416056816371d0,  1651.708054026545d0,  -428.1084737061445d0,   &
-	  -110.5706118713186d0,  2038.688654819524d0,  -210.1917201882055d0,  -8475.06816964152d0,   &
-	  69.69984660195378d0,  0.02853693631991892d0,  -1099.595361465606d0,  120.592270967213d0,   &
-	  848.007772537267d0,  -3628.955404266093d0,  -3890.548906092623d0,  -1049.703002827976d0 &
-	  /)*Lmu**2 &
-	  +  &
-	  (/ -2023.470520476187d0,  1378.804183835033d0,  -20008.67622378371d0,  57978.38628205719d0,   &
-	  12181.58412298762d0,  2737.561862207436d0,  -33150.70798716165d0,  -10819.09037758744d0,   &
-	  -2619.72349444805d0,  509.9388635163218d0,  294.8075974462912d0,  33531.54770027113d0,   &
-	  -140.1473006675752d0,  18.91718762865996d0,  3864.586363669312d0,  -270.7379415556374d0,   &
-	  78870.27267736225d0,  32632.89228244875d0,  -33000.69051736807d0,  6629.349785184928d0 &
-	  /)*Lmu &
-	  +  &
-	  (/ 241.5165309840164d0,  -1938.094559073414d0,  -92103.9637009004d0,  206938.7974251147d0,   &
-	  51620.75140731967d0,  14643.72991050662d0,  -122316.2209010014d0,  -44169.80991426136d0,   &
-	  -13704.55994625964d0,  2321.777657850387d0,  1941.917129722069d0,  114823.7834678573d0,   &
-	  375.9174158027219d0,  -43.68740314379325d0,  12950.02236176927d0,  -358.4528971923611d0,   &
-	  398389.0709057566d0,  128964.8773491693d0,  -189773.7471494758d0,  21607.05629109171d0 &
-	  /)
+      inter(17:36)=&
+      (/ 0.395061728395062d0,  0.395061728395062d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0 &
+      /)*Nf**2*Lmu**3 &
+      +  &
+      (/ 0.790123456790123d0,  0.790123456790123d0,  0d0,  2.370370370370370d0,   &
+      0d0,  0d0,  -1.185185185185185d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0 &
+      /)*Nf**2*Lmu**2 &
+      +  &
+      (/ -0.658436213991770d0,  -0.658436213991770d0,  0.000006646661665956256d0,  7.901252623191405d0,   &
+      -2.370369393039824d0,  0.0000001051287377209631d0,  -6.320984680374406d0,  1.185183653784385d0,   &
+      -0.0000001040493847583887d0,  -0.000004388019163816241d0,  0.0000005803783465894928d0,  0.0000210610298627657d0,   &
+      0.00000005367329796056104d0,  -0.0000000001165564763461417d0,  0.00000128081294438327d0,  -0.00000005629717700258444d0,   &
+      0.00001486726713632128d0,  0.00001026801319586006d0,  0.0000007726427697087596d0,  0.000004317723336688416d0 &
+      /)*Nf**2*Lmu &
+      +  &
+      (/ 1.649502965696999d0,  1.122753994503583d0,  0.00001823720067355565d0,  6.321034058160635d0,   &
+      -3.292178686368146d0,  0.921810927344545d0,  -8.82303646597564d0,  2.436210114120259d0,   &
+      -0.460905575256123d0,  -0.00001175111518140113d0,  0.000001550290154123572d0,  0.00005497828785022403d0,   &
+      0.000000137813218278815d0,  -0.0000000003001551839516394d0, 0.000003331211735256033d0,  -0.0000001445675118615718d0,   &
+      0.00003792360810804984d0,  0.00002662888660677162d0,  0.000002519834465779048d0,  0.00001122862903817708d0 &
+      /)*Nf**2 &
+      +  &
+      (/ -1.185185185185185d0,  -20.14814814814815d0,  0d0,  9.481481481481481d0,   &
+      0d0,  0d0,  -7.111111111111111d0,  0d0,   &
+      0d0,  0d0,  0d0,  -9.481481481481481d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      0d0,  0d0,  0d0,  0d0 &
+      /)*Nf*Lmu**3 &
+      +  &
+      (/ 27.23794331294561d0,  -97.6015628598939d0,  0d0,  -3.950617283950617d0,   &
+      -27.25925925925926d0,  0d0,  4.740740740740741d0,  20.74074074074074d0,   &
+      0d0,  0d0,  0d0,  -7.901234567901235d0,   &
+      0d0,  0d0,  0d0,  0d0,   &
+      -28.44444444444444d0,  -28.44444444444444d0,  28.44444444444444d0,  0d0 &
+      /)*Nf*Lmu**2 &
+      +  &
+      (/ 180.1084175723685d0,  -245.8094598286008d0, -241.0425642824332d0,  -156.5582318048157d0,   &
+      -6.081364713071015d0,  21.15677343468357d0,  -28.66596318600849d0,  45.75127400615632d0,   &
+      -17.3876329711481d0,  122.8797470606384d0,  -12.78377412797905d0,  -144.3955152674698d0,   &
+      0.916059677415882d0,  0.001049351119511121d0,  -40.19547657095027d0,  3.848957873348752d0,   &
+      0.2375155392967963d0,  -192.4660943680877d0,  -27.22661741124765d0,  -43.19184587535115d0 &
+      /)*Nf*Lmu &
+      +  &
+      (/ 224.5632837520682d0,  -38.8171541898427d0,  -1739.064804229186d0,  2148.88101586926d0,   &
+      519.5338320734754d0,  135.7207359673928d0,  -1864.69754582409d0,  -369.5892119238029d0,   &
+      -142.8782204760399d0,  456.800692339773d0,  -34.5320042240207d0,  686.07164398811d0,   &
+      -4.444420013467424d0,  1.056805481674338d0,  32.65862850323677d0,  0.977487438124628d0,   &
+      2201.287887314699d0,  707.854792341094d0,  -1024.899816578233d0,  114.5268315517728d0 &
+      /)*Nf &
+      +  &
+       (/ -150.7636565436621d0,  148.6590280656929d0,  -21.29097314204883d0,  -152.3072584481715d0,   &
+      -12.30437452642475d0,  0.1767046945230637d0,  112.0562612182513d0,  11.65293957935564d0,   &
+      -0.1758147499739741d0,  8.159427190277d0,  -0.905782415992485d0,  160.0269041677232d0,   &
+      -37.94781893263169d0,  0.00004259433166843154d0,  -0.527055363432896d0,  0.02286439735345148d0,   &
+      -45.11158158383627d0,  -59.09630887089385d0,  23.58938336385421d0,  -3.187774019456777d0 &
+      /)*Lmu**3 &
+      +  &
+      (/ -579.675025157712d0,  1513.187936819728d0,  -2854.114915084704d0, -10442.38400870205d0,   &
+      734.5175450719109d0,  116.4416056816371d0,  1651.708054026545d0,  -428.1084737061445d0,   &
+      -110.5706118713186d0,  2038.688654819524d0,  -210.1917201882055d0,  -8475.06816964152d0,   &
+      69.69984660195378d0,  0.02853693631991892d0,  -1099.595361465606d0,  120.592270967213d0,   &
+      848.007772537267d0,  -3628.955404266093d0,  -3890.548906092623d0,  -1049.703002827976d0 &
+      /)*Lmu**2 &
+      +  &
+      (/ -2023.470520476187d0,  1378.804183835033d0,  -20008.67622378371d0,  57978.38628205719d0,   &
+      12181.58412298762d0,  2737.561862207436d0,  -33150.70798716165d0,  -10819.09037758744d0,   &
+      -2619.72349444805d0,  509.9388635163218d0,  294.8075974462912d0,  33531.54770027113d0,   &
+      -140.1473006675752d0,  18.91718762865996d0,  3864.586363669312d0,  -270.7379415556374d0,   &
+      78870.27267736225d0,  32632.89228244875d0,  -33000.69051736807d0,  6629.349785184928d0 &
+      /)*Lmu &
+      +  &
+      (/ 241.5165309840164d0,  -1938.094559073414d0,  -92103.9637009004d0,  206938.7974251147d0,   &
+      51620.75140731967d0,  14643.72991050662d0,  -122316.2209010014d0,  -44169.80991426136d0,   &
+      -13704.55994625964d0,  2321.777657850387d0,  1941.917129722069d0,  114823.7834678573d0,   &
+      375.9174158027219d0,  -43.68740314379325d0,  12950.02236176927d0,  -358.4528971923611d0,   &
+      398389.0709057566d0,  128964.8773491693d0,  -189773.7471494758d0,  21607.05629109171d0 &
+      /)
 
-    Coeff_q_q=Coeff_q_q+alpha**3*inter
+    Coeff_q_q_reg=Coeff_q_q_reg+alpha**3*inter
   end if
   end if
   end if
-end subroutine Set_Coeff_q_q
+end function Coeff_q_q_reg
   
    !!!!!coefficient function q->g
-subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
+pure function Coeff_q_g_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(36)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_g_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_g=0d0
+  Coeff_q_g_reg=0d0
 
-  if(order_global>=1) then
+  if(orderMain>=1) then
     !(checked 27.02.19 AV)
-    Coeff_q_g=Coeff_q_g+alpha*(/&
-      0d0,0d0,0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
-      -16d0/3d0*Lmu,32d0/3d0,0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
-      -32d0/3d0,0d0,0d0,0d0,0d0,&		!Log[z], log[z]^2, Log[z]^3 !exact
-      16d0/3d0*Lmu,8d0/3d0*(1d0-Lmu), 0d0,&		!
+    Coeff_q_g_reg=Coeff_q_g_reg+alpha*(/&
+      0d0,0d0,0d0,0d0,0d0,&        !Log[1-z], log[1-z]^2, log[1-z]^3  !exact
+      -16d0/3d0*Lmu,32d0/3d0,0d0,0d0,0d0,0d0,&    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
+      -32d0/3d0,0d0,0d0,0d0,0d0,&        !Log[z], log[z]^2, Log[z]^3 !exact
+      16d0/3d0*Lmu,8d0/3d0*(1d0-Lmu), 0d0,&        !
       0d0, 0d0, 0d0,&
       16d0/3d0, 0d0, 0d0,&
       0d0, 0d0, 0d0, 0d0, 0d0, 0d0,&
@@ -419,15 +423,15 @@ subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
 
 
   !------The kernels are calculated in mathematica
-    if(order_global>=2) then
+    if(orderMain>=2) then
       inter(1:16)=(/&
       -40d0/9d0 - 128d0*Lmu/9d0 + 208d0*(Lmu**2)/9d0 - 80d0*zeta2/3d0, &
       -40d0/9d0 + 80d0*Lmu/9d0, &
-      40d0/27d0, 0d0, 0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
+      40d0/27d0, 0d0, 0d0,&        !Log[1-z], log[1-z]^2, log[1-z]^3  !exact
       12512d0/27d0 - 248d0*(Lmu**2)/3d0 + Lmu*(112d0/3d0 - 64d0*zeta2) - 352d0*zeta2/3d0 - 352d0*zeta3,&
-	  400d0/3d0 + 992d0*Lmu/3d0 - 32d0*Lmu**2, &
-	  -848d0/3d0 + 128d0*Lmu, &
-	  -320d0/3d0, 0d0, 0d0, &	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
+      400d0/3d0 + 992d0*Lmu/3d0 - 32d0*Lmu**2, &
+      -848d0/3d0 + 128d0*Lmu, &
+      -320d0/3d0, 0d0, 0d0, &    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
       1144d0/3d0 - 64d0*Lmu - 224d0*(Lmu**2)/9d0, 64d0/3d0 + 224d0*Lmu/3d0, -1232d0/27d0, 0d0, 0d0/)
 
       !! adding approximate part
@@ -452,10 +456,10 @@ subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
       73.37773229763224d0,  1.37991615985907d0,  1213.030005642114d0,  -54.41561517874279d0,   &
       8894.02936156517d0,  8619.91197172082d0,  2818.181932623188d0,  3288.617186218982d0 /)
 
-      Coeff_q_g=Coeff_q_g+alpha*alpha*inter
+      Coeff_q_g_reg=Coeff_q_g_reg+alpha*alpha*inter
 
       !------The kernels are calculated in mathematica
-    if(order_global>=3) then
+    if(orderMain>=3) then
 
       inter(1:16)=(/&
       -442792d0/729d0 + Lmu**3*(1904d0/27d0 - (544d0*Nf)/81d0) - (80272d0*zeta2)/81d0 &
@@ -555,31 +559,32 @@ subroutine Set_Coeff_q_g(alpha,Nf,Lmu)
       294170323.7568769d0,  98745093.9157183d0,  -139306184.1703019d0,  15930197.08022237d0 /)
 
 
-      Coeff_q_g=Coeff_q_g+alpha**3*inter
+      Coeff_q_g_reg=Coeff_q_g_reg+alpha**3*inter
   end if
   end if
   end if
-end subroutine Set_Coeff_q_g
+end function Coeff_q_g_reg
   
    !!!!!coefficient function g->q
-subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
+pure function Coeff_g_q_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(36)::inter
+  real(dp), dimension(1:parametrizationLength)::Coeff_g_q_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_g_q=0d0
+  Coeff_g_q_reg=0d0
 
-  if(order_global>=1) then
-    Coeff_g_q=Coeff_g_q+alpha*(/&
-      0d0,0d0,0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
-      0d0,0d0,0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
-      2d0,0d0,0d0,0d0,0d0,&		!Log[z], log[z]^2, Log[z]^3 !exact
-      -Lmu,0d0, 2d0*(1d0+Lmu),&		!
+  if(orderMain>=1) then
+    Coeff_g_q_reg=Coeff_g_q_reg+alpha*(/&
+      0d0,0d0,0d0,0d0,0d0,&        !Log[1-z], log[1-z]^2, log[1-z]^3  !exact
+      0d0,0d0,0d0,0d0,0d0,0d0,&    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
+      2d0,0d0,0d0,0d0,0d0,&        !Log[z], log[z]^2, Log[z]^3 !exact
+      -Lmu,0d0, 2d0*(1d0+Lmu),&        !
       0d0, 0d0, 0d0,&
       0d0, 0d0, 0d0,&
       -4d0, 0d0, 0d0, 0d0, 0d0, 0d0,&
       0d0, 0d0, 0d0, 0d0, 0d0/)
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
       inter(1:16)=(/&
       -44d0/3d0 + (26d0*Lmu**2)/3d0 + (10d0*Nf)/9d0 + Lmu*(-14d0 + (4d0*Nf)/3d0) + 10d0*zeta2, &
       -7d0/2d0 - (10d0*Lmu)/3d0 + Nf/3d0, &
@@ -634,9 +639,9 @@ subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
       9.56237898125257d0,  1.113929684221592d0,  -278.5432441690214d0,  -1.145484592787573d0,   &
       9853.33838060694d0,  566.5094605848551d0,  -7243.97819707409d0,  -396.7228493775216d0 /)
 
-      Coeff_g_q=Coeff_g_q+alpha*alpha*inter
+      Coeff_g_q_reg=Coeff_g_q_reg+alpha*alpha*inter
 
-      if(order_global>=3) then
+      if(orderMain>=3) then
 
       inter(1:16)=(/&
       -300818d0/243d0 + Lmu**3*(238d0/9d0 - (68d0*Nf)/27d0) + Lmu**2*(1439d0/3d0 - (176d0*Nf)/9d0 &
@@ -749,31 +754,32 @@ subroutine Set_Coeff_g_q(alpha,Nf,Lmu)
       -228678.0131569034d0,  603.0841688422133d0,  -6749012.417939758d0,  241818.7328658158d0,   &
       -205053697.1615032d0,  -68592149.18260267d0,  97316011.9430667d0,  -10988747.36681864d0 /)
 
-      Coeff_g_q=Coeff_g_q+alpha**3*inter
+      Coeff_g_q_reg=Coeff_g_q_reg+alpha**3*inter
       end if
       end if
       end if
-end subroutine Set_Coeff_g_q
+end function Coeff_g_q_reg
   
      !!!!!coefficient function g->g
-subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
+pure function Coeff_g_g_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(36)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_g_g_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_g_g=0d0
+  Coeff_g_g_reg=0d0
 
-  if(order_global>=1) then
+  if(orderMain>=1) then
 
-    Coeff_g_g=Coeff_g_g+alpha*(/&
-      0d0,0d0,0d0,0d0,0d0,&		!Log[1-z], log[1-z]^2, log[1-z]^3  !exact
-      -12d0*Lmu,24d0,0d0,0d0,0d0,0d0,&	!1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
-      -24d0,0d0,0d0,0d0,0d0,&		!Log[z], log[z]^2, Log[z]^3 !exact
-      24d0*Lmu,-24d0, -12d0*Lmu,&		!1 (exact), z,  z^2
+    Coeff_g_g_reg=Coeff_g_g_reg+alpha*(/&
+      0d0,0d0,0d0,0d0,0d0,&        !Log[1-z], log[1-z]^2, log[1-z]^3  !exact
+      -12d0*Lmu,24d0,0d0,0d0,0d0,0d0,&    !1/z, log[z]/z, Log[z]^2/z, Log[z]^3/z  !exact
+      -24d0,0d0,0d0,0d0,0d0,&        !Log[z], log[z]^2, Log[z]^3 !exact
+      24d0*Lmu,-24d0, -12d0*Lmu,&        !1 (exact), z,  z^2
       24d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
       24d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0, 0d0/)
 
-    if(order_global>=2) then
+    if(orderMain>=2) then
       inter(1:16)=(/&
       -6d0 + 432d0*Lmu - 144d0*Lmu**2 + 2d0*Nf, &
       36d0, 0d0, 0d0, 0d0, &
@@ -836,9 +842,9 @@ subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
       1917.614798215426d0,  -3.727443698054962d0,  55529.33410550031d0,  -2020.392123130384d0,   &
       337678.9437195499d0,  411807.6388544661d0,  261739.630525951d0,  201008.9653363942d0 /)
 
-      Coeff_g_g=Coeff_g_g+alpha*alpha*inter
+      Coeff_g_g_reg=Coeff_g_g_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
       inter(1:16)=(/&
       33412d0/3d0 - 864d0*Lmu**3 - (56d0*Nf**2)/9d0 - 4686d0*zeta2 + Nf*(-3280d0/9d0 + (758d0*zeta2)/3d0) &
       + Lmu**2*(-8016d0 + 416d0*Nf + 2160d0*zeta2) - 8784d0*zeta3 + Lmu*(9694d0 - (1570d0*Nf)/3d0 &
@@ -960,22 +966,23 @@ subroutine Set_Coeff_g_g(alpha,Nf,Lmu)
       2481164166.948918d0,  824176638.482638d0,  -1182178627.466786d0,  128423037.2446708d0 /)
 
 
-      Coeff_g_g=Coeff_g_g+alpha**3*inter
+      Coeff_g_g_reg=Coeff_g_g_reg+alpha**3*inter
 
   end if
   end if
   end if
-end subroutine Set_Coeff_g_g
+end function Coeff_g_g_reg
   
      !!!!!coefficient function q->qb
-subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
+pure function Coeff_q_qb_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:36)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_qb_reg
+  real(dp),dimension(1:parametrizationLength)::inter
   
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_qb=0d0
+  Coeff_q_qb_reg=0d0
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
     inter(1:16)=(/&
     0d0, 0d0, 0d0, 0d0, 0d0,&
     0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
@@ -996,9 +1003,9 @@ subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
       -90.2482066088453d0,  0.1803196905087639d0,  -2604.045768441197d0,  94.3488194748237d0,   &
       -18239.5071484197d0,  -19901.49348792259d0,  -11097.07970830333d0,  -9559.03746371398d0 /)
 
-    Coeff_q_qb=Coeff_q_qb+alpha*alpha*inter
+    Coeff_q_qb_reg=Coeff_q_qb_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
       inter(1:16)=(/&
       0d0, 0d0, 0d0, 0d0, 0d0,&
       0d0, 0d0, 0d0, 0d0, 0d0, 0d0, &
@@ -1055,21 +1062,22 @@ subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)
       -12393.86698841608d0,  25.19921798389934d0,  -316182.6631769422d0,  12966.20907828547d0,   &
       -1159503.290196366d0,  -2284563.872063856d0,  -2205576.038848495d0,  -1276868.421248799d0 /)
 
-    Coeff_q_qb=Coeff_q_qb+alpha**3*inter
+    Coeff_q_qb_reg=Coeff_q_qb_reg+alpha**3*inter
     end if
     end if
 !
-end subroutine Set_Coeff_q_qb
+end function Coeff_q_qb_reg
 
   !!!!!coefficient function q->qp
-subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
+pure function Coeff_q_qp_reg(alpha,Nf,Lmu)
   real(dp),intent(in)::alpha,Nf,Lmu
-  real(dp),dimension(1:36)::inter
+  real(dp),dimension(1:parametrizationLength)::Coeff_q_qp_reg
+  real(dp),dimension(1:parametrizationLength)::inter
 
   !!! the Leading order is always zero, therefore calculation should be done only for order >=1
-  Coeff_q_qp=0d0
+  Coeff_q_qp_reg=0d0
 
-  if(order_global>=2) then
+  if(orderMain>=2) then
   inter(1:16)=(/&
     0d0, 0d0, 0d0, 0d0, 0d0,&
     -592d0/81d0 - (16d0*Lmu)/9d0 + (16d0*Lmu**2)/9d0 + (32d0*zeta2)/9d0, &
@@ -1101,9 +1109,9 @@ subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
       0.001617483198892773d0,  -0.000002899283277358931d0,  0.00801974542514126d0,  -0.001684194761939536d0,   &
       -4.910186558517016d0,  -0.5217142411883789d0,  3.927400138406334d0, 0.4393785792553383d0 /)
 
-    Coeff_q_qp=Coeff_q_qp+alpha*alpha*inter
+    Coeff_q_qp_reg=Coeff_q_qp_reg+alpha*alpha*inter
 
-    if(order_global>=3) then
+    if(orderMain>=3) then
     inter(1:16)=(/&
       0d0, 0d0, 0d0, 0d0, 0d0, &
       994024d0/729d0 + Lmu**3*(352d0/9d0 - (64d0*Nf)/81d0) + Nf*(-5696d0/2187d0 - (64d0*zeta2)/27d0) &
@@ -1177,48 +1185,48 @@ subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)
       -19141.28886353129d0,  32.65309901415864d0,  -679686.5014862488d0,  19975.33568850041d0,   &
       -23859288.73052914d0,  -7429104.13534057d0,  12062210.27925168d0,  -934221.276497916d0 /)
 
-      Coeff_q_qp=Coeff_q_qp+alpha**3*inter
+      Coeff_q_qp_reg=Coeff_q_qp_reg+alpha**3*inter
     end if
     end if
     
-end subroutine Set_Coeff_q_qp
+end function Coeff_q_qp_reg
   
- subroutine CheckCoefficient(as,Nf,Lmu,z)
- real(dp)::Lmu,as,z,Nf
- real(dp), dimension(1:36)::func
- real(dp), dimension(1:3)::func1
- 
-
-  func=parametrizationString(z)
-
-  func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z),Log(1d0-z)**2/(1d0-z)/)
-
-!  !!Q->Q
-!   call Set_CoeffSing1_q_q(as,Nf,Lmu)
-!   call Set_Coeff_q_q(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_q*func)!+SUM(CoeffSing1_q_q*func1)
-
-
-
-!   !!Q->G
-!   call Set_Coeff_q_g(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_g*func)
-
-!   !!Q->Q'
-!   call Set_Coeff_q_qp(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_qp*func)
+!  subroutine CheckCoefficient(as,Nf,Lmu,z)
+!  real(dp)::Lmu,as,z,Nf
+!  real(dp), dimension(1:parametrizationLength)::func
+!  real(dp), dimension(1:3)::func1
 !
-!   !!Q->Qbar
-!   call Set_Coeff_q_qb(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_q_qb*func)
 !
-!  !! G->Q
-!    call Set_Coeff_g_q(as,Nf,Lmu)
-!    write(*,*) SUM(Coeff_g_q*func)
+!   func=parametrizationString(z)
 !
-	!!G->G
-!   call Set_CoeffSing1_g_g(as,Nf,Lmu)
-!   call Set_Coeff_g_g(as,Nf,Lmu)
-!   write(*,*) SUM(Coeff_g_g*func)!+SUM(CoeffSing1_g_g*func1)
- 
- end subroutine CheckCoefficient
+!   func1=(/1d0/(1d0-z),Log(1d0-z)/(1d0-z),Log(1d0-z)**2/(1d0-z)/)
+!
+! !  !!Q->Q
+! !   call Set_CoeffSing1_q_q(as,Nf,Lmu)
+! !   call Set_Coeff_q_q(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_q*func)!+SUM(CoeffSing1_q_q*func1)
+!
+!
+!
+! !   !!Q->G
+! !   call Set_Coeff_q_g(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_g*func)
+!
+! !   !!Q->Q'
+! !   call Set_Coeff_q_qp(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_qp*func)
+! !
+! !   !!Q->Qbar
+! !   call Set_Coeff_q_qb(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_q_qb*func)
+! !
+! !  !! G->Q
+! !    call Set_Coeff_g_q(as,Nf,Lmu)
+! !    write(*,*) SUM(Coeff_g_q*func)
+! !
+!     !!G->G
+! !   call Set_CoeffSing1_g_g(as,Nf,Lmu)
+! !   call Set_Coeff_g_g(as,Nf,Lmu)
+! !   write(*,*) SUM(Coeff_g_g*func)!+SUM(CoeffSing1_g_g*func1)
+!
+!  end subroutine CheckCoefficient

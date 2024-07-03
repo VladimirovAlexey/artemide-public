@@ -1,13 +1,13 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 2.02
+!            arTeMiDe 2.02
 !
-!	Evaluation of the TMD cross-section for SIDIS-like cross-sections
-!	
-!	if you use this module please, quote ????.????
+!    Evaluation of the TMD cross-section for SIDIS-like cross-sections
 !
-!	ver 1.2: release (AV, 15.12.2017)
-!	ver 1.32: part of functions migrated to TMDF, rest updated (AV, 16.08.2018)
-!	ver 2.02:							(AV,16.08.2019)
+!    if you use this module please, quote ????.????
+!
+!    ver 1.2: release (AV, 15.12.2017)
+!    ver 1.32: part of functions migrated to TMDF, rest updated (AV, 16.08.2018)
+!    ver 2.02:                            (AV,16.08.2019)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_SIDIS
 use aTMDe_Numerics
@@ -113,7 +113,7 @@ end function TMDX_SIDIS_IsInitialized
 subroutine TMDX_SIDIS_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
-    character(len=300)::path,line
+    character(len=300)::path
     logical::initRequired,dummyLogical
     character(len=8)::orderMain
     integer::i,FILEver
@@ -135,7 +135,7 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     read(51,*) FILEver
     if(FILEver<inputver) then
         write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
-        write(*,*) '		     Update the const-file with artemide.setup'
+        write(*,*) '             Update the const-file with artemide.setup'
         write(*,*) '  '
         stop
     end if
@@ -189,24 +189,24 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
             if(outputLevel>0) write(*,*) WarningString('try to set unknown order. Switch to NLO.',moduleName)
             orderH_global=1
     END SELECT
-    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: the used order is ',trim(orderMain)
+    if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: the used order is ',trim(orderMain)
     
     !! qT correction in kinematics
     call MoveTO(51,'*p2   ')
     read(51,*) corrQT
-    if(outputLevel>2 .and. corrQT) write(*,*) '	artemide.TMDX_SIDIS: qT/Q corrections in kinematics are included.'
+    if(outputLevel>2 .and. corrQT) write(*,*) '    artemide.TMDX_SIDIS: qT/Q corrections in kinematics are included.'
     !! Target mass corrections
     call MoveTO(51,'*p3   ')
     read(51,*) corrM1
-    if(outputLevel>2 .and. corrM1) write(*,*) '	artemide.TMDX_SIDIS: target mass corrections in kinematics are included.'
+    if(outputLevel>2 .and. corrM1) write(*,*) '    artemide.TMDX_SIDIS: target mass corrections in kinematics are included.'
     !! produced mass corrections
     call MoveTO(51,'*p4   ')
     read(51,*) corrM2
-    if(outputLevel>2 .and. corrM2) write(*,*) '	artemide.TMDX_SIDIS: product mass corrections in kinematics are included.'
+    if(outputLevel>2 .and. corrM2) write(*,*) '    artemide.TMDX_SIDIS: product mass corrections in kinematics are included.'
     !! qT correction in x1 z1
     call MoveTO(51,'*p5   ')
     read(51,*) corrQTinX1Z1
-    if(outputLevel>2 .and. corrQTinX1Z1) write(*,*) '	artemide.TMDX_SIDIS: qT/Q corrections in x1,z1 are included.'
+    if(outputLevel>2 .and. corrQTinX1Z1) write(*,*) '    artemide.TMDX_SIDIS: qT/Q corrections in x1,z1 are included.'
     !!exact values for scales
     call MoveTO(51,'*p6   ')
     read(51,*) dummyLogical
@@ -215,7 +215,7 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     else
         exactScales=0
     end if
-    if(outputLevel>2 .and. dummyLogical) write(*,*) '	artemide.TMDX_SIDIS: qT/Q correction for scales variables are included.'
+    if(outputLevel>2 .and. dummyLogical) write(*,*) '    artemide.TMDX_SIDIS: qT/Q correction for scales variables are included.'
     
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
@@ -241,12 +241,12 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
         methodX='SA'
     end if
         
-    !$    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: parallel evaluation of cross-sections is to be used'
+    !$    if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: parallel evaluation of cross-sections is to be used'
     !$    call MoveTO(51,'*C   ')
     !$    call MoveTO(51,'*p1  ')
     !$    read(51,*) i
     !$    call OMP_set_num_threads(i)
-    !$    if(outputLevel>1) write(*,*) '	artemide.TMDX_SIDIS: number of threads for parallel evaluation is set to ', i	
+    !$    if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: number of threads for parallel evaluation is set to ', i
 
     !$     if(outputLevel>2) write(*,*) '------TEST OF PARALLEL PROCESSING ----------'
     !$OMP PARALLEL
@@ -344,11 +344,12 @@ function processArrayFromInteger(p)
             write(*,*) 'Evaluation stop'
             stop
     end SELECT
+    processArrayFromInteger=(/1,1,1/)
 end function processArrayFromInteger
   
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR OPERATION WITH KINEMATICS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!FUNCTIONS FOR OPERATION WITH KINEMATICS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   
 subroutine TMDX_SIDIS_XSetup(s,z,x,Q,mTARGET,mPRODUCT)
     real(dp)::s,Q,x,z
@@ -383,12 +384,12 @@ end subroutine TMDX_SIDIS_XSetup
 ! 3 = Q^2
 ! 4 = x
 ! 5 = z
-! 6 = y 	=Q^2/x(s-M^2)
-! 7 = epsilon	= (1-y-gamma2 y^2/4)/(1-y+y^2/2+gamma2 y^2/4)
-! 8 = gamma2	= (2 x M/Q)^2
-! 9=rho2*gamma2	= (m/z/Q)^2*gamma2
-! 10=rhoT2*gamma2	= (m^2+pt^2)/(z Q)^2*gamma2
-! 11=sM2	= s-M^2
+! 6 = y     =Q^2/x(s-M^2)
+! 7 = epsilon    = (1-y-gamma2 y^2/4)/(1-y+y^2/2+gamma2 y^2/4)
+! 8 = gamma2    = (2 x M/Q)^2
+! 9=rho2*gamma2    = (m/z/Q)^2*gamma2
+! 10=rhoT2*gamma2    = (m^2+pt^2)/(z Q)^2*gamma2
+! 11=sM2    = s-M^2
 ! 12=M2-target
 ! 13=M2-product
 pure function kinematicArray(pT,s,z,x,Q,M2target_in,M2product_in)
@@ -449,7 +450,7 @@ pure function QfromSXY(sM2,x,y)
 end function QfromSXY
 
 !!!!!Evaluate the parameters of the TMD factorized Fourier-integral
-!!qT 	=pT/z sqrt( ( 1+gamma2) / (1-gamma2 rho2))
+!!qT     =pT/z sqrt( ( 1+gamma2) / (1-gamma2 rho2))
 pure subroutine CalculateqT(qT,var)
     real(dp),intent(out)::qT
     real(dp),dimension(1:13),intent(inout)::var
@@ -459,8 +460,8 @@ pure subroutine CalculateqT(qT,var)
 end subroutine CalculateqT
 
 !!!!!Evaluate the parameters of the TMD factorized Fourier-integral
-!!qT 	=pT/z sqrt( ( 1+gamma2) / (1-gamma2 rho2))
-!!fac1	= -2/gamma2*(1-sqrt(1+gamma2*(1-qT^2/Q^2)))
+!!qT     =pT/z sqrt( ( 1+gamma2) / (1-gamma2 rho2))
+!!fac1    = -2/gamma2*(1-sqrt(1+gamma2*(1-qT^2/Q^2)))
 !!X1=x*fac1
 !!Z1=z*fac1*(...)
 pure subroutine CalculateX1Z1qT(x1,z1,qT,var)
@@ -839,7 +840,7 @@ function xSec(var,process)
     scaleZeta=var(3)-exactScales*qT**2  !! zeta=Q2+qT^2
     scaleMu=sqrt(scaleZeta) 
 
-    FF=TMDF_F(var(3),qT,x1,z1,scaleMu*c2_global,scaleZeta,scaleZeta,process(3))
+    FF=TMDF_F(var(3),qT,x1,z1,scaleMu*c2_global,scaleZeta,scaleZeta,[process(3),1,1])
     xSec=PreFactor2(var,process,x1,z1,qT)*FF  
 
     !write(*,*) "{",var(3),",",x1,"},"!,z1
@@ -862,7 +863,7 @@ end function xSec
     if(doZ) then
       
       if(zmax > 1d0) then
-	  if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
+      if(outputlevel>1) write(*,*) WarningString('upper limit of z-integration is >1. It is set to 1.',moduleName)
         zmax=1d0
       end if
       if(zmin < 0.000001d0) then
@@ -933,7 +934,7 @@ end function xSec
    
    if(methodZ=='SA') then
     integralOverZpoint_S=IntegralOverZpoint_S_Rec(var,process,yMin_in,y3,X1,X2,X3,valueMax)+&
-	  IntegralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMax)
+      IntegralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMax)
    else if(methodZ=='S5') then
     integralOverZpoint_S=valueMax !!!! 5-point integration
    else
@@ -946,9 +947,9 @@ end function xSec
    real(dp),dimension(1:13) ::var
    integer,dimension(1:3),intent(in)::process
    real(dp) :: interX,X1,X2,X3,X4,X5
-   real(dp) :: value,valueAB,valueACB
+   real(dp) :: valueAB,valueACB
    real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real(dp)::valueMax,vv
+   real(dp)::valueMax
    
    deltay=yMax_in-yMin_in
    y2=yMin_in+deltay/4d0
@@ -966,7 +967,7 @@ end function xSec
    
    If(ABS((valueACB-valueAB)/valueMax)>toleranceZ) then
     interX=integralOverZpoint_S_Rec(var,process,yMin_in,y3,X1,X2,X3,valueMax)&
-	  +integralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMax)
+      +integralOverZpoint_S_Rec(var,process,y3,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -1038,12 +1039,12 @@ end function xSec
       end if
       
       if(xmin > 1d0) then
-	  if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
-	  xmin=1d0
+      if(outputlevel>1) write(*,*) WarningString('upper limit of x-integration is >1. It is set to 1.',moduleName)
+      xmin=1d0
       end if
       if(xmin < 0.000001d0) then
-	  write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
-	  stop
+      write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
+      stop
       end if
       
       !! in case of cut we determine recut values
@@ -1098,7 +1099,7 @@ end function xSec
    
    if(methodX=='SA') then
     integralOverXpoint_S=IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,y3,X1,X2,X3,valueMax)+&
-	  IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMax)
+      IntegralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMax)
    else if(methodX=='S5') then
     integralOverXpoint_S=valueMax !!!! 5-point integration
    else
@@ -1113,9 +1114,9 @@ end function xSec
    real(dp),dimension(1:13)::var
    integer,dimension(1:3),intent(in)::process
    real(dp) :: interX,X1,X2,X3,X4,X5
-   real(dp) :: value,valueAB,valueACB
+   real(dp) :: valueAB,valueACB
    real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real(dp)::valueMax,vv
+   real(dp)::valueMax
    logical::doZ
    real(dp)::zmin,zMax
    
@@ -1135,7 +1136,7 @@ end function xSec
    
    If(ABS((valueACB-valueAB)/valueMax)>toleranceX) then
     interX=integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,yMin_in,y3,X1,X2,X3,valueMax)&
-	  +integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMax)
+      +integralOverXpoint_S_Rec(var,process,doZ,zMin,zMax,y3,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -1161,60 +1162,60 @@ end function xSec
       !!! evaluate correspnding y's
       !!! in the case process=2 the integral is over y
       if(process(1)==2) then
-	Qmin=QfromSXY(var(11),var(4), Qmin_in)
-	Qmax=QfromSXY(var(11),var(4), Qmax_in)
+    Qmin=QfromSXY(var(11),var(4), Qmin_in)
+    Qmax=QfromSXY(var(11),var(4), Qmax_in)
       else
-	Qmin=Qmin_in
-	Qmax=Qmax_in
+    Qmin=Qmin_in
+    Qmax=Qmax_in
       end if
 !       write(*,*) '>>>>>',Qmin,Qmax
       !! in case of cut we determine recut values
       if(doCut) then
-	if(doX) then
-	  Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
-	  Qmax=QMaxWithCuts(xmax,Qmax,var,Cuts)
-	else
-	  Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
-	  Qmax=QMaxWithCuts(xmin,Qmax,var,Cuts)
-	 end if
+    if(doX) then
+      Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
+      Qmax=QMaxWithCuts(xmax,Qmax,var,Cuts)
+    else
+      Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
+      Qmax=QMaxWithCuts(xmin,Qmax,var,Cuts)
+     end if
       end if
       
 !       write(*,*) '>>>>>',Qmin,Qmax
       
       if(Qmin<Qmax) then 
-	Xsec_Zint_Xint_Qint=integralOverQpoint_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,Qmin,Qmax,doCut,Cuts)
-	!Xsec_Zint_Xint_Qint=integralOverQ2point_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,1d0/(Qmax**2),1d0/(Qmin**2),doCut,Cuts)
+    Xsec_Zint_Xint_Qint=integralOverQpoint_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,Qmin,Qmax,doCut,Cuts)
+    !Xsec_Zint_Xint_Qint=integralOverQ2point_S(var,process,doZ,zMin,zMax,doX,xMin,xMax,1d0/(Qmax**2),1d0/(Qmin**2),doCut,Cuts)
       else!!! it is possible that cuts cut out the integration range completely
-	Xsec_Zint_Xint_Qint=0d0
+    Xsec_Zint_Xint_Qint=0d0
       end if
     
     else
       ! no integration over Q
       if(process(1)==2) then
         ! y depends on Q linearly, thus there is avarages of transformed is transfromed avarage
-	Qmin=QfromSXY(var(11),var(4), Qmin_in)
-	Qmax=QfromSXY(var(11),var(4), Qmax_in)
+    Qmin=QfromSXY(var(11),var(4), Qmin_in)
+    Qmax=QfromSXY(var(11),var(4), Qmax_in)
       else
-	Qmin=Qmin_in
-	Qmax=Qmax_in
+    Qmin=Qmin_in
+    Qmax=Qmax_in
       end if
       
       !! in case of cut we determine recut values
       if(doCut) then
-	if(doX) then
-	  Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
-	  Qmax=QMaxWithCuts(xmax,Qmin,var,Cuts)
-	else
-	  Qmin=QMinWithCuts((xmin+xmax)/2d0,Qmin,var,Cuts)
-	  Qmax=QMaxWithCuts((xmin+xmax)/2d0,Qmin,var,Cuts)+0.000001d0!!! this is needed to resolve 0
-	 end if
+    if(doX) then
+      Qmin=QMinWithCuts(xmin,Qmin,var,Cuts)
+      Qmax=QMaxWithCuts(xmax,Qmin,var,Cuts)
+    else
+      Qmin=QMinWithCuts((xmin+xmax)/2d0,Qmin,var,Cuts)
+      Qmax=QMaxWithCuts((xmin+xmax)/2d0,Qmin,var,Cuts)+0.000001d0!!! this is needed to resolve 0
+     end if
       end if
       
       if(Qmin<=Qmax) then
-	call SetQ((Qmin+Qmax)/2d0,var)
-	Xsec_Zint_Xint_Qint=Xsec_Zint_Xint(var,process,doZ,zMin,zMax,doX,xmin,xmax,doCut,Cuts)
+    call SetQ((Qmin+Qmax)/2d0,var)
+    Xsec_Zint_Xint_Qint=Xsec_Zint_Xint(var,process,doZ,zMin,zMax,doX,xmin,xmax,doCut,Cuts)
       else!!! it is possible that cuts cut out the integration range completely        
-	Xsec_Zint_Xint_Qint=0d0
+    Xsec_Zint_Xint_Qint=0d0
       end if
     end if
   end function Xsec_Zint_Xint_Qint
@@ -1255,18 +1256,18 @@ end function xSec
    valueMax=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
    integralOverQpoint_S=IntegralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,y3,X1,X2,X3,valueMax)+&
-	  IntegralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
+      IntegralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
   end function integralOverQpoint_S
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,yMax_in,X1,X3,X5,valueMax)&
-												    result(interX)
+                                                    result(interX)
    real(dp),dimension(1:13)::var
    integer,dimension(1:3),intent(in)::process
    real(dp) :: interX,X1,X2,X3,X4,X5
-   real(dp) :: value,valueAB,valueACB
+   real(dp) :: valueAB,valueACB
    real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real(dp)::valueMax,vv
+   real(dp)::valueMax
    logical::doX,doCut,doZ
    real(dp),dimension(1:4),intent(in)::Cuts
    real(dp)::xMin,xMax,zMin,zMax
@@ -1288,7 +1289,7 @@ end function xSec
    
    If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
     interX=integralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,y3,X1,X2,X3,valueMax)&
-	  +integralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
+      +integralOverQpoint_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -1334,18 +1335,18 @@ end function xSec
    valueMax=deltay*(X1+4d0*X2+2d0*X3+4d0*X4+X5)/12d0
    
    integralOverQ2point_S=IntegralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,y3,X1,X2,X3,valueMax)&
-	+IntegralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
+    +IntegralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
   end function integralOverQ2point_S
   
   !!!! X1,X3,X5 are cross-sections at end (X1,X5) and central (X3) points of integraitons
   recursive function integralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,yMax_in,&
-			  X1,X3,X5,valueMax) result(interX)
+              X1,X3,X5,valueMax) result(interX)
    real(dp),dimension(1:13) ::var
    integer,dimension(1:3),intent(in)::process
    real(dp) :: interX,X1,X2,X3,X4,X5
-   real(dp) :: value,valueAB,valueACB
+   real(dp) :: valueAB,valueACB
    real(dp) :: yMin_in,yMax_in,y2,y3,y4,deltay
-   real(dp)::valueMax,vv
+   real(dp)::valueMax
    logical::doX,doCut,doZ
    real(dp),dimension(1:4),intent(in)::Cuts
    real(dp)::xMin,xMax,zMin,zMax
@@ -1366,7 +1367,7 @@ end function xSec
    
    If(ABS((valueACB-valueAB)/valueMax)>tolerance) then
     interX=integralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,yMin_in,y3,X1,X2,X3,valueMax)&
-	  +integralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
+      +integralOverQ2point_S_Rec(var,process,doZ,zMin,zMax,doX,xMin,xMax,doCut,Cuts,y3,yMax_in,X3,X4,X5,valueMax)
    else
     interX=valueACB
    end if
@@ -1396,8 +1397,8 @@ end function xSec
         end do
     end if
     if(outputlevel>1) then
-	write(*,*) WarningString('Fail to automatically determine number of Pt-section for a bin.',moduleName)
-	write(*,*) '>>  Possibly Pt-bin is too large', dPT
+    write(*,*) WarningString('Fail to automatically determine number of Pt-section for a bin.',moduleName)
+    write(*,*) '>>  Possibly Pt-bin is too large', dPT
     end if
     NumPT_auto=NumPTdefault+12
     
@@ -1416,7 +1417,7 @@ end function xSec
     integer::Num,i
     
       if(ptMin_in<0.001d0) then
-	pTmin=0.001d0
+    pTmin=0.001d0
       else
        pTmin=ptMin_in
       end if
@@ -1490,10 +1491,9 @@ end function xSec
   
     !!!! just a point cross-section
   subroutine CalcXsecLIST_SIDIS(X_list,pt_list)
-    real(dp),dimension(1:13):: var
     real(dp),intent(in)::pt_list(:)
     real(dp),intent(out)::X_list(:)
-    integer::length,length2,i
+    integer::length,i
     
     length=size(pt_list)
     
@@ -1552,22 +1552,22 @@ end function xSec
 !----------------------------------------------- PT+XQZ-integerations -----------------------------------------
     !!! this function just to help incapsulte the variables for parallel computation
   function CalcXsecHELP_PTint_Zint_Xint_Qint(ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real(dp)::pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax,CalcXsecHELP_PTint_Zint_Xint_Qint
+    real(dp)::xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax,CalcXsecHELP_PTint_Zint_Xint_Qint
     real(dp),dimension(1:13):: var
     integer::Num
     var=kinematicArray((ptMin+ptMax)/2d0,s_global,(zMin+zMax)/2d0,(xMin+xMax)/2d0,(Qmin+Qmax)/2d0,&
-		    M2_target_global,M2_product_global)
-		    
+            M2_target_global,M2_product_global)
+
     Num=NumPT_auto(ptMax-ptMin,var(2))
   
     CalcXsecHELP_PTint_Zint_Xint_Qint=PreFactor1(process_global(1))*&
-	     Xsec_Zint_Xint_Qint_PTint(var,process_global,.true.,zMin,zMax,.true.,xMin,xMax,.true.,Qmin,Qmax,.true.,ptMin,ptMax,&
-		includeCuts_global,CutParameters_global,Num)
+         Xsec_Zint_Xint_Qint_PTint(var,process_global,.true.,zMin,zMax,.true.,xMin,xMax,.true.,Qmin,Qmax,.true.,ptMin,ptMax,&
+        includeCuts_global,CutParameters_global,Num)
   end function CalcXsecHELP_PTint_Zint_Xint_Qint
 
     !!! integrated over PT+XQZ
   subroutine CalcXsecSINGLE_SIDIS_PTint_Zint_Xint_Qint(X,ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real(dp)::X,pt,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
+    real(dp)::X,xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
     
     CallCounter=CallCounter+1
     X=CalcXsecHELP_PTint_Zint_Xint_Qint(ptMin,ptMax,zMin,zMax,xMin,xMax,Qmin,Qmax)
@@ -1589,7 +1589,7 @@ end function xSec
     end if
     if(size(ptMax_list)/=length) then
       write(*,*) ErrorString('CalcXsecLIST_SIDIS_PTint_Zint_Qint_Xint: sizes of ptMax_list and ptMin_list are not equal.'&
-		,moduleName)
+        ,moduleName)
       write(*,*) 'Evaluation stop'
       stop
     end if
@@ -1605,7 +1605,7 @@ end function xSec
 
   
   subroutine CalcXsecLISTLIST_SIDIS_PTint_Zint_Xint_Qint(X_list,pt_list,zMin,zMax,xMin,xMax,Qmin,Qmax)
-    real(dp)::xMin,xMax,Qmin,Qmax,zMin,zMax,ptMin,ptMax
+    real(dp)::xMin,xMax,Qmin,Qmax,zMin,zMax
     real(dp),intent(in)::pt_list(:)
     real(dp)::X_list(:)
     integer::length,i
@@ -1635,17 +1635,16 @@ end function xSec
   
   !!! single value interface
   subroutine xSec_SIDIS(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
-    integer,intent(in),dimension(1:3)::process			!the number of process
-    real(dp),intent(in)::s					!Mandelshtam s
-    real(dp),intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
-    real(dp),intent(in),dimension(1:2)::z				!(zmin,zmax)
-    real(dp),intent(in),dimension(1:2)::x				!(xmin,xmax)
-    real(dp),intent(in),dimension(1:2)::Q				!(Qmin,Qmax)    
-    logical,intent(in)::doCut					!triger cuts
-    real(dp),intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2)
-    real(dp),intent(in),dimension(1:2),optional::masses		!(mass_target,mass-product)GeV
+    integer,intent(in),dimension(1:3)::process            !the number of process
+    real(dp),intent(in)::s                    !Mandelshtam s
+    real(dp),intent(in),dimension(1:2)::pT            !(qtMin,qtMax)
+    real(dp),intent(in),dimension(1:2)::z                !(zmin,zmax)
+    real(dp),intent(in),dimension(1:2)::x                !(xmin,xmax)
+    real(dp),intent(in),dimension(1:2)::Q                !(Qmin,Qmax)
+    logical,intent(in)::doCut                    !triger cuts
+    real(dp),intent(in),dimension(1:4)::Cuts            !(ymin,yMax,W2)
+    real(dp),intent(in),dimension(1:2),optional::masses        !(mass_target,mass-product)GeV
     real(dp),intent(out)::xx
-    integer :: i,length
     
     real(dp),dimension(1:13):: var
     integer::Num
@@ -1661,22 +1660,22 @@ end function xSec
     Num=NumPT_auto(pt(2)-pt(1),var(2))
   
     xx=PreFactor1(process(1))*&
-	     Xsec_Zint_Xint_Qint_PTint(var,process,.true.,z(1),z(2),.true.,x(1),x(2),.true.,Q(1),Q(2),.true.,pt(1),pt(2),&
-			    doCut,Cuts,Num)
+         Xsec_Zint_Xint_Qint_PTint(var,process,.true.,z(1),z(2),.true.,x(1),x(2),.true.,Q(1),Q(2),.true.,pt(1),pt(2),&
+                doCut,Cuts,Num)
     
     
   end subroutine xSec_SIDIS
   
   subroutine xSec_SIDIS_List(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
-    integer,intent(in),dimension(:,:)::process			!the number of process
-    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
-    real(dp),intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
-    real(dp),intent(in),dimension(:,:)::z				!(zmin,zmax)
-    real(dp),intent(in),dimension(:,:)::x				!(xmin,xmax)
-    real(dp),intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
-    logical,intent(in),dimension(:)::doCut			!triger cuts
-    real(dp),intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
-    real(dp),intent(in),dimension(:,:),optional::masses		!(mass_target,mass-product)GeV
+    integer,intent(in),dimension(:,:)::process            !the number of process
+    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+    real(dp),intent(in),dimension(:,:)::pT            !(qtMin,qtMax)
+    real(dp),intent(in),dimension(:,:)::z                !(zmin,zmax)
+    real(dp),intent(in),dimension(:,:)::x                !(xmin,xmax)
+    real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
+    logical,intent(in),dimension(:)::doCut            !triger cuts
+    real(dp),intent(in),dimension(:,:)::Cuts            !(ymin,yMax,W2)
+    real(dp),intent(in),dimension(:,:),optional::masses        !(mass_target,mass-product)GeV
     real(dp),dimension(:),intent(out)::xx
     integer :: i,length
     
@@ -1772,7 +1771,7 @@ end function xSec
    !$OMP PARALLEL DO DEFAULT(SHARED)
     do i=1,length
     xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-		    masses(i,1)**2,masses(i,2)**2)
+            masses(i,1)**2,masses(i,2)**2)
     end do
     !$OMP END PARALLEL DO
     
@@ -1781,7 +1780,7 @@ end function xSec
     !$OMP PARALLEL DO DEFAULT(SHARED)
     do i=1,length
     xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-		    M2_target_global,M2_product_global)
+            M2_target_global,M2_product_global)
     end do
     !$OMP END PARALLEL DO
     
@@ -1792,15 +1791,15 @@ end function xSec
   
   !!!! problem is that f2py does not like optional arguments.. in any form
   subroutine xSec_SIDIS_List_forharpy(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
-    integer,intent(in),dimension(:,:)::process			!the number of process
-    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
-    real(dp),intent(in),dimension(:,:)::pT			!(qtMin,qtMax)
-    real(dp),intent(in),dimension(:,:)::z				!(zmin,zmax)
-    real(dp),intent(in),dimension(:,:)::x				!(xmin,xmax)
-    real(dp),intent(in),dimension(:,:)::Q				!(Qmin,Qmax)        
-    logical,intent(in),dimension(:)::doCut			!triger cuts
-    real(dp),intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2)
-    real(dp),intent(in),dimension(:,:)::masses		!(mass_target,mass-product)GeV
+    integer,intent(in),dimension(:,:)::process            !the number of process
+    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+    real(dp),intent(in),dimension(:,:)::pT            !(qtMin,qtMax)
+    real(dp),intent(in),dimension(:,:)::z                !(zmin,zmax)
+    real(dp),intent(in),dimension(:,:)::x                !(xmin,xmax)
+    real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
+    logical,intent(in),dimension(:)::doCut            !triger cuts
+    real(dp),intent(in),dimension(:,:)::Cuts            !(ymin,yMax,W2)
+    real(dp),intent(in),dimension(:,:)::masses        !(mass_target,mass-product)GeV
     real(dp),dimension(:),intent(out)::xx
     integer :: i,length
     
@@ -1896,7 +1895,7 @@ end function xSec
     do i=1,length    
     
     xx(i)=xSecFULL(process(i,1:3),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-		    masses(i,1)**2,masses(i,2)**2)
+            masses(i,1)**2,masses(i,2)**2)
     end do
     !$OMP END PARALLEL DO
   end subroutine xSec_SIDIS_List_forharpy
@@ -1916,18 +1915,18 @@ end function xSec
 !   write(*,*) 'aTMD:3  ',.true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax
   
   xSecFULL=PreFactor1(proc(1))*Xsec_Zint_Xint_Qint_PTint(var,proc,&
-		    .true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax,doCut,Cuts,Num)
+            .true.,zmin,zmax,.true.,xmin,xmax,.true.,Qmin,Qmax,.true.,ptmin,ptmax,doCut,Cuts,Num)
   end function xSecFULL
 
   !!!! problem is that f2py does not like optional arguments.. in any form
   subroutine xSec_SIDIS_BINLESS_List_forharpy(xx,process,s,pT,z,x,Q,masses)
-    integer,intent(in),dimension(:,:)::process			!the number of process
-    real(dp),intent(in),dimension(:)::s				!Mandelshtam s
-    real(dp),intent(in),dimension(:)::pT			!(pt)
-    real(dp),intent(in),dimension(:)::z				!(z)
-    real(dp),intent(in),dimension(:)::x				!(x)
-    real(dp),intent(in),dimension(:)::Q				!(Q)        
-    real(dp),intent(in),dimension(:,:)::masses		!(mass_target,mass-product)GeV
+    integer,intent(in),dimension(:,:)::process            !the number of process
+    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+    real(dp),intent(in),dimension(:)::pT            !(pt)
+    real(dp),intent(in),dimension(:)::z                !(z)
+    real(dp),intent(in),dimension(:)::x                !(x)
+    real(dp),intent(in),dimension(:)::Q                !(Q)
+    real(dp),intent(in),dimension(:,:)::masses        !(mass_target,mass-product)GeV
     real(dp),dimension(:),intent(out)::xx
     integer :: i,length
     
@@ -2005,7 +2004,7 @@ end function xSec
 !    write(*,*) 'aTMD:3  ',.false.,z,z,.false.,x,x,.false.,Q,Q,.false.,pt,pt
   
   xSecBINLESS=PreFactor1(proc(1))*Xsec_Zint_Xint_Qint_PTint(var,proc,&
-		    .false.,z,z,.false.,x,x,.false.,Q,Q,.false.,pt,pt,.false.,(/0d0,1d0,0d0,1d9/),4)
+            .false.,z,z,.false.,x,x,.false.,Q,Q,.false.,pt,pt,.false.,(/0d0,1d0,0d0,1d9/),4)
   end function xSecBINLESS
   
 end module TMDX_SIDIS

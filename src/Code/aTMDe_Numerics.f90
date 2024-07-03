@@ -18,7 +18,7 @@ public
 integer, parameter :: sp = selected_real_kind(6, 37)
 integer, parameter :: dp = selected_real_kind(15, 307)
 integer, parameter :: qp = selected_real_kind(33, 4931)
-!!! for the complex nimbers I use COMPLEX*16
+!!! for the complex numbers I use COMPLEX*16
 
 !!------------------------Constants
 !!------------------------written up to 64 digits (in case double-precision will be rised)

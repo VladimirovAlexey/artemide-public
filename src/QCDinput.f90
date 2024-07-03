@@ -27,9 +27,9 @@ public:: QCDinput_SetPDFreplica, QCDinput_SetFFreplica, QCDinput_SetlpPDFreplica
 
 character (len=8),parameter :: moduleName="QCDinput"
 !Current version of module
-character (len=5),parameter :: version="v2.06"
+character (len=5),parameter :: version="v3.00"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=18
+integer,parameter::inputver=0
 !--- general
 logical:: started=.false.
 integer::outputLevel
@@ -138,7 +138,7 @@ integer,allocatable::current_replicas(:)
         call InitPDFsetByNameM(i+startPDFindex,names(i))
         call InitPDFM(i+startPDFindex,replicas(i))
         if(outputLevel>2) write(*,"('     uPDF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
-		    enumeration_of_uPDFs(i),trim(names(i)),replicas(i)
+          enumeration_of_uPDFs(i),trim(names(i)),replicas(i)
       end do
       
       !!! save initial replicas to the list of  replicas
@@ -147,7 +147,7 @@ integer,allocatable::current_replicas(:)
       deallocate(names,replicas)
     else
       !!! initialization is not needed
-      if(outputLevel>2)	write(*,*)'    no uPDFs to initialize...'
+      if(outputLevel>2) write(*,*)'    no uPDFs to initialize...'
     end if
     
     !!! -------------------------------------Search for uFF initialization options
@@ -183,7 +183,7 @@ integer,allocatable::current_replicas(:)
       
     else
       !!! initialization is not needed
-      if(outputLevel>2)	write(*,*)'    no uFFs to initialize...'
+      if(outputLevel>2) write(*,*)'    no uFFs to initialize...'
     end if
     
      !!!---------------------------------------- Search for lpPDF initialization options
@@ -219,7 +219,7 @@ integer,allocatable::current_replicas(:)
       deallocate(names,replicas)
     else
       !!! initialization is not needed
-      if(outputLevel>2)	write(*,*)'    no lpPDFs to initialize...'
+      if(outputLevel>2) write(*,*)'    no lpPDFs to initialize...'
     end if
     
     !!!---------------------------------------- Search for hPDF initialization options
@@ -246,7 +246,7 @@ integer,allocatable::current_replicas(:)
         call InitPDFsetByNameM(i+start_hPDFindex,names(i))
         call InitPDFM(i+start_hPDFindex,replicas(i))
         if(outputLevel>2) write(*,"('     hPDF(hadron=',I3,') initialized by : ',A,' (replica= ',I5,')')") &
-		    enumeration_of_hPDFs(i),trim(names(i)),replicas(i)
+          enumeration_of_hPDFs(i),trim(names(i)),replicas(i)
       end do
       
       !!! save initial replicas to the list of  replicas
@@ -255,7 +255,7 @@ integer,allocatable::current_replicas(:)
       deallocate(names,replicas)
     else
       !!! initialization is not needed
-      if(outputLevel>2)	write(*,*)'    no hPDFs to initialize...'
+      if(outputLevel>2) write(*,*)'    no hPDFs to initialize...'
     end if
  
   CLOSE (51, STATUS='KEEP') 
@@ -310,14 +310,14 @@ integer,allocatable::current_replicas(:)
   else
     do i=1,num_of_uPDFs
       if(enumeration_of_uPDFs(i)==hadron) then
-	index_of_uPDF=i+startPDFindex
-	return
+      index_of_uPDF=i+startPDFindex
+      return
       end if
     end do
     !!! if we exit from the loop it means index is not found
       write(*,*) ErrorString('uPDF is not found',moduleName)
       write(*,"('no uPDF for hadron ',I3,' is initialized. Set PDF for hadron (',I3,')')") &
-		  hadron,enumeration_of_uPDFs(1)
+        hadron,enumeration_of_uPDFs(1)
       index_of_uPDF=1+startPDFindex
   end if
  end function index_of_uPDF
@@ -334,14 +334,14 @@ integer,allocatable::current_replicas(:)
    else
     do i=1,num_of_uFFs
       if(enumeration_of_uFFs(i)==hadron) then
-	index_of_uFF=i+startFFindex
-	return
+      index_of_uFF=i+startFFindex
+      return
       end if
     end do
     !!! if we exit from the loop it means index is not found
      write(*,*) ErrorString('uFF is not found',moduleName)
       write(*,"('no uFF for hadron ',I3,' is initialized. Set FF for hadron (',I3,')')") &
-		  hadron,enumeration_of_uPDFs(1)
+      hadron,enumeration_of_uPDFs(1)
       index_of_uFF=1+startFFindex
   end if
  end function index_of_uFF
@@ -358,14 +358,14 @@ integer,allocatable::current_replicas(:)
   else
     do i=1,num_of_lpPDFs
       if(enumeration_of_lpPDFs(i)==hadron) then
-	index_of_lpPDF=i+startlpPDFindex
-	return
+      index_of_lpPDF=i+startlpPDFindex
+      return
       end if
     end do
     !!! if we exit from the loop it means index is not found
     write(*,*) ErrorString('lpPDF is not found',moduleName)
     write(*,"('no lpPDF for hadron ',I3,' is initialized. Set PDF for hadron (',I3,')')") &
-		  hadron,enumeration_of_lpPDFs(1)
+      hadron,enumeration_of_lpPDFs(1)
       index_of_lpPDF=1+startlpPDFindex
   end if
  end function index_of_lpPDF
@@ -390,7 +390,7 @@ integer,allocatable::current_replicas(:)
     !!! if we exit from the loop it means index is not found
       write(*,*) ErrorString('hPDF is not found',moduleName)
       write(*,"('no hPDF for hadron ',I3,' is initialized. Set PDF for hadron (',I3,')')") &
-		  hadron,enumeration_of_hPDFs(1)
+      hadron,enumeration_of_hPDFs(1)
       index_of_hPDF=1+start_hPDFindex
   end if
  end function index_of_hPDF
@@ -510,8 +510,6 @@ end function activeNf
       call evolvePDFM(index_of_uPDF(hadron),x,Q,inputPDF)
       
       xPDF=inputPDF(-5:5)
-      
-      
   end function xPDF
   
     !!!! return x*F(x,mu)

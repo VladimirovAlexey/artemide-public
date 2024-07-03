@@ -9,6 +9,9 @@
 !!!-------------------------------------------------------------------------------------------------------
   
 ! The TMD rapidity anomalous dimension D, pertrubative expression
+! order=0 Dpert=as^0=0
+! order=1 Dpert=as^1=0
+! ...
 function Dpert(mu,bT,f)
     real(dp),intent(in):: bT,mu
     integer,intent(in):: f
@@ -36,13 +39,16 @@ function Dpert(mu,bT,f)
         do k=0,orderD
          inter=inter+dnk_Q(n,k,Nf)*(LL**k)
         end do
-        Dpert=Dpert+inter*(astrong**n)	
+        Dpert=Dpert+inter*(astrong**n)
       end do
     end if
 
 end function Dpert
   
-  ! The TMD UV anomalous dimension gammaV
+! The TMD UV anomalous dimension gammaV
+! order=0 gammaV=as^0=0
+! order=1 gammaV=as^1
+! ....
 function gammaV(mu,f)
     real(dp),intent(in)::mu
     integer,intent(in)::f
@@ -67,7 +73,10 @@ function gammaV(mu,f)
 
 end function gammaV
 
-  ! The Gamma Cusp anomalous dimension gammaV
+! The Gamma Cusp anomalous dimension
+! order=0 gammaCusp=as^1
+! order=1 gammaCusp=as^2
+! ....
 function gammaCUSP(mu,f)
     real(dp),intent(in)::mu
     integer,intent(in)::f
@@ -81,12 +90,12 @@ function gammaCUSP(mu,f)
     
     gammaCUSP=0_dp
     if(f==0) then   !!gluon case
-     do i=1,orderCusp
-        gammaCUSP=gammaCUSP+GammaCusp_G(i-1,Nf)*(astrong**i)
+     do i=0,orderCusp
+        gammaCUSP=gammaCUSP+GammaCusp_G(i,Nf)*(astrong**(i+1))
      end do
     else  !! quark case
-     do i=1,orderCusp
-        gammaCUSP=gammaCUSP+GammaCusp_Q(i-1,Nf)*(astrong**i)
+     do i=0,orderCusp
+        gammaCUSP=gammaCUSP+GammaCusp_Q(i,Nf)*(astrong**(i+1))
      end do
     end if
    

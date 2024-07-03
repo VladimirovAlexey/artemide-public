@@ -30,12 +30,12 @@ public:: ModelUpdate
 !!!!! 3) Function which returns RAD function
 !!!!!    arg=(mu,b,f) with mu=scale(real_dp), b=transverse distance(real_dp), f=flavor(integer)
 real(dp),public:: DNP
-!!!!! 4) Function which returns special equi-potential line, which is used in the evolution solutions
-!!!!!    arg=(mu,b,f) with mu=scale(real_dp), b=transverse distance(real_dp), f=flavor(integer)
-real(dp),public:: zetaNP
-!!!!! 5) Subroutine which returns the array of NP-parameters corresponding to certain integer (replica)
-!!!!!    arg=rep input integer,  NParray (real_dp(:), allocatable, intent(out))  returned array
-public:: GetReplicaParameters
+!!!!! 4) Function which mu_OPE used as the evaluation scale for OPE for RAD
+!!!!!    arg=(mu,b,c1) with mu=scale(real_dp), b=transverse distance(real_dp), c1=scale variation parameter(real_dp)
+real(dp),public:: muOPE
+!!!!! 5) Function which returns b*-value used as argument b, in OPE part of RAD
+!!!!!    arg=(b) with b=transverse distance(real_dp)
+real(dp),public:: bSTAR
 !!!!!------------------------------------------------------------------------------------
 
 real(dp),allocatable::NPparam(:)
@@ -44,17 +44,17 @@ contains
   
 !!!!!! Write nessecery model intitialization.
 !!!!!! InitialNPParams is the initial NP-array (in principle, any non-pathological NP-array)
-subroutine ModelInitialization(InitialNPParams)  
-    real(dp),intent(in):: InitialNPParams(:)
+subroutine ModelInitialization(NPlength)
+    integer,intent(in):: NPlength
 
-    if(size(InitialNPParams)<3) then
-        write(*,*) color('ART23-model: Number NP parameters for TMDR is less then 3',c_red)
+    if(NPlength<4) then
+        write(*,*) color('ART23-model: Number NP parameters for TMDR is less then 4',c_red)
         write(*,*) 'Evaluation STOP'
         stop
     end if
     
-    allocate(NPparam(1:size(InitialNPParams)))
-    NPparam=InitialNPParams
+    allocate(NPparam(1:NPlength))
+    NPparam=(/2d0,0.0001d0,0d0,1d0/)
     
     write(*,*) &
     color(">>>  The model for TMD evolution is ART23. Please, cite [1907.10356]&[2305.????]   <<<",c_cyan)
@@ -74,47 +74,37 @@ end subroutine ModelUpdate
 !!! This is the rapidity anomalous dimension non-perturbative model
 !!! In your evaluation take care that the saddle point is inside the pertrubative regeme
 !!! Use function Dpert(mu,b,f) for D perturbative, use Dresum for D resum
-function DNP(mu,b,f)
-    real(dp),intent(in)::mu,b
+function DNP(b,f)
+    real(dp),intent(in)::b
     integer,intent(in)::f
-    real(dp)::bSTAR
-    
-    bSTAR=b/SQRT(1_dp+b**2/NPparam(1)**2)
+    real(dp)::bS,bSS
+    bS=bSTAR(b)
 
-    DNP=Dpert(C0_const/bSTAR*NPparam(4),bSTAR,1)+RADEvolution(C0_const/bSTAR*NPparam(4),mu,1)&
-                +NPparam(2)*b*bSTAR+NPparam(3)*b*bSTAR*Log(bSTAR/NPparam(1))
-    
+    bSS=b/(1_dp+b**6/20**6)**(1.d0/6.d0)
+
+    DNP=NPparam(2)*bSS*bS+NPparam(3)*bSS*bS*Log(bS/NPparam(1))
 end function DNP
+
+!!! the function which is used insted of in the expression for perturbative RAD
+!!!! This is the function b* that enters the logarithms of coefficient function
+!!!! at small-b it should be ~b to match the collinear regime
+!!!! at large-b it is a part of model
+pure function bSTAR(b)
+    real(dp),intent(in)::b
+
+    bSTAR=b/SQRT(1_dp+b**2/NPparam(1)**2)
+end function bSTAR
+
+!!!!This function is the mu(b), which is used inside the OPE for RAD
+!!!! c4-- is the scale variation variable
+pure function muOPE(bT,c1)
+    real(dp),intent(in)::bT,c1
+
+    muOPE=C0_const/bSTAR(bT)*c1
+
+    if(muOPE>1000d0) then
+        muOPE=1000d0
+    end if
+end function muOPE
   
-!! This is the non-pertrubative shape of zeta_mu line.
-!! It MUST follow the equipotential line in perturbative regime (at small-b), at the level pf PT accuracy.
-!! Otherwice, your evolution is completely broken.
-!! Use zetaMUpert for perturbative values, use zetaSL for exact values
-function zetaNP(mu,b,f)
-    real(dp),intent(in)::mu,b
-    integer,intent(in)::f
-    real(dp)::zz,rad,w1,w2
-    
-    rad=DNP(mu,b,f)
-
-    !! this ofset is required to guaranty a good numerical bahavior at b->0.
-    !! In principle, zz=0 also works
-    zz=Exp(-b**2/0.01d0)
-
-    zetaNP=zetaMUpert(mu,b,f)*zz+zetaSL(mu,rad,f)*(1d0-zz)
-
-end function zetaNP
- 
-!!! In SV19 model the replica parameters are stored in separate file.
-subroutine GetReplicaParameters(rep,NParray)
-    integer,intent(in)::rep
-    real(dp),allocatable,intent(out)::NParray(:)
-    real(dp),parameter,dimension(1:3)::replica=(/2.2824d0, 0.025d0,0d0/)
-    
-    allocate(NParray(1:3))
-
-    NParray=replica
-
-end subroutine GetReplicaParameters
-
 end module TMDR_model

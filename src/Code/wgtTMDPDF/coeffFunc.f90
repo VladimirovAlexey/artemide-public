@@ -54,95 +54,103 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
 end function C_g_g_delta
 
 !!!!!coefficient function q<-q singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_q_q(alpha,Nf,Lmu)
-    real(dp)::Nf,alpha,Lmu
+pure function Coeff_q_q_plus(alpha,Nf,Lmu)
+    real(dp),dimension(1:3)::Coeff_q_q_plus
+    real(dp), intent(in)::Nf,alpha,Lmu
 
-    CoeffSing1_q_q=(/0d0, 0d0, 0d0/)
+    Coeff_q_q_plus=(/0d0, 0d0, 0d0/)
 
-end subroutine Set_CoeffSing1_q_q
+end function Coeff_q_q_plus
 
 !!!!!coefficient function g<-g singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
-subroutine Set_CoeffSing1_g_g(alpha,Nf,Lmu)
-    real(dp)::Nf,alpha,Lmu
+pure function Coeff_g_g_plus(alpha,Nf,Lmu)
+    real(dp),dimension(1:3)::Coeff_g_g_plus
+    real(dp), intent(in)::Nf,alpha,Lmu
     
-    CoeffSing1_g_g=(/0d0, 0d0, 0d0/)
+    Coeff_g_g_plus=(/0d0, 0d0, 0d0/)
 
-end subroutine Set_CoeffSing1_g_g
+end function Coeff_g_g_plus
 
 !!!!!coefficient function q<-q regular-part  
 !!!!! note that the order counting starts from 1=LO, 2=NLO etc. Because 0=delta contribution only[in Twist2Convolution]
-subroutine Set_Coeff_q_q(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+pure function Coeff_q_q_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_q_q_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is 1, it is WW-part of worm-gear function
-    Coeff_q_q=(/1d0,0d0,0d0,0d0/) !1
-    if(order_global>=2) then
+    Coeff_q_q_reg=(/1d0,0d0,0d0,0d0/) !1
+    if(orderMain>=2) then
               
-        Coeff_q_q=Coeff_q_q+alpha*4d0/3d0*(/&
+        Coeff_q_q_reg=Coeff_q_q_reg+alpha*4d0/3d0*(/&
         -Lmu-2d0-zeta2, -2d0*Lmu+2d0, 2d0*Lmu-2d0, -4d0*Lmu/) !
         
     !  write(*,*) 'regularPart=', regularPart/x
     end if
-end subroutine Set_Coeff_q_q
+end function Coeff_q_q_reg
 
 !!!!!coefficient function q<-g regular-part  
 !!!!! note that the order counting starts from 1=LO, 2=NLO etc. Because 0=delta contribution only[in Twist2Convolution]
-subroutine Set_Coeff_q_g(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+pure function Coeff_q_g_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_q_g_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is always zero, therefore calculation should be done only for order >=1
-    Coeff_q_g=(/0d0,0d0,0d0,0d0/)
-    if(order_global>=2) then
-        Coeff_q_g=Coeff_q_g+alpha*(/-2d0*Lmu+1d0, 2d0*Lmu-1d0, -Lmu+0.5d0, 0d0/)
+    Coeff_q_g_reg=(/0d0,0d0,0d0,0d0/)
+    if(orderMain>=2) then
+        Coeff_q_g_reg=Coeff_q_g_reg+alpha*(/-2d0*Lmu+1d0, 2d0*Lmu-1d0, -Lmu+0.5d0, 0d0/)
     end if
-end subroutine Set_Coeff_q_g
+end function Coeff_q_g_reg
 
 !!!!!coefficient function g<-q regular-part  
-subroutine Set_Coeff_g_q(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+pure function Coeff_g_q_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_g_q_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is always zero, therefore calculation should be done only for order >=1
-    Coeff_g_q=(/0d0,0d0,0d0,0d0/)
-    !   if(order_global>=1) then
+    Coeff_g_q_reg=(/0d0,0d0,0d0,0d0/)
+    !   if(orderMain>=1) then
     !     Coeff_g_q=Coeff_g_q+alpha*(/0d0/)!
     !     
     !   end if
-end subroutine Set_Coeff_g_q
+end function Coeff_g_q_reg
 
     !!!!!coefficient function g<-g regular-part  
-subroutine Set_Coeff_g_g(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+function Coeff_g_g_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_g_g_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is always zero, therefore calculation should be done only for order >=1
-    Coeff_g_g=(/1d0,0d0,0d0,0d0/)
+    Coeff_g_g_reg=(/1d0,0d0,0d0,0d0/)
 
     if(outputLevel>0) write(*,*) &
             WarningString('gluon part of worm-gear T function is not known. Set alike quark.',moduleName)
 
-end subroutine Set_Coeff_g_g
+end function Coeff_g_g_reg
 
 !!!!!coefficient function q<-qb regular-part  
-subroutine Set_Coeff_q_qb(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+pure function Coeff_q_qb_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_q_qb_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is always zero, therefore calculation should be done only for order >=1
-    Coeff_q_qb=(/0d0,0d0,0d0,0d0/)!
+    Coeff_q_qb_reg=(/0d0,0d0,0d0,0d0/)!
 
-end subroutine Set_Coeff_q_qb
+end function Coeff_q_qb_reg
 
     !!!!!coefficient function q<-qp regular-part  
-subroutine Set_Coeff_q_qp(alpha,Nf,Lmu)  
-    real(dp)::alpha,Nf,Lmu
+pure function Coeff_q_qp_reg(alpha,Nf,Lmu)
+    real(dp),dimension(1:parametrizationLength)::Coeff_q_qp_reg
+    real(dp), intent(in)::Nf,alpha,Lmu
 
     !! the Leading order is always zero, therefore calculation should be done only for order >=1
-    Coeff_q_qp=(/0d0,0d0,0d0,0d0/)
-end subroutine Set_Coeff_q_qp
+    Coeff_q_qp_reg=(/0d0,0d0,0d0,0d0/)
+end function Coeff_q_qp_reg
 
 !!! This function has been used during debuging
 subroutine CheckCoefficient(as,Nf,Lmu,z)
     real(dp)::Lmu,as,z,Nf,lz,l1z
-    real(dp), dimension(1:23)::func
-    real(dp), dimension(1:2)::func1
+!     real(dp), dimension(1:23)::func
+!     real(dp), dimension(1:2)::func1
 
     !   lz=Log(z)
     !   l1z=Log(1d0-z)
@@ -179,7 +187,7 @@ subroutine CheckCoefficient(as,Nf,Lmu,z)
     !   write(*,*) SUM(Coeff_g_q*func)
 
     !	!!G->G
-    call Set_CoeffSing1_g_g(as,Nf,Lmu) 
-    call Set_Coeff_g_g(as,Nf,Lmu)  
+!     call Set_CoeffSing1_g_g(as,Nf,Lmu)
+!     call Set_Coeff_g_g(as,Nf,Lmu)
     !write(*,*) SUM(Coeff_g_g*func)+SUM(CoeffSing1_g_g*func1)
 end subroutine CheckCoefficient

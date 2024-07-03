@@ -7,15 +7,16 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 module harpy
-use TMDs
-use TMDs_inKT
 use TMDX_DY
 use TMDX_SIDIS
 use aTMDe_control
 use uTMDPDF
+use uTMDPDF_OPE
 use uTMDFF
+use SiversTMDPDF
 use lpTMDPDF
 use wgtTMDPDF
+use BoerMuldersTMDPDF
 use TMDR_model
 use TMDR
 
@@ -39,85 +40,54 @@ contains
   subroutine ShowStatistics()
    call artemide_ShowStatistics()
   end  subroutine ShowStatistics
-  
-  !! call for parameters from the model
-  subroutine SetReplica_TMDR(num)
-  integer:: num
-  call artemide_SetReplica_TMDR(num)
-  end subroutine SetReplica_TMDR
-  
-  !!
-  subroutine SetReplica_uTMDPDF(num)
-  integer:: num
-  call artemide_SetReplica_uTMDPDF(num)
-  end subroutine SetReplica_uTMDPDF
-  
-  !!
-  subroutine SetReplica_uTMDFF(num)
-  integer:: num
-  call artemide_SetReplica_uTMDFF(num)
-  end subroutine SetReplica_uTMDFF
-  
-!!
-  subroutine SetReplica_lpTMDPDF(num)
-  integer:: num
-  call artemide_SetReplica_lpTMDPDF(num)
-  end subroutine SetReplica_lpTMDPDF
-  
-  !!
-  subroutine SetReplica_SiversTMDPDF(num)
-  integer:: num
-  call artemide_SetReplica_SiversTMDPDF(num)
-  end subroutine SetReplica_SiversTMDPDF
-  
-    !!
-  subroutine SetReplica_wgtTMDPDF(num)
-  integer:: num
-  call artemide_SetReplica_wgtTMDPDF(num)
-  end subroutine SetReplica_wgtTMDPDF
-  
-  
-  !!!Sets the non-pertrubative parameters lambda
+
+  !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_Main(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters(lambdaIN)
   end subroutine SetLambda_Main  
   
-    !!!Sets the non-pertrubative parameters lambda
+    !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_TMDR(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_TMDR(lambdaIN)
   end subroutine SetLambda_TMDR
   
-      !!!Sets the non-pertrubative parameters lambda
+      !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_uTMDPDF(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_uTMDPDF(lambdaIN)
   end subroutine SetLambda_uTMDPDF
   
-  !!!Sets the non-pertrubative parameters lambda
+  !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_uTMDFF(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_uTMDFF(lambdaIN)
   end subroutine SetLambda_uTMDFF
   
-  !!!Sets the non-pertrubative parameters lambda
+  !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_lpTMDPDF(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_lpTMDPDF(lambdaIN)
   end subroutine SetLambda_lpTMDPDF
   
-  !!!Sets the non-pertrubative parameters lambda
+  !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_SiversTMDPDF(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_SiversTMDPDF(lambdaIN)
   end subroutine SetLambda_SiversTMDPDF
   
-    !!!Sets the non-pertrubative parameters lambda
+    !!!Sets the non-perturbative parameters lambda
   subroutine SetLambda_wgtTMDPDF(lambdaIN)
     real*8,intent(in)::lambdaIN(:)
     call artemide_SetNPparameters_wgtTMDPDF(lambdaIN)
   end subroutine SetLambda_wgtTMDPDF
+
+      !!!Sets the non-perturbative parameters lambda
+  subroutine SetLambda_BoerMuldersTMDPDF(lambdaIN)
+    real*8,intent(in)::lambdaIN(:)
+    call artemide_SetNPparameters_BoerMuldersTMDPDF(lambdaIN)
+  end subroutine SetLambda_BoerMuldersTMDPDF
   
   
   !!!! this routine set the variations of scales
@@ -138,7 +108,7 @@ contains
     !! reset the number for PDF replica for uTMDFF
   subroutine SetFFreplica(rep,hadron)
     integer::rep,hadron
-    call uTMDFF_SetFFreplica(rep,hadron)
+    call uTMDFF_SetPDFreplica(rep,hadron)
   end subroutine SetFFreplica
   
     !! reset the number for PDF replica for lpTMDPDF
@@ -160,7 +130,7 @@ contains
     real*8::b,mu
     integer::f
     
-    getDNP=DNP(mu,b,f)
+    getDNP=CS_kernel(mu,b,f)
   end function getDNP
 
   !!!!! optimal R
@@ -182,7 +152,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDPDF_5_Evolved=uTMDPDF_5(x,bt,muf,zetaf,hadron)
+  uTMDPDF_5_Evolved=uTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function uTMDPDF_5_Evolved
   
@@ -192,7 +162,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDPDF_50_Evolved=uTMDPDF_50(x,bt,muf,zetaf,hadron)
+  uTMDPDF_50_Evolved=uTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function uTMDPDF_50_Evolved
 
@@ -203,7 +173,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDPDF_5_Optimal=uTMDPDF_5(x,bt,hadron)
+  uTMDPDF_5_Optimal=uTMDPDF_inB(x,bt,hadron)
     
   end function uTMDPDF_5_Optimal
   
@@ -213,7 +183,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDPDF_50_Optimal=uTMDPDF_50(x,bt,hadron)
+  uTMDPDF_50_Optimal=uTMDPDF_inB(x,bt,hadron)
     
   end function uTMDPDF_50_Optimal
   
@@ -226,7 +196,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDFF_5_Evolved=uTMDFF_5(x,bt,muf,zetaf,hadron)
+  uTMDFF_5_Evolved=uTMDFF_inB(x,bt,muf,zetaf,hadron)
     
   end function uTMDFF_5_Evolved
   
@@ -236,7 +206,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDFF_50_Evolved=uTMDFF_50(x,bt,muf,zetaf,hadron)
+  uTMDFF_50_Evolved=uTMDFF_inB(x,bt,muf,zetaf,hadron)
     
   end function uTMDFF_50_Evolved
 
@@ -247,7 +217,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDFF_5_Optimal=uTMDFF_5(x,bt,hadron)
+  uTMDFF_5_Optimal=uTMDFF_inB(x,bt,hadron)
     
   end function uTMDFF_5_Optimal
   
@@ -257,7 +227,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDFF_50_Optimal=uTMDFF_50(x,bt,hadron)
+  uTMDFF_50_Optimal=uTMDFF_inB(x,bt,hadron)
     
   end function uTMDFF_50_Optimal
   
@@ -270,7 +240,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  SiversTMDPDF_5_Evolved=SiversTMDPDF_5(x,bt,muf,zetaf,hadron)
+  SiversTMDPDF_5_Evolved=SiversTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function SiversTMDPDF_5_Evolved
   
@@ -280,7 +250,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  SiversTMDPDF_50_Evolved=SiversTMDPDF_50(x,bt,muf,zetaf,hadron)
+  SiversTMDPDF_50_Evolved=SiversTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function SiversTMDPDF_50_Evolved
 
@@ -291,7 +261,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  SiversTMDPDF_5_Optimal=SiversTMDPDF_5(x,bt,hadron)
+  SiversTMDPDF_5_Optimal=SiversTMDPDF_inB(x,bt,hadron)
     
   end function SiversTMDPDF_5_Optimal
   
@@ -301,7 +271,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  SiversTMDPDF_50_Optimal=SiversTMDPDF_50(x,bt,hadron)
+  SiversTMDPDF_50_Optimal=SiversTMDPDF_inB(x,bt,hadron)
     
   end function SiversTMDPDF_50_Optimal
   
@@ -315,7 +285,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  lpTMDPDF_50_Evolved=lpTMDPDF_50(x,bt,muf,zetaf,hadron)
+  lpTMDPDF_50_Evolved=lpTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function lpTMDPDF_50_Evolved
   
@@ -325,7 +295,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  lpTMDPDF_50_Optimal=lpTMDPDF_50(x,bt,hadron)
+  lpTMDPDF_50_Optimal=lpTMDPDF_inB(x,bt,hadron)
     
   end function lpTMDPDF_50_Optimal
   
@@ -338,7 +308,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  wgtTMDPDF_5_Evolved=wgtTMDPDF_5(x,bt,muf,zetaf,hadron)
+  wgtTMDPDF_5_Evolved=wgtTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function wgtTMDPDF_5_Evolved
   
@@ -348,7 +318,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  wgtTMDPDF_50_Evolved=wgtTMDPDF_50(x,bt,muf,zetaf,hadron)
+  wgtTMDPDF_50_Evolved=wgtTMDPDF_inB(x,bt,muf,zetaf,hadron)
     
   end function wgtTMDPDF_50_Evolved
 
@@ -359,7 +329,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  wgtTMDPDF_5_Optimal=wgtTMDPDF_5(x,bt,hadron)
+  wgtTMDPDF_5_Optimal=wgtTMDPDF_inB(x,bt,hadron)
     
   end function wgtTMDPDF_5_Optimal
   
@@ -369,9 +339,33 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  wgtTMDPDF_50_Optimal=wgtTMDPDF_50(x,bt,hadron)
+  wgtTMDPDF_50_Optimal=wgtTMDPDF_inB(x,bt,hadron)
     
   end function wgtTMDPDF_50_Optimal
+
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!BoerMuldersTMDPDF
+  !!!!!!!! BoerMulders TMDFF
+  ! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+  function BoerMuldersTMDPDF_Evolved(x,bt,muf,zetaf,hadron)
+    real*8:: BoerMuldersTMDPDF_Evolved(-5:5)
+    real*8:: x,bt,muf,zetaf
+    integer::hadron
+
+  BoerMuldersTMDPDF_Evolved=BoerMuldersTMDPDF_inB(x,bt,muf,zetaf,hadron)
+
+  end function BoerMuldersTMDPDF_Evolved
+
+    !!!!!!!! BoerMulders TMDPDF
+  ! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+  function BoerMuldersTMDPDF_Optimal(x,bt,hadron)
+    real*8:: BoerMuldersTMDPDF_Optimal(-5:5)
+    real*8:: x,bt
+    integer::hadron
+
+  BoerMuldersTMDPDF_Optimal=BoerMuldersTMDPDF_inB(x,bt,hadron)
+
+  end function BoerMuldersTMDPDF_Optimal
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -384,7 +378,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDPDF_kT_5_Evolved=uTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  uTMDPDF_kT_5_Evolved=uTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function uTMDPDF_kT_5_Evolved
   
@@ -394,7 +388,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDPDF_kT_50_Evolved=uTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  uTMDPDF_kT_50_Evolved=uTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function uTMDPDF_kT_50_Evolved
 
@@ -404,7 +398,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDPDF_kT_5_Optimal=uTMDPDF_kT_5(x,bt,hadron)
+  uTMDPDF_kT_5_Optimal=uTMDPDF_inKT(x,bt,hadron)
     
   end function uTMDPDF_kT_5_Optimal
   
@@ -414,9 +408,49 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDPDF_kT_50_Optimal=uTMDPDF_kT_5(x,bt,hadron)
+  uTMDPDF_kT_50_Optimal=uTMDPDF_inKT(x,bt,hadron)
     
   end function uTMDPDF_kT_50_Optimal
+
+  ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDPDF_G0(x,mu,hadron)
+    real*8:: uTMDPDF_G0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDPDF_G0=uTMDPDF_TMM_G(x,mu,hadron)
+
+  end function uTMDPDF_G0
+
+    ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDPDF_X0(x,mu,hadron)
+    real*8:: uTMDPDF_X0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDPDF_X0=uTMDPDF_TMM_X(x,mu,hadron)
+
+  end function uTMDPDF_X0
+
+      ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDPDF_ASX0(x,mu,hadron)
+    real*8:: uTMDPDF_ASX0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDPDF_ASX0=uTMDPDF_X0_AS(x,mu,mu,1)
+
+  end function uTMDPDF_ASX0
+
+      ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDPDF_PDF(x,mu,hadron)
+    real*8:: uTMDPDF_PDF(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDPDF_PDF=uTMDPDF_OPE_PDF(x,mu,hadron)
+
+  end function uTMDPDF_PDF
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!! upolarized TMDFF
@@ -426,7 +460,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDFF_kT_5_Evolved=uTMDFF_kT_5(x,bt,muf,zetaf,hadron)
+  uTMDFF_kT_5_Evolved=uTMDFF_inKT(x,bt,muf,zetaf,hadron)
     
   end function uTMDFF_kT_5_Evolved
   
@@ -436,7 +470,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  uTMDFF_kT_50_Evolved=uTMDFF_kT_5(x,bt,muf,zetaf,hadron)
+  uTMDFF_kT_50_Evolved=uTMDFF_inKT(x,bt,muf,zetaf,hadron)
     
   end function uTMDFF_kT_50_Evolved
 
@@ -446,7 +480,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDFF_kT_5_Optimal=uTMDFF_kT_5(x,bt,hadron)
+  uTMDFF_kT_5_Optimal=uTMDFF_inKT(x,bt,hadron)
     
   end function uTMDFF_kT_5_Optimal
   
@@ -456,7 +490,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  uTMDFF_kT_50_Optimal=uTMDFF_kT_5(x,bt,hadron)
+  uTMDFF_kT_50_Optimal=uTMDFF_inKT(x,bt,hadron)
     
   end function uTMDFF_kT_50_Optimal
   
@@ -469,7 +503,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  lpTMDPDF_kT_50_Evolved=lpTMDPDF_kT_50(x,bt,muf,zetaf,hadron)
+  lpTMDPDF_kT_50_Evolved=lpTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function lpTMDPDF_kT_50_Evolved
   
@@ -479,7 +513,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  lpTMDPDF_kT_50_Optimal=lpTMDPDF_kT_50(x,bt,hadron)
+  lpTMDPDF_kT_50_Optimal=lpTMDPDF_inKT(x,bt,hadron)
     
   end function lpTMDPDF_kT_50_Optimal
   
@@ -491,7 +525,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  SiversTMDPDF_kT_5_Evolved=SiversTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  SiversTMDPDF_kT_5_Evolved=SiversTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function SiversTMDPDF_kT_5_Evolved
   
@@ -501,7 +535,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  SiversTMDPDF_kT_50_Evolved=SiversTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  SiversTMDPDF_kT_50_Evolved=SiversTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function SiversTMDPDF_kT_50_Evolved
 
@@ -511,7 +545,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  SiversTMDPDF_kT_5_Optimal=SiversTMDPDF_kT_5(x,bt,hadron)
+  SiversTMDPDF_kT_5_Optimal=SiversTMDPDF_inKT(x,bt,hadron)
     
   end function SiversTMDPDF_kT_5_Optimal
   
@@ -521,9 +555,19 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  SiversTMDPDF_kT_50_Optimal=SiversTMDPDF_kT_5(x,bt,hadron)
+  SiversTMDPDF_kT_50_Optimal=SiversTMDPDF_inKT(x,bt,hadron)
     
   end function SiversTMDPDF_kT_50_Optimal
+
+    ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function SiversTMDPDF_G1(x,mu,hadron)
+    real*8:: SiversTMDPDF_G1(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  SiversTMDPDF_G1=SiversTMDPDF_TMM_G(x,mu,hadron)
+
+  end function SiversTMDPDF_G1
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     !!!!!!!!! wgt TMDPDF
@@ -533,7 +577,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  wgtTMDPDF_kT_5_Evolved=wgtTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  wgtTMDPDF_kT_5_Evolved=wgtTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function wgtTMDPDF_kT_5_Evolved
   
@@ -543,7 +587,7 @@ contains
     real*8:: x,bt,muf,zetaf
     integer::hadron
   
-  wgtTMDPDF_kT_50_Evolved=wgtTMDPDF_kT_5(x,bt,muf,zetaf,hadron)
+  wgtTMDPDF_kT_50_Evolved=wgtTMDPDF_inKT(x,bt,muf,zetaf,hadron)
     
   end function wgtTMDPDF_kT_50_Evolved
 
@@ -553,7 +597,7 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  wgtTMDPDF_kT_5_Optimal=wgtTMDPDF_kT_5(x,bt,hadron)
+  wgtTMDPDF_kT_5_Optimal=wgtTMDPDF_inKT(x,bt,hadron)
     
   end function wgtTMDPDF_kT_5_Optimal
   
@@ -563,34 +607,40 @@ contains
     real*8:: x,bt
     integer::hadron
   
-  wgtTMDPDF_kT_50_Optimal=wgtTMDPDF_kT_5(x,bt,hadron)
+  wgtTMDPDF_kT_50_Optimal=wgtTMDPDF_inKT(x,bt,hadron)
     
   end function wgtTMDPDF_kT_50_Optimal
+
+    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    !!!!!!!!! BoerMulders TMDPDF
+  ! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+  function BoerMuldersTMDPDF_kT_Evolved(x,bt,muf,zetaf,hadron)
+    real*8:: BoerMuldersTMDPDF_kT_Evolved(-5:5)
+    real*8:: x,bt,muf,zetaf
+    integer::hadron
+
+  BoerMuldersTMDPDF_kT_Evolved=BoerMuldersTMDPDF_inKT(x,bt,muf,zetaf,hadron)
+
+  end function BoerMuldersTMDPDF_kT_Evolved
+
+  ! vector (bbar,cbar,sbar,ubar,dbar,??,d,u,s,c,b)
+  function BoerMuldersTMDPDF_kT_Optimal(x,bt,hadron)
+    real*8:: BoerMuldersTMDPDF_kT_Optimal(-5:5)
+    real*8:: x,bt
+    integer::hadron
+
+  BoerMuldersTMDPDF_kT_Optimal=BoerMuldersTMDPDF_inKT(x,bt,hadron)
+
+  end function BoerMuldersTMDPDF_kT_Optimal
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!DY CROSS-SECTION
-  
-    function DY_xSec_SingleN(process,s,qT,Q,y,includeCuts,CutParameters,Num)
-    integer,intent(in),dimension(1:3)::process		!the number of process
-    real*8,intent(in)::s				!Mandelshtam s
-    real*8,intent(in),dimension(1:2)::qT		!(qtMin,qtMax)
-    real*8,intent(in),dimension(1:2)::Q			!(Qmin,Qmax)
-    real*8,intent(in),dimension(1:2)::y			!(ymin,ymax)
-    logical,intent(in)::includeCuts			!include cuts
-    real*8,intent(in),dimension(1:4)::CutParameters	!(p1,p2,eta1,eta2)
-    integer,intent(in)::Num				!number of sections
-    real*8::DY_xSec_Single
-    real*8::X
-    
-    call xSec_DY(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
-    DY_xSec_SingleN=X
-  
-  end function DY_xSec_SingleN
+
   
   function DY_xSec_Single(process,s,qT,Q,y,includeCuts,CutParameters)
-    integer,intent(in),dimension(1:3)::process		!the number of process
+    integer,intent(in),dimension(1:4)::process		!the number of process
     real*8,intent(in)::s				!Mandelshtam s
     real*8,intent(in),dimension(1:2)::qT		!(qtMin,qtMax)
     real*8,intent(in),dimension(1:2)::Q			!(Qmin,Qmax)
@@ -619,6 +669,21 @@ contains
     call xSec_DY_List(DY_xSec_List,process,s,qT,Q,y,includeCuts,CutParameters)
   
   end function DY_xSec_List
+
+  function DY_xSec_List_APPROXIMATE(process,s,qT,Q,y,includeCuts,CutParameters,ListLength)
+    integer,intent(in)::ListLength
+    integer,intent(in),dimension(:,:)::process			!the number of process
+    real*8,intent(in),dimension(:)::s				!Mandelshtam s
+    real*8,intent(in),dimension(:,:)::qT			!(qtMin,qtMax)
+    real*8,intent(in),dimension(:,:)::Q				!(Qmin,Qmax)
+    real*8,intent(in),dimension(:,:)::y				!(ymin,ymax)
+    logical,intent(in),dimension(:)::includeCuts		!include cuts
+    real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
+    real*8,dimension(1:ListLength)::DY_xSec_List_APPROXIMATE
+
+    call xSec_DY_List_APPROXIMATE(DY_xSec_List_APPROXIMATE,process,s,qT,Q,y,includeCuts,CutParameters)
+
+  end function DY_xSec_List_APPROXIMATE
   
   function DY_xSec_BINLESS_List(process,s,qT,Q,y,includeCuts,CutParameters,ListLength)
     integer,intent(in)::ListLength
@@ -630,7 +695,7 @@ contains
     logical,intent(in),dimension(:)::includeCuts		!include cuts
     real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
     real*8,dimension(1:ListLength)::DY_xSec_BINLESS_List
-    
+
     call xSec_DY_List_BINLESS(DY_xSec_BINLESS_List,process,s,qT,Q,y,includeCuts,CutParameters)
   
   end function DY_xSec_BINLESS_List

@@ -1,11 +1,11 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 1.4
+!            arTeMiDe 1.4
 !
 ! The module defining various QED and electro weak parameters
-!	
-!	14.02.2019 values of ckm matrix are added AV.
 !
-!						AV.  10.06.2018
+!    14.02.2019 values of ckm matrix are added AV.
+!
+!                        AV.  10.06.2018
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 
@@ -19,9 +19,9 @@ private
 logical:: started=.false.
 integer::outputLevel
 character (len=7),parameter :: moduleName="EWinput"
-character (len=5),parameter :: version="v2.03"
+character (len=5),parameter :: version="v3.00"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=14
+integer,parameter::inputver=30
 
 real(dp)::massZ,massW,massHIGGS,sW2,cW2
 real(dp)::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
@@ -31,12 +31,21 @@ public::alphaEM,EWinput_Initialize,EWinput_IsInitialized
 !!-Z-gamma DY
 real(dp),public::paramU,paramD,paramS,paramC,paramB,paramL,paramL_A
 real(dp),public::paramMIXU,paramMIXD,paramMIXS,paramMIXC,paramMIXB,paramMIXL,paramMIXL_A
+
+real(dp),public::zP_gg_U, zP_gg_D, zP_gg_S, zP_gg_C, zP_gg_B, zP_gg_L
+real(dp),public::zP_gZ_U, zP_gZ_D, zP_gZ_S, zP_gZ_C, zP_gZ_B, zP_gZ_L
+real(dp),public::zP_ZZ_U, zP_ZZ_D, zP_ZZ_S, zP_ZZ_C, zP_ZZ_B, zP_ZZ_L
+real(dp),public::zM_gZ_U, zM_gZ_D, zM_gZ_S, zM_gZ_C, zM_gZ_B, zM_gZ_L
+real(dp),public::zM_ZZ_U, zM_ZZ_D, zM_ZZ_S, zM_ZZ_C, zM_ZZ_B, zM_ZZ_L
+real(dp),public::rP_ZZ_U, rP_ZZ_D, rP_ZZ_S, rP_ZZ_C, rP_ZZ_B, rP_ZZ_L
+real(dp),public::rM_gZ_U, rM_gZ_D, rM_gZ_S, rM_gZ_C, rM_gZ_B, rM_gZ_L
+
 !!-W DY
 real(dp),public::paramW_UD,paramW_US,paramW_UB,paramW_CD,paramW_CS,paramW_CB,paramW_L
 
 !!-EW-boson parameters
-real(dp),public::GammaZ2,MZ2
-real(dp),public::GammaW2,MW2
+real(dp),public::GammaZ2,MZ2,MZ
+real(dp),public::GammaW2,MW2,MW
 
 !!-Higgs-boson parameters
 real(dp),public::MH2,GammaH2,VEVH
@@ -84,7 +93,7 @@ contains
     read(51,*) FILEver
     if(FILEver<inputver) then
       write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
-      write(*,*) '		     Update the const-file with artemide.setup'
+      write(*,*) '             Update the const-file with artemide.setup'
       write(*,*) '  '
       stop
     end if
@@ -109,8 +118,8 @@ contains
     alphaZ=1d0/alphaZinv
     
     call MoveTO(51,'*p2   ')
-    read(51,*) sW2	!!!!!!!!!!sin^2 theta_W
-    cw2=1d0-sw2		!!!!!!!!!!cos^2 theta_W
+    read(51,*) sW2    !!!!!!!!!!sin^2 theta_W
+    cw2=1d0-sw2        !!!!!!!!!!cos^2 theta_W
     
     call MoveTO(51,'*p3   ')!!!!CKM matrix
     read(51,*) Vckm_UD,Vckm_US,Vckm_UB
@@ -122,6 +131,7 @@ contains
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) massZ     !!!!!!!!!!Z mass
+    MZ=massZ
     MZ2=massZ**2
     call MoveTO(51,'*p2  ')
     read(51,*) dummy
@@ -130,6 +140,7 @@ contains
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) massW     !!!!!!!!!!W mass
+    MW=massW
     MW2=massW**2
     call MoveTO(51,'*p2  ')
     read(51,*) dummy
@@ -149,9 +160,9 @@ contains
     call MoveTO(51,'*p1  ')
     read(51,*) massELECTRON     !!!!!!!!!!electron mass in GEV
     call MoveTO(51,'*p2  ')
-    read(51,*) massMUON	 	!!!!!!!!!!muon mass in GEV
+    read(51,*) massMUON         !!!!!!!!!!muon mass in GEV
     call MoveTO(51,'*p3  ')
-    read(51,*) massTAU	 	!!!!!!!!!!tau-lepton mass in GEV
+    read(51,*) massTAU         !!!!!!!!!!tau-lepton mass in GEV
     
     CLOSE (51, STATUS='KEEP')
     
@@ -210,48 +221,105 @@ contains
  !!!! paramMIX is given by
  !!!! eq(t2-2ef sW^2)/(2sw cW)
  !!!! eq*gV  for Z boson
+
+ !!!! parameters z and r
+ !!!! zP_gg = ef^2
+ !!!! zP_gZ = eq(t2-2ef sW^2)/(2sw cW) = paramMIX
+ !!!! zP_ZZ = ((1-2|eq|sw^2)^2+4eq^2sw^4)/(8sw^2cw^2) = param
+ !!!! rP_ZZ = ef(ef sW^2-T3)/cW^2
+ !!!! zM_gZ =-abs(ef)/4sWcW
+ !!!! zM_ZZ=(4 abs(ef)sW^2-1)/8sw^2cw^2
+ !!!! rM_gZ=abs(ef)/4sWcW
  
  !-------------------------------------------------------
  !---  Z-boson interaction
  !---------------U quark
- ef=2d0/3d0
- t3=+0.5d0
- paramU=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXU=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ ef=2._dp/3._dp
+ t3=+0.5_dp
+ paramU=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXU=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+
+ zP_gg_U=ef**2
+ zP_gZ_U=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_U=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_U=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_U=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_U=ef*(ef*sW2-t3)/cW2
+ rM_gZ_U=abs(ef)/(4*sqrt(sW2*cW2))
  
  !---------------D-quark 
- ef=-1d0/3d0
- t3=-0.5d0
- paramD=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXD=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ ef=-1._dp/3._dp
+ t3=-0.5_dp
+ paramD=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXD=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+
+ zP_gg_D=ef**2
+ zP_gZ_D=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_D=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_D=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_D=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_D=ef*(ef*sW2-t3)/cW2
+ rM_gZ_D=abs(ef)/(4*sqrt(sW2*cW2))
  
  !---------------S-quark
- ef=-1d0/3d0
- t3=-0.5d0
- paramS=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXS=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ ef=-1._dp/3._dp
+ t3=-0.5_dp
+ paramS=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXS=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
  
+ zP_gg_S=ef**2
+ zP_gZ_S=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_S=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_S=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_S=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_S=ef*(ef*sW2-t3)/cW2
+ rM_gZ_S=abs(ef)/(4*sqrt(sW2*cW2))
+
  !---------------C-quark
- ef=2d0/3d0
- t3=+0.5d0
- paramC=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXC=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
- 
+ ef=2._dp/3._dp
+ t3=+0.5_dp
+ paramC=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXC=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+
+ zP_gg_C=ef**2
+ zP_gZ_C=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_C=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_C=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_C=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_C=ef*(ef*sW2-t3)/cW2
+ rM_gZ_C=abs(ef)/(4*sqrt(sW2*cW2))
+
  !---------------B-quark
- ef=-1d0/3d0
- t3=-0.5d0
- paramB=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXB=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
- 
+ ef=-1._dp/3._dp
+ t3=-0.5_dp
+ paramB=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXB=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+
+ zP_gg_B=ef**2
+ zP_gZ_B=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_B=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_B=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_B=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_B=ef*(ef*sW2-t3)/cW2
+ rM_gZ_B=abs(ef)/(4*sqrt(sW2*cW2))
+
   !---------------Lepton
- ef=-1d0
- t3=-0.5d0
- paramL=((1d0-2d0*Abs(ef)*sW2)**2+4d0*ef**2*sW2**2)/(8d0*sW2*cW2)
- paramMIXL=ef*(t3-2d0*ef*sW2)/(2d0*Sqrt(sw2*cw2))
+ ef=-1._dp
+ t3=-0.5_dp
+ paramL=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ paramMIXL=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
  !!! asymetric combinations
- paramL_A=(4d0*Abs(ef)*sW2**2-1)/(8d0*sW2*cW2)
- paramMIXL_A=-t3*ef/(2d0*Sqrt(sw2*cw2))
- 
+ paramL_A=(4*Abs(ef)*sW2**2-1)/(8*sW2*cW2)
+ paramMIXL_A=-t3*ef/(2*Sqrt(sw2*cw2))
+
+ zP_gg_L=ef**2
+ zP_gZ_L=ef*(t3-2*ef*sW2)/(2*Sqrt(sw2*cw2))
+ zP_ZZ_L=((1-2*Abs(ef)*sW2)**2+4*ef**2*sW2**2)/(8*sW2*cW2)
+ zM_gZ_L=-abs(ef)/4/sqrt(sW2*cW2)
+ zM_ZZ_L=(4*abs(ef)*sW2-1)/(8*sW2*cW2)
+ rP_ZZ_L=ef*(ef*sW2-t3)/cW2
+ rM_gZ_L=abs(ef)/(4*sqrt(sW2*cW2))
+
  !-------------------------------------------------------
  !---  W-boson interaction
  
@@ -288,7 +356,7 @@ contains
   
   if(outputLevel>2) write(*,*) "    Effective QED beta fuction in fractions of LO:",deltaB
   if(abs(deltaB-1d0)>0.05) &
-	write(*,*)  WarningString(' Effective QED beta function 5% deviate from LO. Check boundary setup.',modulename)
+    write(*,*)  WarningString(' Effective QED beta function 5% deviate from LO. Check boundary setup.',modulename)
   
   alphaTOPinv=alphaZinv+2d0*betaQED*20d0/3d0*log(massTOP/massZ)
   alphaBOTTOMinv=alphaZinv+2d0*betaQED*20d0/3d0*log(massBOTTOM/massZ)
@@ -299,8 +367,8 @@ contains
   
   if(outputLevel>2) write(*,*) "    Theashold values of alpha^(-1) QED (mE,mMU,mC,mTAU,mB,mT):"
   if(outputLevel>2) write(*,"('    ',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3,',',F7.3)") &
-	      alphaELECTRONinv,alphaMUONinv,alphaCHARMinv,alphaTAUinv,alphaBOTTOMinv,alphaTOPinv
-	      
+          alphaELECTRONinv,alphaMUONinv,alphaCHARMinv,alphaTAUinv,alphaBOTTOMinv,alphaTOPinv
+
  end subroutine Set_betaQED
  
 end module EWinput

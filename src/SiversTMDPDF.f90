@@ -1,17 +1,18 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!			arTeMiDe 2.0
+!			arTeMiDe 3.0
 !
-!	Evaluation of the Sivers TMD PDF f_{1T}^\perp at low normalization point in zeta-prescription.
-!	
-!	if you use this module please, quote 20??.????
+!	Evaluation of the Sivers TMD PDF at low normalization point in zeta-prescription.
 !
+!	21.08.2023  Implementation in ver.3.0
 !
-!				A.Vladimirov (21.05.2020)
+!				A.Vladimirov (21.08.2023)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module SiversTMDPDF
 use aTMDe_Numerics
 use IO_functions
 use QCDinput
+use TMDR
+use SiversTMDPDF_OPE
 use SiversTMDPDF_model
 
 implicit none
@@ -20,10 +21,10 @@ implicit none
 private 
 
 !Current version of module
-character (len=5),parameter :: version="v2.05"
+character (len=5),parameter :: version="v3.00"
 character (len=12),parameter :: moduleName="SiversTMDPDF"
-!Last appropriate verion of constants-file
-integer,parameter::inputver=12
+!Last appropriate version of constants-file
+integer,parameter::inputver=30
 
 !--------------------------------Working variables-----------------------------------------------
 !--- general
@@ -36,60 +37,74 @@ integer::outputLevel=2
 !! variable that count number of WRNING mesagges. In order not to spam too much
 integer::messageTrigger=6
 
-!!! The global order which is used in programm
-! it is set by SetOrderForC subroutine
-! 0=LO, 1=NLO, 2=NNLO
-integer :: order_global
-
+!!! the length and array of NP parameters
 integer::lambdaNPlength
 real(dp),dimension(:),allocatable::lambdaNP
-real(dp),dimension(:),allocatable::lambdaNP_grid !!! this is the value of lambda on which the grid is build
+real(dp)::BMAX_ABS=100._dp !!! for large values of b returns 0
+real(dp)::toleranceGEN !!! tolerance general
 
-real(dp)::c4_global!!!this is the variation constant for mu_OPE
+integer :: messageCounter
 
-!!!Parameters of numerics
-real(dp) :: tolerance=0.0001d0!!! relative tolerance of the integration
-integer :: maxIteration=5000
+!!!------------------------------ General parameters----------------------------------------------
+logical::includeGluon=.false.   !! gluons included/non-included
+integer::numOfHadrons=1         !! total number of hadrons to compute
+real(dp)::TMDmass=1._dp         !! mass parameter used as mass-scale
 
-integer :: counter,messageCounter
+!!!------------------------------ Parameters of transform to KT-space -------------------------------------------
 
-INCLUDE 'Code/Twist3/Twist3Convolution-VAR.f90'
-INCLUDE 'Code/Grids/TMDGrid-B-VAR.f90'
+integer,parameter::TMDtypeN=1 !!!!! this is the order of Bessel-transform (IT IS STRICT FOR TMD)
+real(dp)::kT_FREEZE=0.0001_dp  !!!!! parameter of freezing the low-kT-value
 
-!!--------------------------------- variables for the griding the TMD.---------------------------------------------
-logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated from the grid
-logical :: prepareGrid!!!idicator that grid must be prepared
-logical :: withGluon!!!indicator the gluon is needed in the grid
-logical :: IsFnpZdependent !!! indicator that the grid must be recalculated with the change of Lambda
+!----Ogata Tables---
+integer,parameter::Nmax=1000
+INCLUDE 'Tables/BesselZero1000.f90'
 
-!!--------------------------------- variables for hadron composition---------------------------------------------
-integer::numberOfHadrons				        !!!number of hadrons/components
-integer,dimension(:),allocatable::hadronsInGRID	!!!list of hadron to be pre-grid
-logical::IsComposite=.false.					!!!flag to use the composite TMD
+!!!!! I split the qT over runs qT<qTSegmentationBoundary
+!!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
+!!!!! It helps to convergen integrals, since h(optimal) ~ qT
+integer,parameter::hSegmentationNumber=7
+real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.0001d0,0.001d0,0.01d0,1d0,2d0,5d0,10d0/)
+real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,10d0,50d0,100d0,200d0/)
+
+real(dp)::hOGATA,toleranceOGATA
+!!!weights of ogata quadrature
+real(dp),dimension(1:hSegmentationNumber,1:Nmax)::ww
+!!!nodes of ogata quadrature
+real(dp),dimension(1:hSegmentationNumber,1:Nmax)::bb
+
+!!!------------------------------ Parameters of transform to TMM -------------------------------------------
+
+real(dp)::muTMM_min=0.8_dp  !!!!! minimal mu
+
+!!!!! I split the qT over runs qT<qTSegmentationBoundary
+!!!!! For TMM this split is the same as for inKT
+
+real(dp)::hOGATA_TMM,toleranceOGATA_TMM
+!!!weights of ogata quadrature
+real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww_TMM
+!!!nodes of ogata quadrature
+real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb_TMM
 
 !!-----------------------------------------------Public interface---------------------------------------------------
 
-public::SiversTMDPDF_Initialize,SiversTMDPDF_SetLambdaNP,SiversTMDPDF_SetScaleVariation,SiversTMDPDF_resetGrid,&
-    SiversTMDPDF_SetPDFreplica
-public::SiversTMDPDF_IsInitialized,SiversTMDPDF_CurrentNPparameters
-public::SiversTMDPDF_lowScale5,SiversTMDPDF_lowScale50
-!   public::CheckCoefficient  
-!   public::mu_OPE
+public::SiversTMDPDF_Initialize,SiversTMDPDF_IsInitialized
+public::SiversTMDPDF_SetScaleVariation_tw3
+public::SiversTMDPDF_SetPDFreplica_tw3
+public::SiversTMDPDF_SetLambdaNP,SiversTMDPDF_CurrentLambdaNP
+public::SiversTMDPDF_inB,SiversTMDPDF_inKT,SiversTMDPDF_TMM_G,SiversTMDPDF_TMM_X
 
-interface SiversTMDPDF_SetLambdaNP
-    module procedure SiversTMDPDF_SetLambdaNP_usual,SiversTMDPDF_SetReplica_optional
+interface SiversTMDPDF_inB
+    module procedure TMD_opt,TMD_ev
 end interface
-  
+
+interface SiversTMDPDF_inKT
+    module procedure Fourier_opt,Fourier_ev
+end interface
+
 contains
 
-INCLUDE 'Code/Twist3/Twist3Convolution.f90'
-INCLUDE 'Code/Grids/TMDGrid-B-2.f90'
-
-
-!! Testing the model
-INCLUDE 'Code/SiversTMDPDF/modelTest.f90'
-!! The convolution interfaces
-INCLUDE 'Code/SiversTMDPDF/convolutions.f90'
+INCLUDE 'Code/KTspace/Fourier.f90'
+INCLUDE 'Code/KTspace/Moment.f90'
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
@@ -102,22 +117,11 @@ end function SiversTMDPDF_IsInitialized
 subroutine SiversTMDPDF_Initialize(file,prefix)
     character(len=*)::file
     character(len=*),optional::prefix
-    character(len=300)::path,line
+    character(len=300)::path
     logical::initRequired
-    character(len=8)::orderMain
-    logical::bSTAR_lambdaDependent
-    integer::i,FILEver
+    integer::FILEver
 
     if(started) return
-
-    if(.not.QCDinput_IsInitialized()) then
-        if(outputLevel>1) write(*,*) '.. initializing QCDinput (from ',moduleName,')'
-        if(present(prefix)) then
-        call QCDinput_Initialize(file,prefix)
-        else
-        call QCDinput_Initialize(file)
-        end if
-    end if
 
     if(present(prefix)) then
         path=trim(adjustl(prefix))//trim(adjustr(file))
@@ -135,15 +139,32 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
         write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
         write(*,*) '		     Update the const-file with artemide.setup'
         write(*,*) '  '
+        CLOSE (51, STATUS='KEEP')
         stop
     end if
+
     call MoveTO(51,'*p2  ')
     read(51,*) outputLevel    
     if(outputLevel>1) write(*,*) '--------------------------------------------- '
     if(outputLevel>1) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+
     call MoveTO(51,'*p3  ')
     read(51,*) messageTrigger
 
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p2  ')
+    read(51,*) TMDmass
+
+        !! TMDR
+    call MoveTO(51,'*3   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) initRequired
+    if(.not.initRequired) then
+        write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
+        write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
+        CLOSE (51, STATUS='KEEP')
+        stop
+    end if
 
     call MoveTO(51,'*12   ')
     call MoveTO(51,'*p1  ')
@@ -151,138 +172,90 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
     if(.not.initRequired) then
         if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not required. '
         started=.false.
+        CLOSE (51, STATUS='KEEP')
         return
     end if
 
-    !----- ORDER
+    !-------------general parameters
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) orderMain
-
-    SELECT CASE(trim(orderMain))
-        CASE ("NA")
-            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: NA',color(" (TMD=fNP)",c_yellow)
-            order_global=-50
-        CASE ("LO")
-            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
-            order_global=0
-        CASE ("LO+")
-            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO+'
-            order_global=0        
-        CASE DEFAULT
-            if(outputLevel>0) write(*,*) &
-                WarningString('Initialize: unknown order for coefficient function. Switch to LO.',moduleName)
-            if(outputLevel>1) write(*,*) trim(moduleName)//' Order set: LO'
-            order_global=0
-    END SELECT
-
-    if(outputLevel>2 .and. order_global>-1) write(*,'(A,I1)') ' |  Coef.func.    =as^',order_global
-        
-    !------ Compositeness
+    read(51,*) includeGluon
     call MoveTO(51,'*p2  ')
-    read(51,*) IsComposite
-
-    if(outputLevel>2) then
-        if(IsComposite) then
-        write(*,'(A,I1)') ' |  Use compsite  =TRUE'
-        else
-        write(*,'(A,I1)') ' |  Use compsite  =FALSE'
-        end if
-        end if
+    read(51,*) numOfHadrons
 
     !-------------parameters of NP model
-    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) lambdaNPlength
 
-    if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
+    call MoveTO(51,'*p2  ')
+    read(51,*) BMAX_ABS
+
 
     if(lambdaNPlength<=0) then
-    write(*,*) ErrorString('Initialize: number of non-pertrubative &
-            parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
+    write(*,*) ErrorString(&
+    'Initialize: number of non-pertrubative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
+            CLOSE (51, STATUS='KEEP')
     stop
     end if
-    allocate(lambdaNP(1:lambdaNPlength))
-    
-    call MoveTO(51,'*p2  ')
-    do i=1,lambdaNPlength
-        read(51,*) lambdaNP(i)
-    end do
 
-
-    !-------------Numeric parameters
-    call MoveTO(51,'*C   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) tolerance
-    call MoveTO(51,'*p2  ')
-    read(51,*) maxIteration
-
-    if(outputLevel>2) then
-        write(*,'(A,ES10.3)') ' |  tolerance     =',tolerance
-        write(*,'(A,ES10.3)') ' |  max iteration =',REAL(maxIteration)
-        end if
-        
-    !-------------Make grid options
+    !!!!! ---- parameters of numerical evaluation
     call MoveTO(51,'*D   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) prepareGrid    
     call MoveTO(51,'*p2  ')
-    read(51,*) withGluon
-    call MoveTO(51,'*p3  ')
-    read(51,*) numberOfHadrons
-    allocate(hadronsInGRID(1:numberOfHadrons))
-    call MoveTO(51,'*p4  ')
-    read(51,*) hadronsInGRID
+    read(51,*) toleranceGEN
 
-    !-------------Parameters of grid
-    call MoveTO(51,'*E   ')
+    !!!!! ---- parameters of KT-transformation
+    call MoveTO(51,'*F   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) xGrid_Min
+    read(51,*) toleranceOGATA
     call MoveTO(51,'*p2  ')
-    read(51,*) bGrid_Max
+    read(51,*) hOGATA
     call MoveTO(51,'*p3  ')
-    read(51,*) GridSizeX
-    call MoveTO(51,'*p4  ')
-    read(51,*) GridSizeB
-    call MoveTO(51,'*p5  ')
-    read(51,*) slope
+    read(51,*) kT_FREEZE
 
-        if(outputLevel>2) then
-        write(*,*) 'Grid options:'
-        write(*,'(A,ES10.3)') ' |  xGrid_Min                 =',xGrid_Min
-        write(*,'(A,ES10.3)') ' |  bGrid_Max                 =',bGrid_Max 
-        write(*,'(A,I6,A,I6,A)') ' |  (GridSizeX,GridSizeB)     =(',GridSizeX,',',GridSizeB,')'
-        write(*,'(A,F6.3)') ' |  slope                     =',slope 
-        write(*,'(A,I3)')   ' |  hadrons to grid           =',numberOfHadrons
-        write(*,*)   ' | list of hadrons in grid    =(',hadronsInGRID,')'
-        end if
+    !!!!! ---- parameters of TMM-transformation
+    call MoveTO(51,'*G   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) toleranceOGATA_TMM
+    call MoveTO(51,'*p2  ')
+    read(51,*) hOGATA_TMM
+    call MoveTO(51,'*p3  ')
+    read(51,*) muTMM_min
 
     CLOSE (51, STATUS='KEEP') 
 
-    allocate(gridMain(0:GridSizeX,0:GridSizeB,-5:5,1:numberOfHadrons))
-    allocate(boundaryValues(0:GridSizeX,-5:5,1:numberOfHadrons))
 
-    allocate(lambdaNP_grid(1:lambdaNPlength))
+    if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
+    if(outputLevel>2 .and. .not.includeGluon) write(*,'(A)') ' ... gluons are not included'
+    if(outputLevel>2) write(*,'(A,I3)') ' Number of hadrons to be considered =',numOfHadrons
+    if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
+    if(outputLevel>2) write(*,'(A,F12.2)') ' Absolute maximum b      =',BMAX_ABS
 
-    c4_global=1d0
+    allocate(lambdaNP(1:lambdaNPlength))
 
-    call ModelInitialization(lambdaNP)
+    call PrepareTables()
+    call PrepareTablesTMM()
 
-    !!!!!!!Checking the lambda-dependance of bSTAR
-    bSTAR_lambdaDependent=testbSTAR()
-
-    if(bSTAR_lambdaDependent) then
-        if(outputLevel>2) write(*,*) 'arTeMiDe.SiversTMDPDF: bSTAR is dependent on lambda'
-    else
-        if(outputLevel>2) write(*,*) 'arTeMiDe.SiversTMDPDF: bSTAR is independent on lambda'
+    if(.not.TMDR_IsInitialized()) then
+        if(outputLevel>2) write(*,*) '.. initializing TMDR (from ',moduleName,')'
+        if(present(prefix)) then
+            call TMDR_Initialize(file,prefix)
+        else
+            call TMDR_Initialize(file)
+        end if
     end if
 
-    !!! if fnp depende on z or bSTAR depeds on lambda
-    !!! grid must be recalculate ech time. It canbe saved to single IsFnpZdependent
-    if(bSTAR_lambdaDependent) then
-        IsFnpZdependent=.true.
-        if(outputLevel>2) write(*,*) 'arTeMiDe.SiversTMDPDF: ............. convolution is lambda sensitive.'
+    if(.not.SiversTMDPDF_OPE_IsInitialized()) then
+        if(outputLevel>2) write(*,*) '.. initializing SiversTMDPDF_OPE (from ',moduleName,')'
+        if(present(prefix)) then
+            call SiversTMDPDF_OPE_Initialize(file,prefix)
+        else
+            call SiversTMDPDF_OPE_Initialize(file)
+        end if
     end if
+
+    call ModelInitialization(lambdaNPlength)
+    if(outputLevel>0) write(*,*) color('----- arTeMiDe.SiversTMDPDF_model : .... initialized',c_green)
 
     started=.true.
     messageCounter=0
@@ -291,170 +264,155 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
     if(outputLevel>1) write(*,*) ' '
 end subroutine SiversTMDPDF_Initialize
 
-!! call for parameters from the model
-subroutine SiversTMDPDF_SetReplica_optional(num,buildGrid, gluonRequired)
-    integer,intent(in):: num
-    logical,optional,intent(in):: buildGrid,gluonRequired
-    real(dp),allocatable::NParray(:)
-
-    call GetReplicaParameters(num,NParray)
-
-    if(present(buildGrid)) then
-    if(present(gluonRequired)) then
-        call SiversTMDPDF_SetLambdaNP_usual(NParray,buildGrid=buildGrid,gluonRequired=gluonRequired)
-    else
-        call SiversTMDPDF_SetLambdaNP_usual(NParray,buildGrid=buildGrid)
-    end if
-    else
-    if(present(gluonRequired)) then
-        call SiversTMDPDF_SetLambdaNP_usual(NParray,gluonRequired=gluonRequired)
-    else
-        call SiversTMDPDF_SetLambdaNP_usual(NParray)
-    end if
-    end if
-
-end subroutine SiversTMDPDF_SetReplica_optional
-
-!! call QCDinput to change the PDF replica number
-!! unset the grid, since it should be recalculated fro different PDF replica.
-subroutine SiversTMDPDF_SetPDFreplica(rep,hadron)
+!!!!!!!!!! ------------------------ SUPPORINTG ROUTINES --------------------------------------
+!!! update PDF replica
+subroutine SiversTMDPDF_SetPDFreplica_tw3(rep,hadron)
     integer,intent(in):: rep,hadron
-    
-    if(outputLevel>0) write(*,*) &
-                WarningString('Cannot change PDF replica. No PDFs for Sivers. NOTHING IS DONE!',moduleName)
-    
-end subroutine SiversTMDPDF_SetPDFreplica
+
+    call SiversTMDPDF_OPE_tw3_SetPDFreplica(rep,hadron)
+end subroutine SiversTMDPDF_SetPDFreplica_tw3
+
+!!!! this routine set the variations of scales
+subroutine SiversTMDPDF_SetScaleVariation_tw3(c4_in)
+    real(dp),intent(in)::c4_in
+    call SiversTMDPDF_OPE_tw3_SetScaleVariation(c4_in)
+end subroutine SiversTMDPDF_SetScaleVariation_tw3
 
 !!!Sets the non-pertrubative parameters lambda
 !!! carries additionl option to build the grid
 !!! if need to build grid, specify the gluon required directive.
-subroutine SiversTMDPDF_SetLambdaNP_usual(lambdaIN,buildGrid, gluonRequired)
+subroutine SiversTMDPDF_SetLambdaNP(lambdaIN)
     real(dp),intent(in)::lambdaIN(:)
-    logical,optional,intent(in) :: buildGrid,gluonRequired
-    real(dp),dimension(1:lambdaNPlength)::lambdaOLD
-    logical::IsNewValues
-    integer::i,ll
+    integer::ll
     messageCounter=0
 
-    if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequired)) withGluon=gluonRequired
-
     ll=size(lambdaIN)
-    if(ll<lambdaNPlength) then 
+    if(ll/=lambdaNPlength) then
         if(outputLevel>0) write(*,"(A,I3,A,I3,')')")&
                 WarningString('SetLambdaNP:length of lambdaNP(',moduleName),&
-            ll,color(') is less then requred (',c_red),lambdaNPlength
-        if(outputLevel>0) write(*,*)color('                Rest parameters are replaced by zeros!',c_red)
-        lambdaNP=0d0*lambdaNP
-        lambdaNP(1:ll)=lambdaIN(1:ll)
-    else if (ll>lambdaNPlength) then
-        if(outputLevel>0) write(*,"(A,I3,A,I3,')')")&
-                WarningString('SetLambdaNP:length of lambdaNP(',moduleName),&
-            ll,color(') is greater then requred (',c_red),lambdaNPlength
-        if(outputLevel>0) write(*,*)color('                Array is truncated!',c_red)
-        lambdaNP(1:lambdaNPlength)=lambdaIN(1:lambdaNPlength)
-        else
-        lambdaOLD=lambdaNP
-        lambdaNP=lambdaIN
-        end if
+            ll,color(') does not match the required (',c_red),lambdaNPlength
+        if(outputLevel>0) write(*,*)color('                NOTHING IS DONE!',c_red)
+        return
+    end if
 
-
-    lambdaOLD=lambdaNP
     lambdaNP=lambdaIN
-    IsNewValues=.false.
-    do i=1,lambdaNPlength
-        if(ABS(lambdaNP(i)-lambdaOLD(i))>10d-10) then
-        IsNewValues=.true.
-        exit
-        end if
-    end do    
-
-
-    if(IsNewValues.and.(outputLevel>2)) write(*,*) 'arTeMiDe.',moduleName,': NPparameters reset = (',lambdaNP,')'
     call ModelUpdate(lambdaNP)
 
-    !! further if's are only for griding
-
-    if(prepareGrid) then !!!grid is requred
-
-        if(IsNewValues) then  !! values are new
-
-            if(gridReady) then  !!! grid is already build
-        
-                if(IsFnpZdependent) then !!! check the z-dependance of FNP
-                    !! if it is z- dependent, rebuild the grid
-                    gridReady=.false.
-                    call MakeGrid()
-                    gridReady=.true.
-        
-                else !!! if z-Independent just do nothing.
-                    if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': the values are to be restored from the initial grid'
-                end if
-        
-            else !!! grid is not ready (how comes?)
-                call MakeGrid()
-                gridReady=.true.
-            end if
-
-        else  !! values are old
-
-            if(gridReady) then  !!! grid is already build
-                !!!nothing to do
-            else!!rare option then parameters are not new but grit is not build
-                if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': parameters are not reset. But grid is not ready.'
-                call MakeGrid()
-                gridReady=.true.
-            end if
-        
-        end if
-
-    else
-        gridReady=.false.
-    end if 
-
-end subroutine SiversTMDPDF_SetLambdaNP_usual
+    if(outputLevel>2) write(*,*) 'arTeMiDe.',moduleName,': NPparameters reset = (',lambdaNP,')'
+    call ModelUpdate(lambdaNP)
+end subroutine SiversTMDPDF_SetLambdaNP
 
 !!! returns current value of NP parameters
-subroutine SiversTMDPDF_CurrentNPparameters(var)
-    real(dp),dimension(1:lambdaNPlength),intent(out)::var
-    var=lambdaNP
-end subroutine SiversTMDPDF_CurrentNPparameters
+function SiversTMDPDF_CurrentLambdaNP()
+    real(dp),dimension(1:lambdaNPlength)::SiversTMDPDF_CurrentLambdaNP
+    SiversTMDPDF_CurrentLambdaNP=lambdaNP
+end function SiversTMDPDF_CurrentLambdaNP
 
-!!! This subroutine ask for the grid reconstruction (or destruction)
-subroutine SiversTMDPDF_resetGrid(buildGrid,gluonRequired)
-    logical,optional,intent(in)::buildGrid,gluonRequired
-    logical::previousState
+!!!!!!!--------------------------- DEFINING ROUTINES ------------------------------------------
 
-    if(present(buildGrid)) prepareGrid=buildGrid
-    if(present(gluonRequired)) withGluon=gluonRequired
+!!!!! the names are neutral because these procedures are feed to Fourier transform. And others universal sub programs.
 
-    previousState=gridReady
-    gridReady=.false.
+!!!!!!! the function that actually returns the SiversTMDPDF!
+function TMD_opt(x,bT,hadron)
+  real(dp),dimension(-5:5)::TMD_opt
+  real(dp),intent(in) :: x, bT
+  integer,intent(in)::hadron
 
-    !! we recalculate grid only if it was already calculated!
-    if(prepareGrid .and. previousState) then
-        if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-        call MakeGrid()
-        gridReady=.true.
+  !!! test boundaries
+    if(x>1d0) then
+        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        TMD_opt=0._dp
+        return
+    else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
+        TMD_opt=0._dp
+        return
+    else if(bT>BMAX_ABS) then
+        TMD_opt=0._dp
+        return
+    else if(x<1d-12) then
+        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
+        stop
+    else if(bT<0d0) then
+        write(*,*) ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
+        stop
     end if
-end subroutine SiversTMDPDF_resetGrid
 
+    TMD_opt=SiversTMDPDF_OPE_tw3_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)
 
-!!!! this routine set the variations of scales
-!!!! it is used for the estimation of errors
-subroutine SiversTMDPDF_SetScaleVariation(c4_in)
-    real(dp),intent(in)::c4_in
-    if(c4_in<0.1d0 .or. c4_in>10.d0) then
-        if(outputLevel>0) write(*,*) WarningString('variation in c4 is enourmous. c4 is set to 2',moduleName)
-        c4_global=2d0
-        call SiversTMDPDF_resetGrid()
-    else if(abs(c4_in-c4_global)<tolerance) then
-        if(outputLevel>1) write(*,*) color('SiversTMDPDF: c4-variation is ignored. c4='//real8ToStr(c4_global),c_yellow)
+    if(hadron<0) TMD_opt=TMD_opt(5:-5:-1)
+
+end function TMD_opt
+
+!!!!!!!! the function that actually returns the SiversTMDPDF evolved to (mu,zeta) value
+function TMD_ev(x,bt,muf,zetaf,hadron)
+    real(dp)::TMD_ev(-5:5)
+    real(dp),intent(in):: x,bt,muf,zetaf
+    integer,intent(in)::hadron
+    real(dp):: Rkernel,RkernelG
+
+    if(includeGluon) then
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+        RkernelG=TMDR_Rzeta(bt,muf,zetaf,0)
+
+        TMD_ev=TMD_opt(x,bT,hadron)*&
+            (/Rkernel,Rkernel,Rkernel,Rkernel,Rkernel,RkernelG,Rkernel,Rkernel,Rkernel,Rkernel,Rkernel/)
+
     else
-        c4_global=c4_in
-        if(outputLevel>1) write(*,*) color('SiversTMDPDF: set scale variations constant c4 as:'//real8ToStr(c4_global),c_yellow)
-        call SiversTMDPDF_resetGrid()
+        Rkernel=TMDR_Rzeta(bt,muf,zetaf,1)
+        TMD_ev=Rkernel*TMD_opt(x,bT,hadron)
     end if
-end subroutine SiversTMDPDF_SetScaleVariation
+
+
+    !!! forcefully set =0 below threshold
+    if(muf<mBOTTOM) then
+    TMD_ev(5)=0_dp
+    TMD_ev(-5)=0_dp
+    end if
+    if(muf<mCHARM) then
+    TMD_ev(4)=0_dp
+    TMD_ev(-4)=0_dp
+    end if
+
+end function TMD_ev
+
+!!!!!!!! TMM G_{n,n} at (x,mu)
+function SiversTMDPDF_TMM_G(x,mu,hadron)
+    real(dp)::SiversTMDPDF_TMM_G(-5:5)
+    real(dp),intent(in):: x,mu
+    integer,intent(in)::hadron
+
+    SiversTMDPDF_TMM_G=Moment_G(x,mu,hadron)
+
+    !!! forcefully set =0 below threshold
+    if(mu<mBOTTOM) then
+    SiversTMDPDF_TMM_G(5)=0_dp
+    SiversTMDPDF_TMM_G(-5)=0_dp
+    end if
+    if(mu<mCHARM) then
+    SiversTMDPDF_TMM_G(4)=0_dp
+    SiversTMDPDF_TMM_G(-4)=0_dp
+    end if
+
+end function SiversTMDPDF_TMM_G
+
+!!!!!!!! TMM G_{n+1,n} at (x,mu)
+function SiversTMDPDF_TMM_X(x,mu,hadron)
+    real(dp)::SiversTMDPDF_TMM_X(-5:5)
+    real(dp),intent(in):: x,mu
+    integer,intent(in)::hadron
+
+    SiversTMDPDF_TMM_X=Moment_X(x,mu,hadron)
+
+    !!! forcefully set =0 below threshold
+    if(mu<mBOTTOM) then
+    SiversTMDPDF_TMM_X(5)=0_dp
+    SiversTMDPDF_TMM_X(-5)=0_dp
+    end if
+    if(mu<mCHARM) then
+    SiversTMDPDF_TMM_X(4)=0_dp
+    SiversTMDPDF_TMM_X(-4)=0_dp
+    end if
+
+end function SiversTMDPDF_TMM_X
 
 end module SiversTMDPDF
