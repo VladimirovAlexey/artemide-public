@@ -1,4 +1,6 @@
 # artemide-public
+[![DOI](https://zenodo.org/badge/166847659.svg)](https://zenodo.org/doi/10.5281/zenodo.12638431)
+
 The public repository of artemide package for TMD-physics (transverse momentum dependent)
 
 ------------------------------------------------------------------------------------------------------
