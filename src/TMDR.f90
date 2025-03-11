@@ -25,6 +25,10 @@ implicit none
 
 private
 
+!!!!!! 0=STANDARD MODE
+!!!!!! 1=CSS mode - former type 1 (ONLY FOR TESTING)
+#define EVOLUTION_MODE 0
+
 !Current version of module
 character (len=5),parameter :: version="v3.00"
 character (len=7),parameter :: moduleName="TMDR"
@@ -53,7 +57,7 @@ logical::started=.false.
 real(dp)::c1_global=1._dp
 !! Precision tolerance used in various routines
 real(dp)::tolerance=0.0001d0
-!! Precision tolerance used in various routines
+!! The lowerst value of b (below the expression is freezed)
 real(dp)::bFREEZE=1d-6
 !! Parameter that interpolaes the small-b part of zeta-line
 real(dp)::smoothingParameter=0.01d0
@@ -72,7 +76,13 @@ public:: TMDR_Initialize,TMDR_setNPparameters,LowestQ,TMDR_IsInitialized,TMDR_Cu
 public:: CS_kernel,zetaNP
 
   
- contains
+contains
+
+#if INTEGRATION_MODE==1
+    !!! THE EVOLUTION BY CSS-formula
+    INCLUDE 'Code/TMDR/typeCSS.f90'
+#endif
+
 
 function TMDR_IsInitialized()
     logical::TMDR_IsInitialized
@@ -296,6 +306,11 @@ subroutine TMDR_Initialize(file,prefix)
     call ModelInitialization(NPlength)
 
     c1_global=1._dp
+
+#if INTEGRATION_MODE==1
+    if(outputLevel>0) write(*,*) color('  CSS-like evolution path is selected',c_red)
+    if(outputLevel>0) write(*,*) color('  !!! IT IS NOT A DEFAULT OPTION !!! ',c_red)
+#endif
     
     started=.true.
     counter=0
@@ -403,7 +418,7 @@ function zetaNP_rad(mu,rad,b,f)
     integer,intent(in)::f
     real(dp)::zz
 
-    !! this ofset is required to guaranty a good numerical bahavior at b->0.
+    !! this ofset is required to guaranty a good numerical behavior at b->0.
     !! In principle, zz=0 also works
     zz=Exp(-b**2/smoothingParameter)
 
@@ -426,7 +441,7 @@ function TMDR_Rzeta(b,muf,zetaf,f)
   integer,intent(in)::f
   real(dp)::TMDR_Rzeta,bLocal
 
-  real(dp)::Dvalue,zetaP
+  real(dp)::Dvalue,zetaP,muLOW
 
   if(b<bFREEZE) then
     bLocal=bFREEZE
@@ -434,11 +449,18 @@ function TMDR_Rzeta(b,muf,zetaf,f)
     bLocal=b
   end if
 
-  Dvalue=CS_kernel(muf,b,f)
+#if INTEGRATION_MODE==0
+  !!!!! THIS IS DEFAULT VERSION
+    Dvalue=CS_kernel(muf,b,f)
 
-  zetaP=zetaNP_rad(muf,Dvalue,bLocal,f)
+    zetaP=zetaNP_rad(muf,Dvalue,bLocal,f)
 
-  TMDR_Rzeta=EXP(-Dvalue*Log(zetaf/zetaP))
+    TMDR_Rzeta=EXP(-Dvalue*Log(zetaf/zetaP))
+#elif INTEGRATION_MODE==1
+    !!!!! THIS IS FOR CSS-like evolution !!!!!
+    muLOW=muOPE(b,c1_global)
+    TMDR_Rzeta=TMDR_Rzeta_type1(b,muf,zetaf,muLOW,muLOW,f)
+#endif
 
   if(TMDR_Rzeta>1d6) then
     write(*,*) ErrorString('Evolution factor is TOO HUGE check the formula',moduleName)

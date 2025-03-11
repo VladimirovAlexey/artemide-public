@@ -48,7 +48,16 @@ SELECT CASE(process(3))
       +FAB(-5)/9d0
 
  !--------------------------------------------------------------------------------
-  CASE (2,20,21,22,29) !Delta^{GG'}z_{+l}z_{+f}f1f1
+  CASE (2) !Delta^{GG'}z_{+l}z_{+f}f1f1 (ONLY Z-BOSON without gamma)
+
+     FA=uTMDPDF_inKT(x1,sqrt(k1),mu,h1)
+     FB=uTMDPDF_inKT(x2,sqrt(k2),mu,-h2)!!! -h2, to multiply quarks by anti-quarks in FAB
+     FAB=FA*FB
+
+     TMD_pair=XTMD_pairZZ(FAB,Q2)
+
+ !--------------------------------------------------------------------------------
+  CASE (3,20,21,22,29) !Delta^{GG'}z_{+l}z_{+f}f1f1
 
      FA=uTMDPDF_inKT(x1,sqrt(k1),mu,h1)
      FB=uTMDPDF_inKT(x2,sqrt(k2),mu,-h2)!!! -h2, to multiply quarks by anti-quarks in FAB
@@ -109,6 +118,46 @@ SELECT CASE(process(3))
         +1d0/9d0*(FA(-3)*FB(3)+FA(3)*FB(-3)+4d0*FA(-4)*FB(4)+4d0*FA(4)*FB(-4)+FA(-5)*FB(5)+FA(5)*FB(-5))
 
 
+  !----------------------------------------------------------------------------------
+  !-------------------------SIDIS----------------------------------------------------
+  !----------------------------------------------------------------------------------
+  CASE (2001,2011,2021,2031) !h1->h2 where !!!! unpolarized SIDIS
+    ! e_q^2 *F_q(A)*F_q(B)
+    FA=uTMDPDF_inKT(x1,sqrt(k1),mu,Q2,h1)
+    FB=uTMDFF_inKT(x2,sqrt(k2),mu,Q2,h2)
+    TMD_pair=FA(1)*FB(1)/9.d0&
+      +FA(2)*FB(2)*4.d0/9.d0&
+      +FA(3)*FB(3)/9.d0&
+      +FA(4)*FB(4)*4d0/9.d0&
+      +FA(5)*FB(5)/9d0&
+      +FA(-1)*FB(-1)/9.d0&
+      +FA(-2)*FB(-2)*4.d0/9.d0&
+      +FA(-3)*FB(-3)/9.d0&
+      +FA(-4)*FB(-4)*4d0/9.d0&
+      +FA(-5)*FB(-5)/9d0
+
+  CASE (2004,2014,2024,2034) !h1->h2 where !!!! unpolarized SIDIS (BM x COLLINS)-part
+    ! e_q^2 *F_q(A)*F_q(B)
+    FA=uTMDPDF_inKT(x1,sqrt(k1),mu,Q2,h1) !!!!!! CHANGE TO BM
+    FB=uTMDFF_inKT(x2,sqrt(k2),mu,Q2,h2)  !!!!!! CHANGE TO COLLINS
+    TMD_pair=FA(1)*FB(1)/9.d0&
+      +FA(2)*FB(2)*4.d0/9.d0&
+      +FA(3)*FB(3)/9.d0&
+      +FA(4)*FB(4)*4d0/9.d0&
+      +FA(5)*FB(5)/9d0&
+      +FA(-1)*FB(-1)/9.d0&
+      +FA(-2)*FB(-2)*4.d0/9.d0&
+      +FA(-3)*FB(-3)/9.d0&
+      +FA(-4)*FB(-4)*4d0/9.d0&
+      +FA(-5)*FB(-5)/9d0
+
+  ! Si tomo estas funciones prueba sí saca numerines, así que algo está pasando con uTMDPDF y uTMDFF ?
+  CASE(999)
+  !  TMD_pair=(Exp(-0.2d0*k1)+1/(k1+2.))*(Exp(-0.2d0*k2)+1/(k2+2.))
+!     TMD_pair=1._dp
+  TMD_pair=Exp(-0.1*k1)*Exp(-0.4*k2)
+
+
   CASE DEFAULT
     write(*,*) ErrorString('undefined process: ',moduleName),process
     write(*,*) color('Evaluation stop',c_red_bold)
@@ -121,6 +170,28 @@ end function TMD_pair
 
 !-------------------------------------------------------------------------------------------------------------------------------------
 !-------------------------------------------------------------------------------------------------------------------------------------
+!!! Combination Delta^{GG'} z_{+l}z_{+f} FF (ONLY FOR Z-BOSON)
+function XTMD_pairZZ(FAB,Q2)
+     real(dp)::XTMD_pairZZ
+     real(dp),intent(in)::Q2
+    !!cross-seciton parameters
+     real(dp),dimension(-5:5),intent(in):: FAB
+
+     XTMD_pairZZ=zP_ZZ_L*(&
+       zP_ZZ_U*FAB(2)&
+      +zP_ZZ_D*FAB(1)&
+      +zP_ZZ_S*FAB(3)&
+      +zP_ZZ_C*FAB(4)&
+      +zP_ZZ_B*FAB(5)&
+      +zP_ZZ_U*FAB(-2)&
+      +zP_ZZ_D*FAB(-1)&
+      +zP_ZZ_S*FAB(-3)&
+      +zP_ZZ_C*FAB(-4)&
+      +zP_ZZ_B*FAB(-5))*&
+      Q2*Q2/((Q2-MZ2)**2+GammaZ2*MZ2)
+
+end function XTMD_pairZZ
+
 !!! Combination Delta^{GG'} z_{+l}z_{+f} FF
 function XTMD_pairZpZp(FAB,Q2)
      real(dp)::XTMD_pairZpZp

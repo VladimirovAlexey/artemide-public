@@ -12,6 +12,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
     use utmdpdf
     use utmdpdf_ope
     use utmdff
+    use utmdff_ope
     use siverstmdpdf
     use lptmdpdf
     use wgttmdpdf
@@ -303,6 +304,30 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         integer :: hadron
         real*8 dimension(11) :: utmdff_kt_50_optimal
     end function utmdff_kt_50_optimal
+    function utmdff_g0(x,mu,hadron) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: mu
+        integer :: hadron
+        real*8 dimension(11) :: utmdff_g0
+    end function utmdff_g0
+    function utmdff_x0(x,mu,hadron) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: mu
+        integer :: hadron
+        real*8 dimension(11) :: utmdff_x0
+    end function utmdff_x0
+    function utmdff_asx0(x,mu,hadron) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: mu
+        integer :: hadron
+        real*8 dimension(11) :: utmdff_asx0
+    end function utmdff_asx0
+    function utmdff_ff(x,mu,hadron) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 :: x
+        real*8 :: mu
+        integer :: hadron
+        real*8 dimension(11) :: utmdff_ff
+    end function utmdff_ff
     function lptmdpdf_kt_50_evolved(x,bt,muf,zetaf,hadron) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         real*8 :: x
         real*8 :: bt
@@ -437,7 +462,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         real*8 dimension(listlength) :: dy_xsec_binless_list
     end function dy_xsec_binless_list
     function sidis_xsec_single(process,s,pt,z,x,q,docut,cuts) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
-        integer dimension(3),intent(in) :: process
+        integer dimension(4),intent(in) :: process
         real*8 intent(in) :: s
         real*8 dimension(2),intent(in) :: pt
         real*8 dimension(2),intent(in) :: z
@@ -448,7 +473,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         real*8 :: sidis_xsec_single
     end function sidis_xsec_single
     function sidis_xsec_single_withmasses(process,s,pt,z,x,q,docut,cuts,masses) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
-        integer dimension(3),intent(in) :: process
+        integer dimension(4),intent(in) :: process
         real*8 intent(in) :: s
         real*8 dimension(2),intent(in) :: pt
         real*8 dimension(2),intent(in) :: z
@@ -485,7 +510,8 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
     end function sidis_xsec_binless_list
 end module harpy
 
-! This file was auto-generated with f2py (version:1.21.5).
-! See http://cens.ioc.ee/projects/f2py2e/
+! This file was auto-generated with f2py (version:1.26.4).
+! See:
+! https://web.archive.org/web/20140822061353/http://cens.ioc.ee/projects/f2py2e
 end interface
 end python module artemide

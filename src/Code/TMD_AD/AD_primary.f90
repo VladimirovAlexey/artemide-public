@@ -267,7 +267,7 @@ subroutine SetDn0Quark()
     
     !! 4-loop
     do n=NfMIN,NfMAX
-        d_nk_Q_internal(4,0,n)=350.834d0 - 2428.14d0*n + 378.306d0*n**2 - 8.07192d0*n**3
+        d_nk_Q_internal(4,0,n)=350.8342523981021_dp - 2428.14_dp*n + 378.3057617542652_dp*n**2 - 8.071924959941491_dp*n**3
     end do  
     
 end subroutine SetDn0Quark
@@ -300,7 +300,7 @@ subroutine SetDn0Gluon()
     
     !! 4-loop
     do n=NfMIN,NfMAX
-        d_nk_G_internal(3,0,n)=-333.77d0 - 5506.38d0*n + 851.188d0*n**2 - 18.1618d0*n**3
+        d_nk_G_internal(3,0,n)=-333.769693860101_dp - 5506.38d0*n + 851.1879639470966_dp*n**2 - 18.16183115986835_dp*n**3
     end do
     
 end subroutine SetDn0Gluon

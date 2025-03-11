@@ -24,9 +24,9 @@ implicit none
 private
 
 character (len=8),parameter :: moduleName="TMDF-KPC"
-character (len=5),parameter :: version="v3.00"
+character (len=5),parameter :: version="v3.01"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=30
+integer,parameter::inputver=31
 
 integer::outputLevel=2
 !! variable that count number of WRNING mesagges. In order not to spam too much
@@ -59,12 +59,13 @@ real(dp)::M2=1._dp
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!! Public declarations
 public::TMDF_KPC_IsInitialized,TMDF_KPC_Initialize,TMDF_KPC_IsconvergenceLost
-public::KPC_DYconv
+public::KPC_DYconv,KPC_SIDISconv
 
 contains
 
 INCLUDE 'Code/TMDF_KPC/TMDpairs.f90'
 INCLUDE 'Code/TMDF_KPC/KERNELpairs_DY.f90'
+INCLUDE 'Code/TMDF_KPC/KERNELpairs_SIDIS.f90'
 
 function TMDF_KPC_IsInitialized()
     logical::TMDF_KPC_IsInitialized
@@ -244,146 +245,45 @@ subroutine TMDF_KPC_Initialize(file,prefix)
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDF '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
 
+
 end subroutine TMDF_KPC_Initialize
 
-!!!------------------------------------------------------------------
-!!!-- This function organizes the ratios and asymetries if needed
-!!!-- it is because they should be computed before integrations
-!!!
-function KPC_DYconv(Q2,qT_in,x1,x2,mu,proc1)
-    real(dp),intent(in)::Q2,qT_in,x1,x2,mu
-    integer,intent(in),dimension(1:3)::proc1
-    real(dp)::KPC_DYconv
 
-    real(dp)::S1,S2,S3,S4
+!!!--------------------------------------------------------------------------------------------------
+!!!!!!!Functions which carry the trigger on convergences.... Its used in xSec, and probably in other places.
+function TMDF_KPC_IsconvergenceLost()
+    logical::TMDF_KPC_IsconvergenceLost
+    !!! checks TMDs trigger
+    TMDF_KPC_IsconvergenceLost=convergenceLost
+end function TMDF_KPC_IsconvergenceLost
 
-    SELECT CASE(proc1(3))
-    CASE(200)!!! A_0 assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),20/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),30/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=(S1+S2)/S3
+subroutine TMDF_KPC_convergenceISlost()
+    convergenceLost=.true.
+    if(outputLevel>1) call Warning_Raise('convergenceLOST trigger ON',messageCounter,messageTrigger,moduleName)
+end subroutine TMDF_KPC_convergenceISlost
 
-    CASE(201)!!! A_1 assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),21/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),31/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=(S1+S2)/S3
+!!!--------------------------------------------------------------------------------------------------
+!!!-----------------------------------DY PART -------------------------------------------------------
+!!!--------------------------------------------------------------------------------------------------
 
-    CASE(202)!!! A_2 assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),22/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),32/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=(S1+S2)/S3
-
-    CASE(203)!!! A_3 assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),23/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=S1/S3
-
-    CASE(204)!!! A_4 assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),24/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-
-        KPC_DYconv=S1/S3
-
-    CASE(205)!!! A_5 assymetry
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),35/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=S2/S3
-
-    CASE(206)!!! A_6 assymetry
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),36/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),2/))
-        if(Abs(S3)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            S3=toleranceGEN
-        end if
-        KPC_DYconv=S2/S3
-
-    CASE(210)!!! lambda assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),20/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),30/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),29/))
-        if(Abs(S3+S2/2)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            KPC_DYconv=1-2*(S1+S2)/toleranceGEN
-        else
-            KPC_DYconv=1-2*(S1+S2)/(S3+S2/2)
-        end if
-
-    CASE(211)!!! mu assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),21/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),31/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),29/))
-        S4=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),30/))
-        if(Abs(S3+S4/2)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            KPC_DYconv=(S1+S2)/toleranceGEN
-        else
-            KPC_DYconv=(S1+S2)/(S3+S4/2)
-        end if
-
-    CASE(212)!!! nu assymetry
-        S1=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),22/))
-        S2=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),32/))
-        S3=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),29/))
-        S4=DYconv_elementary(Q2,qT_in,x1,x2,mu,(/proc1(1),proc1(2),30/))
-        if(Abs(S3+S4/2)<toleranceGEN) then
-            call Warning_Raise('normalization cross-section in 0.',messageCounter,messageTrigger,moduleName)
-            KPC_DYconv=(S1+S2)/toleranceGEN
-        else
-            KPC_DYconv=(S1+S2)/(S3+S4/2)
-        end if
-
-
-    CASE DEFAULT
-        !!!! if it is not a special case, compute as is
-        KPC_DYconv=DYconv_elementary(Q2,qT_in,x1,x2,mu,proc1)
- END SELECT
-end function KPC_DYconv
 
 !!!--------------------------------------------------------------------------------------------------
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!! Function that computes the integral for KPC convolution in DY
 !!! proc1 = (int,int,int) is the process def for TMD*TMD, and for the integral kernel
-!!! proc2 = int is the process definition for the integral kernel
 !!! Q2, qT, x1,x2, mu are usual DY variables
 !!! NOTE: that Q2 is DY kinematic variable, and mu is the factorization scale
 !!! THIS IS A SYMMETRIC VERSION (i.e. it should contain only cos(theta)
 !!!-----
 !!! The integral is 2D, over theta and alpha (which are complicated combinations)
 !!! First evaluate over theta (0,pi), then over alpha (0,pi/2)
-function DYconv_elementary(Q2,qT_in,x1,x2,mu,proc1)
+function KPC_DYconv(Q2,qT_in,x1,x2,mu,proc1)
     real(dp),intent(in)::Q2,qT_in,x1,x2,mu
     integer,intent(in),dimension(1:3)::proc1
-    real(dp)::DYconv_elementary
+    real(dp)::KPC_DYconv
 
     real(dp)::tau2,deltaT,qT
+    logical::exist
 
     if(qT_in<qTMIN) then
         qT=qTMIN
@@ -396,9 +296,17 @@ function DYconv_elementary(Q2,qT_in,x1,x2,mu,proc1)
     tau2=Q2+qT**2
     deltaT=qT**2/tau2
 
-    !DYconv_elementary=Integrate_GK(Integrand_forTheta,0._dp,pi,toleranceINT)
-    DYconv_elementary=Integrate_GK(Integrand_forAlpha,0._dp,piHalf,toleranceINT)
-    !write(*,*) "LC=",LocalCounter
+!       inquire(file="out1.txt", exist=exist)
+!      if (exist) then
+!          open(unit=10,file="out1.txt",action="write",position="append",status="old")
+!      else
+!          open(unit=10,file="out1.txt",action="write",status="new")
+!      end if
+
+    !KPC_DYconv=Integrate_GK(Integrand_forTheta,0._dp,pi,toleranceINT)
+    KPC_DYconv=Integrate_GK(Integrand_forAlpha,0._dp,piHalf,toleranceINT)
+
+     !close(10)
 
 contains
 
@@ -423,10 +331,11 @@ function Integrand_forAlpha(alpha)
     sA=sin(alpha)
 
     Integrand_forAlpha=INT_overTHETA(Q2,tau2,deltaT,x1,x2,mu,proc1,sA)
+    !write(*,"('{',F16.12,',',F16.8,'},')") alpha,Integrand_forAlpha
 
 end function Integrand_forAlpha
 
-end function DYconv_elementary
+end function KPC_DYconv
 
 
 !!! the integral over alpha at given theta
@@ -435,7 +344,7 @@ function INT_overALPHA(Q2,tau2,deltaT,x1,x2,mu,proc1,cT)
     integer,intent(in),dimension(1:3)::proc1
     real(dp)::INT_overALPHA
 
-    INT_overALPHA=Integrate_GK(Integrand_forALPHA,0._dp,piHalf,toleranceINT)
+    INT_overALPHA=Integrate_SA(Integrand_forALPHA,0._dp,piHalf,toleranceINT)
 
 contains
 
@@ -482,6 +391,8 @@ function Integrand_forTHETA(theta)
     real(dp),intent(in)::theta
     real(dp)::S,Lam,xi1,xi2,K1,K2,cosT
 
+
+
     cosT=cos(theta)
     !S=Sqrt(deltaT*sA)*cosT
     !Lam=(1-deltaT)*(1-sA)
@@ -497,24 +408,119 @@ function Integrand_forTHETA(theta)
     if(K1<toleranceGEN) K1=toleranceGEN
     if(K2<toleranceGEN) K2=toleranceGEN
 
-    !!! it is devided by 2 (instead of 4), because the integral over cos(theta) is over (0,pi).
+    LocalCounter=LocalCounter+1
+
+    !!! it is divided by 2 (instead of 4), because the integral over cos(theta) is over (0,pi).
     Integrand_forTHETA=TMD_pair(Q2,xi1,xi2,K1,K2,mu,proc1)*DY_KERNEL(Q2,tau2,tau2-Q2,S,Lam,sA,cosT,proc1(3))*sA
+
+
+!     write (10,'(F12.6,",",F12.6,",",F12.6,",",F24.16,",",F24.16,",",F24.16,",",F24.16)') Q2,theta,sA,Integrand_forTHETA, &
+!      TMD_pair(Q2,xi1,xi2,K1,K2,mu,proc1), sqrt(k1), sqrt(k2)
+
 end function Integrand_forTHETA
 
 end function INT_overTHETA
 
+
 !!!--------------------------------------------------------------------------------------------------
-!!!!!!!Functions which carry the trigger on convergences.... Its used in xSec, and probably in other places.
-function TMDF_KPC_IsconvergenceLost()
-    logical::TMDF_KPC_IsconvergenceLost
-    !!! checks TMDs trigger
-    TMDF_KPC_IsconvergenceLost=convergenceLost
-end function TMDF_KPC_IsconvergenceLost
+!!!----------------------------------- SIDIS PART -------------------------------------------------------
+!!!--------------------------------------------------------------------------------------------------
+!!!--------------------------------------------------------------------------------------------------
+!!!----------------------------------- SIDIS PART -------------------------------------------------------
+!!!--------------------------------------------------------------------------------------------------
 
-subroutine TMDF_KPC_convergenceISlost()
-    convergenceLost=.true.
-    if(outputLevel>1) call Warning_Raise('convergenceLOST trigger ON',messageCounter,messageTrigger,moduleName)
-end subroutine TMDF_KPC_convergenceISlost
+!!!--------------------------------------------------------------------------------------------------
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!! Function that computes the integral for KPC convolution in SIDIS
+!!! proc1 = (int,int,int) is the process def for TMD*TMD, and for the integral kernel
+!!! Q2, qT, x1, z1 and mu are the usual SIDIS variables
+!!! NOTE: that Q2 is SIDIS kinematic variable, and mu is the factorization scale
 
+function KPC_SIDISconv(Q2, qT_in, x1, z1 ,mu, proc1)
+    real(dp) :: KPC_SIDISconv
+    real(dp), intent(in) :: Q2, x1, z1, mu, qT_in
+    integer, intent(in), dimension(1:3) :: proc1
+    real(dp) :: tau2, dT, qT
+
+    if(qT_in < qTMIN) then
+        qT = qTMIN
+    else
+        qT = qT_in
+    end if
+
+    LocalCounter = 0
+
+    tau2 = Q2 + qT**2
+    dT = qT**2/tau2
+
+    KPC_SIDISconv = Integrate_GK(Integrand_forDeltat2, 0._dp, 1._dp, toleranceINT)
+
+contains
+
+! Integral over Deltat over integral over theta
+function Integrand_forDeltat2(Deltat)
+    real(dp) :: Integrand_forDeltat2
+    real(dp), intent(in) :: Deltat
+    !real(dp) :: Deltat
+
+    !Deltat = sqrt(Deltat2)
+    Integrand_forDeltat2 = INT_overTHETA_SIDIS(Q2, tau2, dT, x1, z1, mu, proc1, Deltat)
+!         write(*,"('{',F16.12,',',F16.8,'},')") Deltat2,Integrand_forDeltat2
+
+end function Integrand_forDeltat2
+
+end function KPC_SIDISconv
+
+! Integral over theta at given Deltat
+function INT_overTHETA_SIDIS(Q2, tau2, dT, x1, z1, mu, proc1, Deltat)
+    real(dp), intent(in) :: Q2, tau2, dT, x1, z1, mu, Deltat
+    integer, intent(in), dimension(1:3) :: proc1
+    real(dp) :: INT_overTHETA_SIDIS
+
+    INT_overTHETA_SIDIS=Integrate_GK(Integrand_forTHETA_SIDIS, 0._dp, pix2, toleranceINT)
+
+contains
+
+! Integrand
+function Integrand_forTHETA_SIDIS(theta)
+    real(dp) :: Integrand_forTHETA_SIDIS
+    real(dp), intent(in) :: theta
+    real(dp) :: S, Lam, xi, zeta, K, kh, cosT
+
+    cosT = cos(theta)
+
+    S = ((2-x1)*dT+2*Deltat*cosT*sqrt(dT*(1+dT)*(1-x1)))/x1
+
+    Lam = (1.d0+dT)*((1+dT)+4*(2-x1)/x1**2*sqrt((1-x1)*dT*(1+dT))*Deltat*cosT&
+    +4*(1-x1)/x1**2*(Deltat**2+dT*(1+(Deltat*cosT)**2)))
+
+
+    xi = x1*(1-S+sqrt(Lam))/2
+    zeta = 2._dp*z1/(1+S+sqrt(Lam))
+
+    K = tau2*(Lam-(S-1._dp)**2)/4
+    kh = tau2*(Lam-(S+1._dp)**2)/4
+
+    if(K < toleranceGEN) K = toleranceGEN
+    if(kh < toleranceGEN) kh = toleranceGEN
+
+    LocalCounter = LocalCounter + 1
+
+    Integrand_forTHETA_SIDIS = 2*(1-x1)*zeta*(1+dT)/(x1**2*sqrt(Lam))*Deltat&
+    *SIDIS_KERNEL(Q2,tau2,dT*tau2,S,Lam,proc1(3))*TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
+
+!     write(*,*) "--------->>>", Q2, tau2, dT, x1, z1
+!     write(*,*) "Deltat,cosT -->>>", Deltat,cosT
+!     write(*,*) "Lam, S--->",Lam,S
+!     write(*,*) "K,kh--->",K,kh
+!     write(*,*) "xi,zeta--->",xi,zeta
+!     write(*,*) "1--->", 2*(1-x1)*zeta*(1+dT)/(x1**2*sqrt(Lam))*Deltat
+!     write(*,*) "2--->", SIDIS_KERNEL(Q2,tau2,dT*tau2,S,Lam,proc1(3))
+!     write(*,*) TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
+!     stop
+
+end function Integrand_forTHETA_SIDIS
+
+end function INT_overTHETA_SIDIS
 
 end module TMDF_KPC

@@ -140,7 +140,7 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
         write(*,*) '		     Update the const-file with artemide.setup'
         write(*,*) '  '
         CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     call MoveTO(51,'*p2  ')
@@ -163,7 +163,7 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
         write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
         write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
         CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     call MoveTO(51,'*12   ')
@@ -194,9 +194,9 @@ subroutine SiversTMDPDF_Initialize(file,prefix)
 
     if(lambdaNPlength<=0) then
     write(*,*) ErrorString(&
-    'Initialize: number of non-pertrubative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
+    'Initialize: number of non-perturbative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
             CLOSE (51, STATUS='KEEP')
-    stop
+    ERROR STOP
     end if
 
     !!!!! ---- parameters of numerical evaluation
@@ -330,11 +330,9 @@ function TMD_opt(x,bT,hadron)
         TMD_opt=0._dp
         return
     else if(x<1d-12) then
-        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
     else if(bT<0d0) then
-        write(*,*) ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
     end if
 
     TMD_opt=SiversTMDPDF_OPE_tw3_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)

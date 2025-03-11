@@ -366,7 +366,6 @@ function Integrate_GK(f,xMin,xMax,tolerance)
     else
         Integrate_GK=delta*k15
     end if
-    
 end function Integrate_GK
 
 recursive function GK_Rec(f,xMin,xMax,eps) result(res)

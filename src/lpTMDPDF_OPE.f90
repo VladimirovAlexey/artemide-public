@@ -36,7 +36,7 @@ implicit none
 private 
 
 !Current version of module
-character (len=5),parameter :: version="v3.00"
+character (len=5),parameter :: version="v3.01"
 character (len=12),parameter :: moduleName="lpTMDPDF_OPE"
 !Last appropriate version of constants-file
 integer,parameter::inputver=30
@@ -56,6 +56,9 @@ integer::messageCounter=0 !!! actual counter
 
 !!! Perturbative order
 integer :: orderMain=2 !! LO=0, NLO=1,...
+!!! Order of large-X resummation
+logical,parameter :: resumLargeX=.false. !!!! could not be resummation of largeX
+integer :: orderLX=0 !! LO=0 [no-resummation], NLO=1,...
 
 !!! Phase space limitations parameters
 real(dp) :: xMin=0.00001_dp !!! min x
@@ -376,7 +379,7 @@ subroutine lpTMDPDF_OPE_SetPDFreplica(rep,hadron)
         gridReady=.false.
         call lpTMDPDF_OPE_resetGrid()
     else
-        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,' is the same as the used one. Nothing is done!')") &
+        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,') is the same as the used one. Nothing is done!')") &
         moduleName, rep
     end if
 

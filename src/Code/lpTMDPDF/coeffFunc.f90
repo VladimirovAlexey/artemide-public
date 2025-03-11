@@ -44,18 +44,62 @@ end function parametrizationStringAt1
 
 !!!!!coefficient function q<-q delta-part
 !!!! NO QUARK HERE!
+pure function C_q_q_delta_1(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_1
+  C_q_q_delta_1=0d0
+end function C_q_q_delta_1
+
+pure function C_q_q_delta_2(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_2
+  C_q_q_delta_2=0d0
+end function C_q_q_delta_2
+
+pure function C_q_q_delta_3(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_3
+  C_q_q_delta_3=0d0
+end function C_q_q_delta_3
+
 pure function C_q_q_delta(alpha,Nf,Lmu)
 real(dp)::C_q_q_delta
-real(dp),intent(in)::Nf,alpha,Lmu
+real(dp),intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
   C_q_q_delta=0d0
 end function C_q_q_delta
 
 !!!!!coefficient function g<-g delta-part
 !!!! NO DELTA-function!
+pure function C_g_g_delta_1(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_1
+  C_g_g_delta_1=0d0
+end function C_g_g_delta_1
+
+pure function C_g_g_delta_2(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_2
+  C_g_g_delta_2=0d0
+end function C_g_g_delta_2
+
+pure function C_g_g_delta_3(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_3
+  C_g_g_delta_3=0d0
+end function C_g_g_delta_3
+
 function C_g_g_delta(alpha,Nf,Lmu)
 real(dp)::C_g_g_delta
-real(dp),intent(in)::Nf,alpha,Lmu
+real(dp),intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 C_g_g_delta=0d0
 end function C_g_g_delta
@@ -64,7 +108,8 @@ end function C_g_g_delta
   !!!! NO QUARK HERE!
 pure function Coeff_q_q_plus(alpha,Nf,Lmu)
 real(dp),dimension(1:3)::Coeff_q_q_plus
-real(dp),intent(in)::Nf,alpha,Lmu
+real(dp),intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 Coeff_q_q_plus=(/0d0,0d0,0d0/)
 
@@ -74,7 +119,8 @@ end function Coeff_q_q_plus
 !!!! NO SINGULAR PART HERE!
 pure function Coeff_g_g_plus(alpha,Nf,Lmu)
  real(dp),dimension(1:3)::Coeff_g_g_plus
-real(dp),intent(in)::Nf,alpha,Lmu
+real(dp),intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 Coeff_g_g_plus=(/0d0,0d0,0d0/)
 
@@ -84,7 +130,8 @@ end function Coeff_g_g_plus
 !!!! NO QUARK HERE!
 pure function Coeff_q_q_reg(alpha,Nf,Lmu)
 real(dp),dimension(1:parametrizationLength)::Coeff_q_q_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 Coeff_q_q_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
 end function Coeff_q_q_reg
@@ -93,7 +140,8 @@ end function Coeff_q_q_reg
 !!!! NO QUARK HERE!
 pure function Coeff_q_g_reg(alpha,Nf,Lmu)
 real(dp),dimension(1:parametrizationLength)::Coeff_q_g_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 !! the Leading order is always zero, therefore calculation should be done only for order >=1
 Coeff_q_g_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
@@ -102,7 +150,8 @@ end function Coeff_q_g_reg
   !!!!!coefficient function g<-q regular-part
 pure function Coeff_g_q_reg(alpha,Nf,Lmu)
 real(dp), dimension(1:parametrizationLength)::Coeff_g_q_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 !! the Leading order is always zero, therefore calculation should be done only for order >=1
 Coeff_g_q_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
@@ -140,7 +189,8 @@ end function Coeff_g_q_reg
     !!!!!coefficient function g<-g regular-part
 pure function Coeff_g_g_reg(alpha,Nf,Lmu)
 real(dp),dimension(1:parametrizationLength)::Coeff_g_g_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 !! the Leading order is always zero, therefore calculation should be done only for order >=1
 Coeff_g_g_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
@@ -177,7 +227,8 @@ end function Coeff_g_g_reg
 !!!! NO QUARK HERE!
 pure function Coeff_q_qb_reg(alpha,Nf,Lmu)
 real(dp),dimension(1:parametrizationLength)::Coeff_q_qb_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 !! the Leading order is always zero, therefore calculation should be done only for order >=1
 Coeff_q_qb_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)
@@ -187,7 +238,8 @@ end function Coeff_q_qb_reg
 !!!! NO QUARK HERE!
 pure function Coeff_q_qp_reg(alpha,Nf,Lmu)
 real(dp),dimension(1:parametrizationLength)::Coeff_q_qp_reg
-real(dp), intent(in)::alpha,Nf,Lmu
+real(dp), intent(in)::alpha,Lmu
+integer,intent(in)::Nf
 
 !! the Leading order is always zero, therefore calculation should be done only for order >=1
 Coeff_q_qp_reg=(/0d0, 0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0,0d0/)

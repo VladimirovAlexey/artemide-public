@@ -13,6 +13,7 @@ use aTMDe_control
 use uTMDPDF
 use uTMDPDF_OPE
 use uTMDFF
+use uTMDFF_OPE
 use SiversTMDPDF
 use lpTMDPDF
 use wgtTMDPDF
@@ -438,7 +439,7 @@ contains
     real*8:: x,mu
     integer::hadron
 
-  uTMDPDF_ASX0=uTMDPDF_X0_AS(x,mu,mu,1)
+  uTMDPDF_ASX0=uTMDPDF_X0_AS(x,mu,mu,hadron)
 
   end function uTMDPDF_ASX0
 
@@ -493,6 +494,46 @@ contains
   uTMDFF_kT_50_Optimal=uTMDFF_inKT(x,bt,hadron)
     
   end function uTMDFF_kT_50_Optimal
+
+    ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDFF_G0(x,mu,hadron)
+    real*8:: uTMDFF_G0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDFF_G0=uTMDFF_TMM_G(x,mu,hadron)
+
+  end function uTMDFF_G0
+
+    ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDFF_X0(x,mu,hadron)
+    real*8:: uTMDFF_X0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDFF_X0=uTMDFF_TMM_X(x,mu,hadron)
+
+  end function uTMDFF_X0
+
+      ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDFF_ASX0(x,mu,hadron)
+    real*8:: uTMDFF_ASX0(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDFF_ASX0=uTMDFF_X0_AS(x,mu,mu,hadron)
+
+  end function uTMDFF_ASX0
+
+      ! vector (bbar,cbar,sbar,ubar,dbar,g,d,u,s,c,b)
+  function uTMDFF_FF(x,mu,hadron)
+    real*8:: uTMDFF_FF(-5:5)
+    real*8:: x,mu
+    integer::hadron
+
+  uTMDFF_FF=uTMDFF_OPE_FF(x,mu,hadron)
+
+  end function uTMDFF_FF
   
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
   !!!!!!!! linearly polarized gluon TMDPDF
@@ -706,7 +747,7 @@ contains
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!SIDIS CROSS-SECTION
   
   function SIDIS_xSec_Single(process,s,pT,z,x,Q,doCut,Cuts)
-    integer,intent(in),dimension(1:3)::process			!the number of process
+    integer,intent(in),dimension(1:4)::process			!the number of process
     real*8,intent(in)::s					!Mandelshtam s
     real*8,intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
     real*8,intent(in),dimension(1:2)::z				!(zmin,zmax)
@@ -721,7 +762,7 @@ contains
   end function SIDIS_xSec_Single
   
   function SIDIS_xSec_Single_withMasses(process,s,pT,z,x,Q,doCut,Cuts,masses)
-    integer,intent(in),dimension(1:3)::process			!the number of process
+    integer,intent(in),dimension(1:4)::process			!the number of process
     real*8,intent(in)::s					!Mandelshtam s
     real*8,intent(in),dimension(1:2)::pT			!(qtMin,qtMax)
     real*8,intent(in),dimension(1:2)::z				!(zmin,zmax)

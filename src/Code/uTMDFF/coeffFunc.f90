@@ -61,25 +61,30 @@ end function parametrizationStringAt1
 
 !!!!Each coefficient is split to delta, sing x->1, regular
   
-  !!!!!coefficient function q<-q delta-part
-pure function C_q_q_delta(alpha,Nf,Lmu)
-  real(dp), intent(in)::Nf,alpha,Lmu
-  real(dp)::C_q_q_delta
-  
- C_q_q_delta=1d0
- 
-  if(orderMain>=1) then
-      !(checked 27.02.19 AV) (27.06.22 AV)
-      C_q_q_delta=C_q_q_delta+alpha*(-4d0/3d0*zeta2-4d0*Lmu)
+!!!!!coefficient function q<-q delta-part
+!!!! The individual coefficients are written separately in order to possibility to acces them separately.
+pure function C_q_q_delta_1(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_1
+  C_q_q_delta_1=(-4d0/3d0*zeta2-4d0*Lmu)
+end function C_q_q_delta_1
 
-  if(orderMain>=2) then
-    !-----
-     C_q_q_delta=C_q_q_delta+alpha*alpha*(&
+pure function C_q_q_delta_2(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_2
+  C_q_q_delta_2=(&
      -2416d0/81d0 + (Lmu**2)*(-14d0 + 4d0*Nf/3d0 - 128d0*zeta2/9d0) &
      + Nf*(352d0/243d0 + 20d0*zeta2/9d0 + 56d0*zeta3/27d0) +  Lmu*(-14d0 - 140d0*zeta2/3d0 + Nf*(4d0/9d0&
      + 40d0*zeta2/9d0) + 16d0*zeta3/3d0)- 134d0*zeta2/3d0 + 448d0*zeta3/9d0 + 200d0*zeta4/9d0 ) !!!+ 2360d0*zeta4/9d0
-  if(orderMain>=3) then
-     C_q_q_delta=C_q_q_delta+alpha**3*(&
+end function C_q_q_delta_2
+
+pure function C_q_q_delta_3(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta_3
+  C_q_q_delta_3=(&
      Lmu**3*(-84d0 - (16d0*Nf**2)/27d0 - (896d0*zeta2)/9d0 + Nf*(128d0/9d0 + (256d0*zeta2)/27d0) &
      - (4096d0*zeta3)/81d0) + (13954d0*zeta3)/81d0 + (30212d0*zeta2*zeta3)/27d0 - (244d0*zeta3**2)/3d0 &
      + Nf**2*(2800d0/19683d0 - (496d0*zeta2)/81d0 - (3712d0*zeta3)/729d0 - (88d0*zeta4)/81d0) &
@@ -91,31 +96,53 @@ pure function C_q_q_delta(alpha,Nf,Lmu)
      + Nf*(212644d0/6561d0 + (224116d0*zeta2)/729d0 + (83452d0*zeta3)/729d0 - (5960d0*zeta2*zeta3)/81d0 &
      - (1988d0*zeta4)/81d0 - (8144d0*zeta5)/81d0) - (1576d0*zeta5)/3d0 - (59468d0*zeta6)/81d0 &
      - 578966d0/2187d0 - (667234d0*zeta2)/243d0)
+end function C_q_q_delta_3
+
+pure function C_q_q_delta(alpha,Nf,Lmu)
+  real(dp), intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_q_q_delta
+  
+ C_q_q_delta=1d0
+ 
+  if(orderMain>=1) then
+      !(checked 27.02.19 AV) (27.06.22 AV)
+      C_q_q_delta=C_q_q_delta+alpha*C_q_q_delta_1(Nf,Lmu)
+
+  if(orderMain>=2) then
+    !-----
+     C_q_q_delta=C_q_q_delta+alpha*alpha*C_q_q_delta_2(Nf,Lmu)
+  if(orderMain>=3) then
+     C_q_q_delta=C_q_q_delta+alpha**3*C_q_q_delta_3(Nf,Lmu)
   end if
   end if
   end if
   
 end function C_q_q_delta
   
-  !!!!!coefficient function g<-g delta-part
-pure function C_g_g_delta(alpha,Nf,Lmu)
-  real(dp),intent(in)::Nf,alpha,Lmu
-  real(dp)::C_g_g_delta
-  
-  C_g_g_delta=1d0
- 
-  if(orderMain>=1) then
-      !(checked 27.02.19 AV) (27.06.22 AV)
-      C_g_g_delta=C_g_g_delta+alpha*(-3d0*zeta2+(-11d0+2d0/3d0*Nf)*Lmu)
+!!!!!coefficient function g<-g delta-part
+!!!! The individual coefficients are written separately in order to possibility to acces them separately.
+pure function C_g_g_delta_1(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_1
+  C_g_g_delta_1=(-3d0*zeta2+(-11d0+2d0/3d0*Nf)*Lmu)
+end function C_g_g_delta_1
 
-  if(orderMain>=2) then
-    !---
-     C_g_g_delta=C_g_g_delta+alpha*alpha*(&
+pure function C_g_g_delta_2(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_2
+  C_g_g_delta_2=(&
      -112d0 - 56d0*(Nf**2)/81d0 - 201d0*zeta2/2d0 - 72d0*(Lmu**2)*zeta2 + Lmu*(-96d0 + 32d0*Nf/3d0 &
      - 108d0*zeta3) + Nf*(548d0/27d0 + 5d0*zeta2 - 28d0*zeta3/3d0) + 154d0*zeta3 + 225d0*zeta4/4d0) !!+ 2385d0*zeta4/4d0
+end function C_g_g_delta_2
 
-  if(orderMain>=3) then
-     C_g_g_delta=C_g_g_delta+alpha**3*(&
+pure function C_g_g_delta_3(Nf,Lmu)
+  real(dp),intent(in)::Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta_3
+  C_g_g_delta_3=(&
       -698456d0/243d0 - (213865d0*zeta2)/54d0 + Nf**3*(-752d0/2187d0 + (16d0*zeta3)/27d0) &
       + (1489d0*zeta3)/9d0 - 576d0*Lmu**3*zeta3 + 429d0*zeta2*zeta3 + 2337d0*zeta3**2 &
       + Nf**2*(-73577d0/2187d0 - (200d0*zeta2)/81d0 - (368d0*zeta3)/81d0 - (20d0*zeta4)/9d0) &
@@ -126,6 +153,25 @@ pure function C_g_g_delta(alpha,Nf,Lmu)
       + 3780d0*zeta2*zeta3 + Nf**2*(-4471d0/162d0 - (10d0*zeta2)/3d0 + (56d0*zeta3)/9d0) &
       + Nf*(25175d0/54d0 + (904d0*zeta2)/3d0 + (104d0*zeta3)/3d0 - (15d0*zeta4)/2d0) &
       + (495d0*zeta4)/4d0 + 2160d0*zeta5) - (28783d0*zeta6)/16d0)
+end function C_g_g_delta_3
+
+pure function C_g_g_delta(alpha,Nf,Lmu)
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
+  real(dp)::C_g_g_delta
+  
+  C_g_g_delta=1d0
+ 
+  if(orderMain>=1) then
+      !(checked 27.02.19 AV) (27.06.22 AV)
+      C_g_g_delta=C_g_g_delta+alpha*C_g_g_delta_1(Nf,Lmu)
+
+  if(orderMain>=2) then
+    !---
+     C_g_g_delta=C_g_g_delta+alpha*alpha*C_g_g_delta_2(Nf,Lmu)
+
+  if(orderMain>=3) then
+     C_g_g_delta=C_g_g_delta+alpha**3*C_g_g_delta_3(Nf,Lmu)
 
   end if
   end if
@@ -135,7 +181,8 @@ end function C_g_g_delta
   !!!!!coefficient function q<-q singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
 pure function Coeff_q_q_plus(alpha,Nf,Lmu)
   real(dp),dimension(1:3)::Coeff_q_q_plus
-  real(dp),intent(in)::Nf,alpha,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp)::s1,s2,s3
     
   s1=0d0!!!coeff 1/(1-x)
@@ -178,7 +225,8 @@ end function Coeff_q_q_plus
   !!!!!coefficient function g<-g singular-part  (1/(1-x)_+,(Log(1-x)/(1-x))_+)
 function Coeff_g_g_plus(alpha,Nf,Lmu)
   real(dp),dimension(1:3)::Coeff_g_g_plus
-  real(dp),intent(in)::Nf,alpha,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp)::s1,s2,s3
     
   s1=0d0!!!coeff 1/(1-x)
@@ -220,7 +268,8 @@ end function Coeff_g_g_plus
   
   !!!!!coefficient function q->q
 function Coeff_q_q_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp),dimension(1:parametrizationLength)::Coeff_q_q_reg
   real(dp),dimension(1:parametrizationLength)::inter
   
@@ -402,7 +451,8 @@ end function Coeff_q_q_reg
   
    !!!!!coefficient function q->g
 pure function Coeff_q_g_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp),dimension(1:parametrizationLength)::Coeff_q_g_reg
   real(dp),dimension(1:parametrizationLength)::inter
   
@@ -567,7 +617,8 @@ end function Coeff_q_g_reg
   
    !!!!!coefficient function g->q
 pure function Coeff_g_q_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp), dimension(1:parametrizationLength)::Coeff_g_q_reg
   real(dp),dimension(1:parametrizationLength)::inter
   !! the Leading order is always zero, therefore calculation should be done only for order >=1
@@ -762,7 +813,8 @@ end function Coeff_g_q_reg
   
      !!!!!coefficient function g->g
 pure function Coeff_g_g_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp),dimension(1:parametrizationLength)::Coeff_g_g_reg
   real(dp),dimension(1:parametrizationLength)::inter
   
@@ -975,7 +1027,8 @@ end function Coeff_g_g_reg
   
      !!!!!coefficient function q->qb
 pure function Coeff_q_qb_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp),dimension(1:parametrizationLength)::Coeff_q_qb_reg
   real(dp),dimension(1:parametrizationLength)::inter
   
@@ -1070,7 +1123,8 @@ end function Coeff_q_qb_reg
 
   !!!!!coefficient function q->qp
 pure function Coeff_q_qp_reg(alpha,Nf,Lmu)
-  real(dp),intent(in)::alpha,Nf,Lmu
+  real(dp),intent(in)::alpha,Lmu
+  integer,intent(in)::Nf
   real(dp),dimension(1:parametrizationLength)::Coeff_q_qp_reg
   real(dp),dimension(1:parametrizationLength)::inter
 

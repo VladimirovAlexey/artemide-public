@@ -14,10 +14,10 @@ implicit none
 
 private
 
-character (len=5),parameter :: version="v3.00"
+character (len=5),parameter :: version="v3.01"
 character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
-integer,parameter::inputVer=30
+integer,parameter::inputVer=35
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
@@ -34,24 +34,27 @@ real(dp)::hc2,Mnorm,alphaQED_MZ,sW2,alphaQED_MTAU
 !CKM matrix
 real(dp)::Vckm_UD,Vckm_US,Vckm_CD,Vckm_CS,Vckm_CB,Vckm_UB
 
+!--------------------- QCDinput parameters
+character(len=:),allocatable:: MainLHAPath,alphaPath
+
 !--------------------- uPDF parameters
 integer::number_of_uPDFs
-integer,allocatable::enumeration_of_uPDFs(:),replicas_of_uPDFs(:)
 character(len=100),allocatable::sets_of_uPDFs(:)
 
 !--------------------- uFF parameters
 integer::number_of_uFFs
-integer,allocatable::enumeration_of_uFFs(:),replicas_of_uFFs(:)
 character(len=100),allocatable::sets_of_uFFs(:)
 
 !--------------------- lpPDF parameters
 integer::number_of_lpPDFs
-integer,allocatable::enumeration_of_lpPDFs(:),replicas_of_lpPDFs(:)
 character(len=100),allocatable::sets_of_lpPDFs(:)
 
-!--------------------- hPDF parameters
+!--------------------- gPDF (helicity) parameters
+integer::number_of_gPDFs
+character(len=100),allocatable::sets_of_gPDFs(:)
+
+!--------------------- hPDF (transversity) parameters
 integer::number_of_hPDFs
-integer,allocatable::enumeration_of_hPDFs(:),replicas_of_hPDFs(:)
 character(len=100),allocatable::sets_of_hPDFs(:)
 
 !-------------------- TMDR options
@@ -67,8 +70,8 @@ real(dp)::TMDR_smooth
 
 !-------------------- uTMDPDF parameters
 logical::include_uTMDPDF
-character*8::uTMDPDF_order
-logical::uTMDPDF_makeGrid,uTMDPDF_withGluon,uTMDPDF_runGridTest
+character*8::uTMDPDF_order,uTMDPDF_orderLX
+logical::uTMDPDF_makeGrid,uTMDPDF_withGluon,uTMDPDF_runGridTest,uTMDPDF_largeX
 integer::uTMDPDF_lambdaLength
 integer::uTMDPDF_numHadron
 real(dp)::uTMDPDF_BMAX_ABS
@@ -89,8 +92,8 @@ real(dp)::uTMDPDF_hOGATA_TMM,uTMDPDF_toleranceOGATA_TMM,uTMDPDF_muMIN_TMM
 
 !-------------------- uTMDFF parameters
 logical::include_uTMDFF
-character*8::uTMDFF_order
-logical::uTMDFF_makeGrid,uTMDFF_withGluon,uTMDFF_runGridTest
+character*8::uTMDFF_order,uTMDFF_orderLX
+logical::uTMDFF_makeGrid,uTMDFF_withGluon,uTMDFF_runGridTest,uTMDFF_largeX
 integer::uTMDFF_lambdaLength
 integer::uTMDFF_numHadron
 real(dp)::uTMDFF_BMAX_ABS
@@ -100,7 +103,12 @@ integer::uTMDFF_maxIteration
 integer::uTMDFF_numSubGridsX,uTMDFF_numSubGridsB
 real(dp),allocatable::uTMDFF_subGridsX(:),uTMDFF_subGridsB(:)
 integer::uTMDFF_grid_SizeX,uTMDFF_grid_SizeB
-real(dp)::uTMDFF_hOGATA,uTMDFF_toleranceOGATA,uTMDFF_KT_FREEZE
+logical::uTMDFF_makeGrid_inKT,uTMDFF_runGridTest_inKT
+integer::uTMDFF_numSubGridsX_inKT,uTMDFF_numSubGridsKT_inKT,uTMDFF_numSubGridsB_inKT
+real(dp),allocatable::uTMDFF_subGridsX_inKT(:),uTMDFF_subGridsB_inKT(:),uTMDFF_subGridsKT_inKT(:)
+integer::uTMDFF_grid_SizeX_inKT,uTMDFF_grid_SizeB_inKT,uTMDFF_grid_SizeKT_inKT
+real(dp)::uTMDFF_minQ_inKT,uTMDFF_maxQ_inKT
+integer::uTMDFF_grid_SizeQ_inKT
 real(dp)::uTMDFF_hOGATA_TMM,uTMDFF_toleranceOGATA_TMM,uTMDFF_muMIN_TMM
 
 !-------------------- lpTMDPDF parameters
@@ -134,8 +142,8 @@ real(dp)::SiversTMDPDF_hOGATA_TMM,SiversTMDPDF_toleranceOGATA_TMM,SiversTMDPDF_m
 
 !-------------------- wgtTMDPDF parameters
 logical::include_wgtTMDPDF
-character*8::wgtTMDPDF_order
-logical::wgtTMDPDF_makeGrid,wgtTMDPDF_withGluon,wgtTMDPDF_runGridTest
+character*8::wgtTMDPDF_order,wgtTMDPDF_orderLX
+logical::wgtTMDPDF_makeGrid,wgtTMDPDF_withGluon,wgtTMDPDF_runGridTest,wgtTMDPDF_largeX
 integer::wgtTMDPDF_numHadron
 character*8::wgtTMDPDF_order_tw3
 logical::wgtTMDPDF_makeGrid_tw3,wgtTMDPDF_withGluon_tw3,wgtTMDPDF_runGridTest_tw3
@@ -149,6 +157,24 @@ real(dp),allocatable::wgtTMDPDF_subGridsX(:),wgtTMDPDF_subGridsB(:)
 integer::wgtTMDPDF_grid_SizeX,wgtTMDPDF_grid_SizeB
 real(dp)::wgtTMDPDF_hOGATA,wgtTMDPDF_toleranceOGATA,wgtTMDPDF_KT_FREEZE
 real(dp)::wgtTMDPDF_hOGATA_TMM,wgtTMDPDF_toleranceOGATA_TMM,wgtTMDPDF_muMIN_TMM
+
+!-------------------- wglTMDPDF parameters
+logical::include_wglTMDPDF
+character*8::wglTMDPDF_order,wglTMDPDF_orderLX
+logical::wglTMDPDF_makeGrid,wglTMDPDF_withGluon,wglTMDPDF_runGridTest,wglTMDPDF_largeX
+integer::wglTMDPDF_numHadron
+character*8::wglTMDPDF_order_tw3
+logical::wglTMDPDF_makeGrid_tw3,wglTMDPDF_withGluon_tw3,wglTMDPDF_runGridTest_tw3
+integer::wglTMDPDF_lambdaLength
+real(dp)::wglTMDPDF_BMAX_ABS
+real(dp)::wglTMDPDF_toleranceINT
+real(dp)::wglTMDPDF_toleranceGEN
+integer::wglTMDPDF_maxIteration
+integer::wglTMDPDF_numSubGridsX,wglTMDPDF_numSubGridsB
+real(dp),allocatable::wglTMDPDF_subGridsX(:),wglTMDPDF_subGridsB(:)
+integer::wglTMDPDF_grid_SizeX,wglTMDPDF_grid_SizeB
+real(dp)::wglTMDPDF_hOGATA,wglTMDPDF_toleranceOGATA,wglTMDPDF_KT_FREEZE
+real(dp)::wglTMDPDF_hOGATA_TMM,wglTMDPDF_toleranceOGATA_TMM,wglTMDPDF_muMIN_TMM
 
 !-------------------- BoerMuldersTMDPDF parameters
 logical::include_BoerMuldersTMDPDF
@@ -168,12 +194,23 @@ real(dp)::BoerMuldersTMDPDF_minQ_inKT,BoerMuldersTMDPDF_maxQ_inKT
 integer::BoerMuldersTMDPDF_grid_SizeQ_inKT
 real(dp)::BoerMuldersTMDPDF_hOGATA_TMM,BoerMuldersTMDPDF_toleranceOGATA_TMM,BoerMuldersTMDPDF_muMIN_TMM
 
+!-------------------- eeTMDFF parameters
+logical::include_eeTMDFF
+character*8::eeTMDFF_order
+logical::eeTMDFF_withGluon
+integer::eeTMDFF_lambdaLength
+integer::eeTMDFF_numHadron
+real(dp)::eeTMDFF_BMAX_ABS
+real(dp)::eeTMDFF_toleranceGEN,eeTMDFF_toleranceINT
+integer::eeTMDFF_maxIteration
+logical::eeTMDFF_makeGrid_inKT
+
 !-------------------- TMDF parameters
 logical::include_TMDF
-real(dp)::TMDF_OGATAh,TMDF_tolerance,TMDF_qTMIN
+real(dp)::TMDF_OGATAh,TMDF_tolerance,TMDF_qTMIN,TMDF_hardScaleMIN
 real(dp)::TMDF_mass
 
-!-------------------- TMDF-KPC-DY parameters
+!-------------------- TMDF-KPC parameters
 logical::include_TMDF_KPC
 real(dp)::TMDF_KPC_toleranceGEN,TMDF_KPC_toleranceINT,TMDF_KPC_qTMIN
 
@@ -189,12 +226,11 @@ logical::TMDX_DY_useKPC
 !-------------------- TMDX-SIDIS parameters
 logical::include_TMDX_SIDIS
 character*8::TMDX_SIDIS_order
-real(dp)::TMDX_SIDIS_tolerance
+real(dp)::TMDX_SIDIS_toleranceINT, TMDX_SIDIS_toleranceGEN
+real(dp)::TMDX_SIDIS_minPT
 integer::TMDX_SIDIS_ptSECTION
-logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_qTinX1Z1corr,TMDX_SIDIS_exactScale
-integer::TMDX_SIDIS_numProc
-real(dp)::TMDX_SIDIS_toleranceZ,TMDX_SIDIS_toleranceX
-character(len=4)::TMDX_SIDIS_methodZ,TMDX_SIDIS_methodX
+logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_exactX1Z1,TMDX_SIDIS_exactScale
+logical::TMDX_SIDIS_useKPC
 
 !---------------------------------------------------
 public::artemide_Setup_fromFile,CreateConstantsFile,ReadConstantsFile,CheckConstantsFile
@@ -270,63 +306,42 @@ subroutine SetupDefault(order)
     Vckm_CB=0.0422d0
     Vckm_UB=0.0394d0
 
+    !-----
+    MainLHAPath="UNKNOWN"
+    alphaPath="UNKNOWN"
     !-------------------Parameters for uPDFs evaluation
     number_of_uPDFs=1
-    if(allocated(enumeration_of_uPDFs)) deallocate(enumeration_of_uPDFs)
-    if(allocated(replicas_of_uPDFs)) deallocate(replicas_of_uPDFs)
     if(allocated(sets_of_uPDFs)) deallocate(sets_of_uPDFs)
 
-    allocate(enumeration_of_uPDFs(1:1))
-    allocate(replicas_of_uPDFs(1:1))
     allocate(sets_of_uPDFs(1:1))
-    enumeration_of_uPDFs=(/1/)
-    replicas_of_uPDFs=(/0/)
-    select case(order)
-    case('LO','LO+')
-    sets_of_uPDFs=(/trim('MMHT2014lo68cl')/)
-    case('NLO','NLO+')
-    sets_of_uPDFs=(/trim('MMHT2014nlo68cl')/)
-    case('NNLO','NNLO+')
-    sets_of_uPDFs=(/trim('MMHT2014nnlo68cl')/)
-    end select
+    sets_of_uPDFs=(/trim('UNKNOWN')/)
 
     !-------------------Parameters for uFFs evaluation
     ! by definition we do not initiate any FFs
     number_of_uFFs=0
-    if(allocated(enumeration_of_uFFs)) deallocate(enumeration_of_uFFs)
-    if(allocated(replicas_of_uFFs)) deallocate(replicas_of_uFFs)
     if(allocated(sets_of_uFFs)) deallocate(sets_of_uFFs)
-    allocate(enumeration_of_uFFs(1:1))
-    allocate(replicas_of_uFFs(1:1))
-    allocate(sets_of_uFFs(1:1))
-    enumeration_of_uFFs=(/-1/)
-    replicas_of_uFFs=(/0/)
+    allocate(sets_of_uFFs(1:0))
     sets_of_uFFs=(/trim('ABSENT')/)
 
     !-------------------Parameters for lpPDFs evaluation
     ! by definition we do not initiate any lpPDF
     number_of_lpPDFs=0
-    if(allocated(enumeration_of_lpPDFs)) deallocate(enumeration_of_lpPDFs)
-    if(allocated(replicas_of_lpPDFs)) deallocate(replicas_of_lpPDFs)
     if(allocated(sets_of_lpPDFs)) deallocate(sets_of_lpPDFs)
-    allocate(enumeration_of_lpPDFs(1:1))
-    allocate(replicas_of_lpPDFs(1:1))
-    allocate(sets_of_lpPDFs(1:1))
-    enumeration_of_lpPDFs=(/-1/)
-    replicas_of_lpPDFs=(/0/)
+    allocate(sets_of_lpPDFs(1:0))
     sets_of_lpPDFs=(/trim('ABSENT')/)
     
+    !-------------------Parameters for gPDFs evaluation
+    ! by definition we do not initiate any gPDF
+    number_of_gPDFs=0
+    if(allocated(sets_of_gPDFs)) deallocate(sets_of_gPDFs)
+    allocate(sets_of_gPDFs(1:0))
+    sets_of_gPDFs=(/trim('ABSENT')/)
+
     !-------------------Parameters for hPDFs evaluation
     ! by definition we do not initiate any hPDF
     number_of_hPDFs=0
-    if(allocated(enumeration_of_hPDFs)) deallocate(enumeration_of_hPDFs)
-    if(allocated(replicas_of_hPDFs)) deallocate(replicas_of_hPDFs)
     if(allocated(sets_of_hPDFs)) deallocate(sets_of_hPDFs)
-    allocate(enumeration_of_hPDFs(1:1))
-    allocate(replicas_of_hPDFs(1:1))
-    allocate(sets_of_hPDFs(1:1))
-    enumeration_of_hPDFs=(/-1/)
-    replicas_of_hPDFs=(/0/)
+    allocate(sets_of_hPDFs(1:0))
     sets_of_hPDFs=(/trim('ABSENT')/)
 
     !-------------------- parameters for TMDR
@@ -349,6 +364,8 @@ subroutine SetupDefault(order)
     uTMDPDF_order=trim("NLO")
     uTMDPDF_makeGrid=.true.
     uTMDPDF_runGridTest=.false.
+    uTMDPDF_largeX=.false.
+    uTMDPDF_orderLX=trim("NLO")
     uTMDPDF_lambdaLength=2
     uTMDPDF_BMAX_ABS=100.d0
     uTMDPDF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
@@ -391,6 +408,8 @@ subroutine SetupDefault(order)
     uTMDFF_numHadron=0
     uTMDFF_makeGrid=.true.
     uTMDFF_runGridTest=.false.
+    uTMDFF_largeX=.false.
+    uTMDFF_orderLX=trim("NLO")
     uTMDFF_lambdaLength=2
     uTMDFF_BMAX_ABS=100.d0
     uTMDFF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
@@ -404,9 +423,23 @@ subroutine SetupDefault(order)
     allocate(uTMDFF_subGridsB(0:uTMDFF_numSubGridsB))
     uTMDFF_subGridsB=(/0.00001d0,0.01d0,0.2d0,2.d0,25.d0/)
     uTMDFF_grid_SizeB=8
-    uTMDFF_toleranceOGATA=1.d-4    !!! OGATA tolerance
-    uTMDFF_hOGATA=1.d-3            !!! OGATA integration step
-    uTMDFF_KT_FREEZE=1.d-4         !!! min value of kT
+    uTMDFF_makeGrid_inKT=.false.
+    uTMDFF_runGridTest_inKT=.false.
+    uTMDFF_numSubGridsX_inKT=3
+    allocate(uTMDFF_subGridsX_inKT(0:uTMDFF_numSubGridsX_inKT))
+    uTMDFF_subGridsX_inKT=(/0.001d0,0.1d0,0.7d0,1.d0/)
+    uTMDFF_grid_SizeX_inKT=16
+    uTMDFF_numSubGridsKT_inKT=4
+    allocate(uTMDFF_subGridsKT_inKT(0:uTMDFF_numSubGridsKT_inKT))
+    uTMDFF_subGridsKT_inKT=(/0.01d0,1.d0,5.d0,15.d0,50.d0/)
+    uTMDFF_grid_SizeKT_inKT=16
+    uTMDFF_minQ_inKT=1.d0
+    uTMDFF_maxQ_inKT=40.d0
+    uTMDFF_grid_SizeQ_inKT=20
+    uTMDFF_numSubGridsB_inKT=5
+    allocate(uTMDFF_subGridsB_inKT(0:uTMDFF_numSubGridsB_inKT))
+    uTMDFF_subGridsB_inKT=(/0.00001d0,0.01d0,0.2d0,2.d0,8.d0,25.d0/)
+    uTMDFF_grid_SizeB_inKT=16
     uTMDFF_toleranceOGATA_TMM=1.d-4    !!! OGATA tolerance (for TMM)
     uTMDFF_hOGATA_TMM=1.d-3            !!! OGATA integration step(for TMM)
     uTMDFF_muMIN_TMM=0.8d0         !!! min value of mu for TMM
@@ -464,6 +497,8 @@ subroutine SetupDefault(order)
     wgtTMDPDF_withGluon=.false.
     wgtTMDPDF_numHadron=1
     wgtTMDPDF_runGridTest=.false.
+    wgtTMDPDF_largeX=.false.
+    wgtTMDPDF_orderLX=trim("NLO")
     wgtTMDPDF_lambdaLength=2
     wgtTMDPDF_BMAX_ABS=100.d0
     wgtTMDPDF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
@@ -487,6 +522,39 @@ subroutine SetupDefault(order)
     wgtTMDPDF_toleranceOGATA_TMM=1.d-4    !!! OGATA tolerance (for TMM)
     wgtTMDPDF_hOGATA_TMM=1.d-3            !!! OGATA integration step(for TMM)
     wgtTMDPDF_muMIN_TMM=0.8d0         !!! min value of mu for TMM
+
+    !-------------------- parameters for wglTMDPDF
+    include_wglTMDPDF=.false.
+    wglTMDPDF_order=trim("LO")
+    wglTMDPDF_makeGrid=.true.
+    wglTMDPDF_withGluon=.false.
+    wglTMDPDF_numHadron=1
+    wglTMDPDF_runGridTest=.false.
+    wglTMDPDF_largeX=.false.
+    wglTMDPDF_orderLX=trim("NLO")
+    wglTMDPDF_lambdaLength=2
+    wglTMDPDF_BMAX_ABS=100.d0
+    wglTMDPDF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
+    wglTMDPDF_toleranceGEN=1.d-6!general tolerance
+    wglTMDPDF_maxIteration=10000    !maxIteration for adaptive integration
+    wglTMDPDF_numSubGridsX=3
+    allocate(wglTMDPDF_subGridsX(0:wglTMDPDF_numSubGridsX))
+    wglTMDPDF_subGridsX=(/0.001d0,0.1d0,0.7d0,1.d0/)
+    wglTMDPDF_grid_SizeX=8
+    wglTMDPDF_numSubGridsB=4
+    allocate(wglTMDPDF_subGridsB(0:wglTMDPDF_numSubGridsB))
+    wglTMDPDF_subGridsB=(/0.00001d0,0.01d0,0.2d0,2.d0,25.d0/)
+    wglTMDPDF_grid_SizeB=8
+    wglTMDPDF_order_tw3=trim("NA")
+    wglTMDPDF_makeGrid_tw3=.false.
+    wglTMDPDF_withGluon_tw3=.false. !!! this is true by default
+    wglTMDPDF_runGridTest_tw3=.false.
+    wglTMDPDF_toleranceOGATA=1.d-4    !!! OGATA tolerance
+    wglTMDPDF_hOGATA=1.d-3            !!! OGATA integration step
+    wglTMDPDF_KT_FREEZE=1.d-4         !!! min value of kT
+    wglTMDPDF_toleranceOGATA_TMM=1.d-4    !!! OGATA tolerance (for TMM)
+    wglTMDPDF_hOGATA_TMM=1.d-3            !!! OGATA integration step(for TMM)
+    wglTMDPDF_muMIN_TMM=0.8d0         !!! min value of mu for TMM
     
     !-------------------- parameters for BoerMuldersTMDPDF
     include_BoerMuldersTMDPDF=.false. !!! we do not initialize BoerMuldersTMDPDF by definition
@@ -521,11 +589,24 @@ subroutine SetupDefault(order)
     BoerMuldersTMDPDF_hOGATA_TMM=1.d-3            !!! OGATA integration step(for TMM)
     BoerMuldersTMDPDF_muMIN_TMM=0.8d0         !!! min value of mu for TMM
 
+    !-------------------- parameters for eeTMDFF
+    include_eeTMDFF=.false.!!! we do not initialize TMDFF by definition
+    eeTMDFF_order=trim("NLO")
+    eeTMDFF_withGluon=.false.
+    eeTMDFF_numHadron=0
+    eeTMDFF_lambdaLength=2
+    eeTMDFF_BMAX_ABS=100.d0
+    eeTMDFF_toleranceINT=1.d-6!general tolerance
+    eeTMDFF_toleranceGEN=1.d-6!general tolerance
+    eeTMDFF_maxIteration=10000    !maxIteration for adaptive integration
+    eeTMDFF_makeGrid_inKT=.false.
+
     !------------------ parameters for TMDF
     include_TMDF=.true.
     TMDF_tolerance=0.0001d0    !tolerance (i.e. relative integration tolerance)
     TMDF_OGATAh=0.001d0        !Ogata quadrature integration step
     TMDF_qTMIN=0.001d0          !minimal qT, below values is contant
+    TMDF_hardScaleMIN=0.8d0   ! minimal value of Q, mu or zeta
     TMDF_mass=0.938272      !mass parameter that is used as reference dimension
 
     !------------------ parameters for TMDX-DY
@@ -543,21 +624,19 @@ subroutine SetupDefault(order)
 
     !------------------ parameters for TMDX-SIDIS
     include_TMDX_SIDIS=.false.
-    TMDX_SIDIS_tolerance=0.001d0    !tolerance (i.e. relative integration tolerance -- in kinematic integrals;)
+    TMDX_SIDIS_toleranceINT=0.0001d0
+    TMDX_SIDIS_toleranceGEN=0.000001d0
+    TMDX_SIDIS_minPT=0.0001d0
     TMDX_SIDIS_ptSECTION=4        !default number of sections for pt-bin integration
     TMDX_SIDIS_order=trim(order)
     TMDX_SIDIS_qTcorr=.true.
-    TMDX_SIDIS_M1corr=.true.
-    TMDX_SIDIS_M2corr=.true.
-    TMDX_SIDIS_qTinX1Z1corr=.true.
+    TMDX_SIDIS_M1corr=.false.
+    TMDX_SIDIS_M2corr=.false.
+    TMDX_SIDIS_exactX1Z1=.true.
     TMDX_SIDIS_exactScale=.false.
-    TMDX_SIDIS_numProc=8
-    TMDX_SIDIS_toleranceZ=TMDX_SIDIS_tolerance
-    TMDX_SIDIS_methodZ='SA'        !SA=Simpson adaptive, S5=Simpson 5-point
-    TMDX_SIDIS_toleranceX=TMDX_SIDIS_tolerance
-    TMDX_SIDIS_methodX='SA'        !SA=Simpson adaptive, S5=Simpson 5-point
+    TMDX_SIDIS_useKPC=.false.
 
-    !------------------ parameters for TMDF-KPC-DY
+    !------------------ parameters for TMDF-KPC
     include_TMDF_KPC=.true.
     TMDF_KPC_toleranceGEN=0.000001d0  !tolerance general (i.e. comparison etc)
     TMDF_KPC_toleranceINT=0.0001d0    !tolerance integration (i.e. relative integration tolerance)
@@ -589,14 +668,14 @@ function CheckConstantsFile(file,prefix)
     read(51,*) FILEversion
     CLOSE (51, STATUS='KEEP') 
 
-    if(FILEversion<30) then
+    if(FILEversion<31) then
         write(*,*) color('aTMDe_setup: present version of setup-file is for artemide v2.'&
         , c_red_bold)
         write(*,*) color('..           It is incompatible with the preent version.'&
         , c_red)
         write(*,*) color('..           Please, use actual file or update it manually.'&
         ,c_red)
-        stop
+        ERROR STOP
     end if
 
     if(FILEversion<inputVer) then
@@ -667,6 +746,11 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('# ---------------------------------------------------------------------------')")
     write(51,"('*1   :')")
     write(51,"(' ')")
+    write(51,"('*p1  : Path to the directory with LHA-tables')")
+    write(51,"(A)") trim(MainLHAPath)
+    write(51,"('*p2  : Name of LHA set for alphaQCD')")
+    write(51,"(A)") trim(alphaPath)
+    write(51,"(' ')")
     write(51,"('*A   : ---- quarks threashold masses ----')")
     write(51,"('*p1  : mass of charm-quark')")
     write(51,*) mCHARM
@@ -676,55 +760,48 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) mTOP
     write(51,"(' ')")
     write(51,"('*B   : ---- uPDF sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 3)')")
     write(51,*) number_of_uPDFs
-    write(51,"('*p2  : reference number for hadrons')")
-    call writeShortIntegerList(51,enumeration_of_uPDFs)
-    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uPDFs
-        write(51,*) trim(sets_of_uPDFs(i))
+        write(51,"(A)") trim(sets_of_uPDFs(i))
     end do
-    write(51,"('*p4  : list of initialization replicas')")
-    call writeShortIntegerList(51,replicas_of_uPDFs)
 
     write(51,"(' ')")
     write(51,"('*C   : ---- uFF sets----')")
-    write(51,"('*p1  : total number of FFs to initialize (0= initialization is skipped)')")
+    write(51,"('*p1  : total number of FFs to initialize (0= initialization is skipped; maximum 3)')")
     write(51,*) number_of_uFFs
-    write(51,"('*p2  : reference number for hadrons')")
-    call writeShortIntegerList(51,enumeration_of_uFFs)
-    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uFFs
-        write(51,*) trim(sets_of_uFFs(i))
+        write(51,"(A)") trim(sets_of_uFFs(i))
     end do
-    write(51,"('*p4  : list of initialization replicas')")
-    call writeShortIntegerList(51,replicas_of_uFFs)
 
     write(51,"(' ')")
     write(51,"('*D   : ----lpPDF sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 1)')")
     write(51,*) number_of_lpPDFs
-    write(51,"('*p2  : reference number for hadrons')")
-    call writeShortIntegerList(51,enumeration_of_lpPDFs)
-    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_lpPDFs
-        write(51,*) trim(sets_of_lpPDFs(i))
+        write(51,"(A)") trim(sets_of_lpPDFs(i))
     end do
-    write(51,"('*p4  : list of initialization replicas')")
-    call writeShortIntegerList(51,replicas_of_lpPDFs)
     
     write(51,"(' ')")
-    write(51,"('*E   : ----hPDF sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
-    write(51,*) number_of_hPDFs
-    write(51,"('*p2  : reference number for hadrons')")
-    call writeShortIntegerList(51,enumeration_of_hPDFs)
-    write(51,"('*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
-    do i=1,number_of_hPDFs
-        write(51,*) trim(sets_of_hPDFs(i))
+    write(51,"('*E   : ----gPDF (helicity) sets----')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)')")
+    write(51,*) number_of_gPDFs
+    write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    do i=1,number_of_gPDFs
+        write(51,"(A)") trim(sets_of_gPDFs(i))
     end do
-    write(51,"('*p4  : list of initialization replicas')")
-    call writeShortIntegerList(51,replicas_of_hPDFs)
+
+    write(51,"(' ')")
+    write(51,"('*F   : ----hPDF (transversity) sets----')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)')")
+    write(51,*) number_of_hPDFs
+    write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
+    do i=1,number_of_hPDFs
+        write(51,"(A)") trim(sets_of_hPDFs(i))
+    end do
 
 
     write(51,"(' ')")
@@ -746,16 +823,19 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) Vckm_CD,Vckm_CS,Vckm_CB    
     write(51,"('*p4  : value of (alphaQED)^{-1} at MTAU')")
     write(51,*) alphaQED_MTAU
+    write(51,"(' ')")
     write(51,"('*B   : ---- Z-boson ----')")
     write(51,"('*p1  : mass of Z-boson [GeV]')")
     write(51,*) mZ
     write(51,"('*p2  : width of Z-boson [GeV]')")
     write(51,*) GammaZ
+    write(51,"(' ')")
     write(51,"('*C   : ---- W-boson ----')")
     write(51,"('*p1  : mass of W-boson [GeV]')")
     write(51,*) mW
     write(51,"('*p2  : width of W-boson [GeV]')")
     write(51,*) GammaW
+    write(51,"(' ')")
     write(51,"('*D   : ---- Higgs-boson ----')")
     write(51,"('*p1  : mass of Higgs-boson [GeV]')")
     write(51,*) mH
@@ -763,6 +843,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) GammaH
     write(51,"('*p3  : Vacuum expectation value (VEV) for Higgs potential [GeV]')")
     write(51,*) vevH
+    write(51,"(' ')")
     write(51,"('*E   : ---- Leptons ----')")
     write(51,"('*p1  : mass of electron [GeV]')")
     write(51,*) mELECTRON
@@ -784,7 +865,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p1  : Order of evolution')")
     write(51,*) trim(TMDR_order)
     write(51,&
-    "('*p2  : Override the general definition of the pertrubative order (in this case orders are defined by the list below))')")
+    "('*p2  : Override the general definition of the perturbative order (in this case orders are defined by the list below))')")
     write(51,*) TMDR_override
     write(51,"('*p3  : Order of Gamma-cusp (LO=1-loop, NLO=2-loop, ...)')")
     write(51,*) trim(TMDR_orderGAMMA)
@@ -799,7 +880,6 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p1  : Length of lambdaNP')")
     write(51,*) TMDR_lambdaLength
     write(51,"(' ')")
-    write(51,*)
     write(51,"('*C   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (tolerance used for comparisons)')")
     write(51,*) TMDR_tolerance
@@ -807,7 +887,6 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDR_bFREEZE
     write(51,"('*p3  : The smoothing parameters for small-b stabilization')")
     write(51,*) TMDR_smooth
-
 
     write(51,"(' ')")
     write(51,"(' ')")
@@ -831,6 +910,10 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) uTMDPDF_makeGrid
     write(51,"('*p3  : run the test of the grid (takes some time)')")
     write(51,*) uTMDPDF_runGridTest
+    write(51,"('*p4  : Use large-X resummation in the coefficient function of OPE')")
+    write(51,*) uTMDPDF_largeX
+    write(51,"('*p5  : Order of the large-X resummation (should be bigger-or-equal to order in p1)')")
+    write(51,*) uTMDPDF_orderLX
     write(51,"(' ')")
     write(51,"('*C   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
@@ -921,6 +1004,10 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) uTMDFF_makeGrid
     write(51,"('*p3  : run the test of the grid (takes some time)')")
     write(51,*) uTMDFF_runGridTest
+    write(51,"('*p4  : Use large-X resummation in the coefficient function of OPE')")
+    write(51,*) uTMDFF_largeX
+    write(51,"('*p5  : Order of the large-X resummation (should be bigger-or-equal to order in p1)')")
+    write(51,*) uTMDFF_orderLX
     write(51,"(' ')")
     write(51,"('*C   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
@@ -950,13 +1037,35 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p6  : Number of nodes in the B-subgrid ')")
     write(51,*) uTMDFF_grid_SizeB
     write(51,"(' ')")
-    write(51,"('*F   : ---- Transformation to KT-space ----')")
-    write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
-    write(51,*) uTMDFF_toleranceOGATA
-    write(51,"('*p2  : Ogata quadrature integration step')")
-    write(51,*) uTMDFF_hOGATA
-    write(51,"('*p3  : Minimum value of kT (below that value function is constant)')")
-    write(51,*) uTMDFF_KT_FREEZE
+    write(51,"('*F   : ---- Transform and grid in KT-space ----')")
+    write(51,"('*p1  : Prepare grid')")
+    write(51,*) uTMDFF_makeGrid_inKT
+    write(51,"('*p2  : run the test of the grid (takes some time)')")
+    write(51,*) uTMDFF_runGridTest_inKT
+    write(51,"('*p3  : Number of subgrids in X (required to read the next line)')")
+    write(51,*) uTMDFF_numSubGridsX_inKT
+    write(51,"('*p4  : Intervals for subgrids in X (must include 1., as the last point)')")
+    write(51,*) uTMDFF_subGridsX_inKT
+    write(51,"('*p5  : Number of nodes in the X-subgrid')")
+    write(51,*) uTMDFF_grid_SizeX_inKT
+    write(51,"('*p6  : Number of subgrids in K (required to read the next line)')")
+    write(51,*) uTMDFF_numSubGridsKT_inKT
+    write(51,"('*p7  : Intervals for subgrids in KT (below and above ultimate points the value is frozen)')")
+    write(51,*) uTMDFF_subGridsKT_inKT
+    write(51,"('*p8  : Number of nodes in the KT-subgrid')")
+    write(51,*) uTMDFF_grid_SizeKT_inKT
+    write(51,"('*p9  : Minimal Q in the grid')")
+    write(51,*) uTMDFF_minQ_inKT
+    write(51,"('*p10 : Maximal Q in the grid')")
+    write(51,*) uTMDFF_maxQ_inKT
+    write(51,"('*p11 : Number of nodes in the Q-grid')")
+    write(51,*) uTMDFF_grid_SizeQ_inKT
+    write(51,"('*p12  : Number of subgrids in B (required to read the next line)')")
+    write(51,*) uTMDFF_numSubGridsB_inKT
+    write(51,"('*p13  : Intervals for subgrids in B (below and above ultimate points the value is frozen)')")
+    write(51,*) uTMDFF_subGridsB_inKT
+    write(51,"('*p14  : Number of nodes in the B-subgrid')")
+    write(51,*) uTMDFF_grid_SizeB_inKT
     write(51,"(' ')")
     write(51,"('*G   : ---- Computation of Transverse Momentum Moments (TMM) ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
@@ -974,6 +1083,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*7   :')")
     write(51,"('*p1  : initialize TMDF module')")
     write(51,*) include_TMDF
+    write(51,"(' ')")
     write(51,"('*A   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
     write(51,*) TMDF_tolerance
@@ -981,7 +1091,10 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDF_OGATAh
     write(51,"('*p3  : Minimal qT (for smaller values the expression is constant)')")
     write(51,*) TMDF_qTMIN
-    write(51,"('*B   : ---- Global garameters of structure functions----')")
+    write(51,"('*p4  : Minimal hard scale (Q, mu, zeta1, zeta2) (for smaller values the error is generated)')")
+    write(51,*) TMDF_hardScaleMIN
+    write(51,"(' ')")
+    write(51,"('*B   : ---- Global parameters of structure functions----')")
     write(51,"('*p1  : Mass parameter used in the structure function (mass of hadron)')")
     write(51,*) TMDF_mass
 
@@ -993,6 +1106,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*9   :')")
     write(51,"('*p1  : initialize TMDX-DY module')")
     write(51,*) include_TMDX_DY
+    write(51,"(' ')")
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : Order of coefficient function')")
     write(51,*) trim(TMDX_DY_order)
@@ -1000,8 +1114,9 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_DY_useKPC
     write(51,"('*p3  : Use resummation of pi^2-corrections in hard coefficient')")
     write(51,*) TMDX_DY_piResum
+    write(51,"(' ')")
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
-    write(51,"('*p1  : Tolerance general (variable comparision, etc.)')")
+    write(51,"('*p1  : Tolerance general (variable comparison, etc.)')")
     write(51,*) TMDX_DY_toleranceGEN
     write(51,"('*p2  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
     write(51,*) TMDX_DY_toleranceINT
@@ -1011,11 +1126,13 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_DY_maxQbinSize
     write(51,"('*p5  : Minimal value of qT (lower values are fixed to this number)')")
     write(51,*) TMDX_DY_minqTabs
+    write(51,"(' ')")
     write(51,"('*C   : ---- Definition of LP TMD factorization ----')")
     write(51,"('*p1  : Use the exact values of x1 and x2 (include qT/Q correction)')")
     write(51,*) TMDX_DY_exactX1X2
     write(51,"('*p2  : Use the exact values for factorization scales (include qT/Q correction)')")
     write(51,*) TMDX_DY_exactScale
+    write(51,"(' ')")
     write(51,"('*D   : ---- Definition of TMD factorization with KPC ----')")
     write(51,"('*p1  : Include terms induced by fiducial cuts')")
     write(51,*) .true.
@@ -1033,33 +1150,32 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : Order of coefficient function')")
     write(51,*) trim(TMDX_SIDIS_order)
-    write(51,"('*p2  : Use transverse momentum corrections in kinematics')")
-    write(51,*) TMDX_SIDIS_qTcorr
-    write(51,"('*p3  : Use target mass corrections in kinematics')")
-    write(51,*) TMDX_SIDIS_M1corr
-    write(51,"('*p4  : Use product mass corrections in kinematics')")
-    write(51,*) TMDX_SIDIS_M2corr
-    write(51,"('*p5  : Use transverse momentum corrections in x1 and z1')")
-    write(51,*) TMDX_SIDIS_qTinX1Z1corr
-    write(51,"('*p6  : Use the exact values for factorization scales (include qT/Q correction)')")
-    write(51,*) TMDX_SIDIS_exactScale
+    write(51,"('*p2  : Utilize KPC formula (T=KPC formula, F=LP formula)')")
+    write(51,*) TMDX_SIDIS_useKPC
+    write(51,"(' ')")
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
-    write(51,"('*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
-    write(51,*) TMDX_SIDIS_tolerance
-    write(51,"('*p2  : Minimal number of sections for pt-integration')")
+    write(51,"('*p1  : Tolerance general (variable comparison, etc.)')")
+    write(51,*) TMDX_SIDIS_toleranceGEN
+    write(51,"('*p2  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)')")
+    write(51,*) TMDX_SIDIS_toleranceINT
+    write(51,"('*p3  : Minimal number of sections for pt-integration')")
     write(51,*) TMDX_SIDIS_ptSECTION
-    write(51,"('*p3  : Tolerance for Z-integration (relative tolerance for Z-bin-integration routines)')")
-    write(51,*) TMDX_SIDIS_toleranceZ
-    write(51,"('*p4  : Method for Z-bin integration (see manual)')")
-    write(51,*) TMDX_SIDIS_methodZ
-    write(51,"('*p5  : Tolerance for X-integration (relative tolerance for X-bin-integration routines)')")
-    write(51,*) TMDX_SIDIS_toleranceX
-    write(51,"('*p6  : Method for X-bin integration (see manual)')")
-    write(51,*) TMDX_SIDIS_methodX
-    write(51,"('*C   : ---- Parameters for parallel evaluation (used only if compiled with openMP) ----')")
-    write(51,"('*p1  : Maximum number of processors to use')")
-    write(51,*) TMDX_SIDIS_numProc
-
+    write(51,"('*p4  : Minimal value of pT (lower values are fixed to this number)')")
+    write(51,*) TMDX_SIDIS_minPT
+    write(51,"(' ')")
+    write(51,"('*C   : ---- Definition of LP TMD factorization ----')")
+    write(51,"('*p1  : Account induced transverse momentum corrections')")
+    write(51,*) TMDX_SIDIS_qTcorr
+    write(51,"('*p2  : Account induced target mass corrections')")
+    write(51,*) TMDX_SIDIS_M1corr
+    write(51,"('*p3  : Account induced product mass corrections')")
+    write(51,*) TMDX_SIDIS_M2corr
+    write(51,"('*p4  : Use exact LP values for x1 and z1')")
+    write(51,*) TMDX_SIDIS_exactX1Z1
+    write(51,"('*p5  : Use the exact LP value for factorization scale')")
+    write(51,*) TMDX_SIDIS_exactScale
+    write(51,"(' ')")
+    write(51,"('*D   : ---- Definition of TMD factorization with KPC ----')")
 
     write(51,"(' ')")
     write(51,"(' ')")
@@ -1205,6 +1321,10 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) wgtTMDPDF_makeGrid
     write(51,"('*p3  : run the test of the grid (takes some time)')")
     write(51,*) wgtTMDPDF_runGridTest
+    write(51,"('*p4  : Use large-X resummation in the coefficient function of OPE')")
+    write(51,*) wgtTMDPDF_largeX
+    write(51,"('*p5  : Order of the large-X resummation (should be bigger-or-equal to order in p1)')")
+    write(51,*) wgtTMDPDF_orderLX
     write(51,"(' ')")
     write(51,"('*C   : ---- Parameters of NP model ----')")
     write(51,"('*p1  : Length of lambdaNP')")
@@ -1263,7 +1383,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"(' ')")
     write(51,"(' ')")
     write(51,"('# ---------------------------------------------------------------------------')")
-    write(51,"('# ----                         PARAMETERS OF BoerMuldersTMDPDF               -----')")
+    write(51,"('# ----                  PARAMETERS OF BoerMuldersTMDPDF                 -----')")
     write(51,"('# ---------------------------------------------------------------------------')")
     write(51,"('*14  :')")
     write(51,"('*p1  : initialize BoerMuldersTMDPDF module')")
@@ -1343,11 +1463,11 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('# ----                      PARAMETERS OF TMDF-KPC                      -----')")
     write(51,"('# ---------------------------------------------------------------------------')")
     write(51,"('*15  :')")
-    write(51,"('*p1  : initialize TMDF-KPC-DY module')")
+    write(51,"('*p1  : initialize TMDF-KPC module')")
     write(51,*) include_TMDF_KPC
     write(51,"('*A   : ---- Main definitions ----')")
     write(51,"('*p1  : NOT YET')")
-
+    write(51,"(' ')")
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
     write(51,"('*p1  : Tolerance general (variable comparision, etc.)')")
     write(51,*) TMDF_KPC_toleranceGEN
@@ -1356,6 +1476,124 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p3  : Minimum qT value (below the qT-value is frozen)')")
     write(51,*) TMDF_KPC_qTMIN
 
+    write(51,"(' ')")
+    write(51,"(' ')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('# ----                         PARAMETERS OF wglTMDPDF                  -----')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('*16  :')")
+    write(51,"('*p1  : initialize wglTMDPDF module')")
+    write(51,*) include_wglTMDPDF
+    write(51,"(' ')")
+    write(51,"('*A   : ---- Main definitions ----')")
+    write(51,"('*p1  : Include gluon TMDPDFs')")
+    write(51,*) wglTMDPDF_withGluon
+    write(51,"('*p2  : Number of hadrons (in order starting with 1)')")
+    write(51,*) wglTMDPDF_numHadron
+    write(51,"(' ')")
+    write(51,"('*B   : ---- OPE[tw2] main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function')")
+    write(51,*) trim(wglTMDPDF_order)
+    write(51,"('*p2  : Prepare grid')")
+    write(51,*) wglTMDPDF_makeGrid
+    write(51,"('*p3  : run the test of the grid (takes some time)')")
+    write(51,*) wglTMDPDF_runGridTest
+    write(51,"('*p4  : Use large-X resummation in the coefficient function of OPE')")
+    write(51,*) wglTMDPDF_largeX
+    write(51,"('*p5  : Order of the large-X resummation (should be bigger-or-equal to order in p1)')")
+    write(51,*) wglTMDPDF_orderLX
+    write(51,"(' ')")
+    write(51,"('*C   : ---- Parameters of NP model ----')")
+    write(51,"('*p1  : Length of lambdaNP')")
+    write(51,*) wglTMDPDF_lambdaLength
+    write(51,"('*p2  : Absolute maximum b (for larger b, TMD=0)')")
+    write(51,*) wglTMDPDF_BMAX_ABS
+    write(51,"(' ')")
+    write(51,"('*D   : ---- Numerical evaluation parameters ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
+    write(51,*) wglTMDPDF_toleranceINT
+    write(51,"('*p2  : Tolerance general (used for various comparisons)')")
+    write(51,*) wglTMDPDF_toleranceGEN
+    write(51,"('*p3  : Maximum number of iterations (for adaptive integration)')")
+    write(51,*) wglTMDPDF_maxIteration
+    write(51,"(' ')")
+    write(51,"('*E   : ---- OPE[tw2] Parameters of grid ----')")
+    write(51,"('*p1  : Number of subgrids in X (required to read the next line)')")
+    write(51,*) wglTMDPDF_numSubGridsX
+    write(51,"('*p2  : Intervals for subgrids in X (must include 1., as the last point)')")
+    write(51,*) wglTMDPDF_subGridsX
+    write(51,"('*p3  : Number of nodes in the X-subgrid')")
+    write(51,*) wglTMDPDF_grid_SizeX
+    write(51,"('*p4  : Number of subgrids in B (required to read the next line)')")
+    write(51,*) wglTMDPDF_numSubGridsB
+    write(51,"('*p5  : Intervals for subgrids in B (below and above ultimate points the value is frozen)')")
+    write(51,*) wglTMDPDF_subGridsB
+    write(51,"('*p6  : Number of nodes in the B-subgrid ')")
+    write(51,*) wglTMDPDF_grid_SizeB
+    write(51,"(' ')")
+    write(51,"('*F   : ---- OPE[tw3] main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function')")
+    write(51,*) trim(wglTMDPDF_order_tw3)
+    write(51,"('*p2  : Prepare grid')")
+    write(51,*) wglTMDPDF_makeGrid_tw3
+    write(51,"('*p3  : run the test of the grid (takes some time)')")
+    write(51,*) wglTMDPDF_runGridTest_tw3
+    write(51,"(' ')")
+    write(51,"('*G   : ---- OPE[tw3] Parameters of grid ----')")
+    write(51,"(' ')")
+    write(51,"('*H   : ---- Transformation to KT-space ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
+    write(51,*) wglTMDPDF_toleranceOGATA
+    write(51,"('*p2  : Ogata quadrature integration step')")
+    write(51,*) wglTMDPDF_hOGATA
+    write(51,"('*p3  : Minimum value of kT (below that value function is constant)')")
+    write(51,*) wglTMDPDF_KT_FREEZE
+    write(51,"(' ')")
+    write(51,"('*I   : ---- Computation of Transverse Momentum Moments (TMM) ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
+    write(51,*) wglTMDPDF_toleranceOGATA_TMM
+    write(51,"('*p2  : Ogata quadrature integration step')")
+    write(51,*) wglTMDPDF_hOGATA_TMM
+    write(51,"('*p3  : Minimum value of mu [GeV] (below that value the computation is terminated)')")
+    write(51,*) wglTMDPDF_muMIN_TMM
+
+    write(51,"(' ')")
+    write(51,"(' ')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('# ----                           PARAMETERS OF eeTMDFF                  -----')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('*17  :')")
+    write(51,"('*p1  : initialize eeTMDFF module')")
+    write(51,*) include_eeTMDFF
+    write(51,"(' ')")
+    write(51,"('*A   : ---- Main definitions ----')")
+    write(51,"('*p1  : Include gluon TMDPDFs')")
+    write(51,*) eeTMDFF_withGluon
+    write(51,"('*p2  : Number of hadrons (in order starting with 1)')")
+    write(51,*) eeTMDFF_numHadron
+    write(51,"(' ')")
+    write(51,"('*B   : ---- OPE main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function')")
+    write(51,*) trim(eeTMDFF_order)
+    write(51,"(' ')")
+    write(51,"('*C   : ---- Parameters of NP model ----')")
+    write(51,"('*p1  : Length of lambdaNP')")
+    write(51,*) eeTMDFF_lambdaLength
+    write(51,"('*p2  : Absolute maximum b (for larger b, TMD=0)')")
+    write(51,*) eeTMDFF_BMAX_ABS
+    write(51,"(' ')")
+    write(51,"('*D   : ---- Numerical evaluation parameters ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
+    write(51,*) eeTMDFF_toleranceINT
+    write(51,"('*p2  : Tolerance general (used for various comparisons)')")
+    write(51,*) eeTMDFF_toleranceGEN
+    write(51,"('*p3  : Maximum number of iterations (for adaptive integration)')")
+    write(51,*) eeTMDFF_maxIteration
+    write(51,"(' ')")
+    write(51,"('*F   : ---- Transform and grid in KT-space ----')")
+    write(51,"('*p1  : Prepare grid')")
+    write(51,*) eeTMDFF_makeGrid_inKT
+
     CLOSE (51, STATUS='KEEP')
     if(outputLevel>1) write(*,*) 'aTMDe_setup: Constans file is made.'
 
@@ -1363,9 +1601,10 @@ end subroutine CreateConstantsFile
   
   
 subroutine ReadConstantsFile(file,prefix)
-    character(len=*)::file
-    character(len=*),optional::prefix
+    character(len=*),intent(in)::file
+    character(len=*),intent(in),optional::prefix
     character(len=516)::path
+    character(len=516)::dummyString
     !!!! this is version of input file. it is read first and then result is compared with the current ID
     !!!! It suppose to make compatibility betwen versions
     integer::FILEversion
@@ -1405,14 +1644,15 @@ subroutine ReadConstantsFile(file,prefix)
         if(outputLevel>0) write(*,*) color('aTMDe_setup: UPDATE ARTEMIDE!',c_red_bold)
         if(outputLevel>0) write(*,*) color('aTMDe_setup: UPDATE ARTEMIDE!',c_red_bold)
         if(outputLevel>0) write(*,*) 'aTMDe_setup: Attempt to load...'
-    else if(FILEversion<30) then
+    else if(FILEversion<31) then
+        CLOSE (51, STATUS='KEEP')
         write(*,*) color('aTMDe_setup: suggested setup-file is for artemide v2.'&
         , c_red_bold)
         write(*,*) color('..           It is incompatible with the preent version.'&
         , c_red)
         write(*,*) color('..           Please, use actual file or update it manually.'&
         ,c_red)
-        stop
+        ERROR STOP
     else if(FILEversion<inputVer) then
         if(outputLevel>0) write(*,*) color('aTMDe_setup: Version of input file(',c_red_bold), &
                                         color(int4ToStr(FILEversion),c_red_bold),&
@@ -1438,7 +1678,16 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) number_of_processors
 
     !# ----                           PARAMETERS OF QCDinput                 -----
+    if(allocated(MainLHAPath)) deallocate(MainLHAPath)
+    if(allocated(alphaPath)) deallocate(alphaPath)
     call MoveTO(51,'*1   ')
+    call MoveTO(51,'*p1  ')
+    read(51,"(A)") dummyString
+    MainLHAPath=trim(dummyString)
+    call MoveTO(51,'*p2  ')
+    read(51,"(A)") dummyString
+    AlphaPath=trim(dummyString)
+
     call MoveTO(51,'*A   ')
     call MoveTO(51,'*p1  ')
     read(51,*) mCHARM
@@ -1452,21 +1701,14 @@ subroutine ReadConstantsFile(file,prefix)
     call MoveTO(51,'*p1  ')
 
     read(51,*) number_of_uPDFs
-    if(allocated(enumeration_of_uPDFs)) deallocate(enumeration_of_uPDFs)
-    if(allocated(replicas_of_uPDFs)) deallocate(replicas_of_uPDFs)
     if(allocated(sets_of_uPDFs)) deallocate(sets_of_uPDFs)
-    allocate(enumeration_of_uPDFs(1:number_of_uPDFs))
     allocate(sets_of_uPDFs(1:number_of_uPDFs))
-    allocate(replicas_of_uPDFs(1:number_of_uPDFs))    
 
     call MoveTO(51,'*p2  ')
-    read(51,*) enumeration_of_uPDFs
-    call MoveTO(51,'*p3  ')
     do i=1,number_of_uPDFs
-        read(51,*) sets_of_uPDFs(i)
+        read(51,"(A)") dummyString
+        sets_of_uPDFs(i)= trim(dummyString)
     end do
-    call MoveTO(51,'*p4  ')
-    read(51,*) replicas_of_uPDFs
 
     !-------FF for uTMDFF
     call MoveTO(51,'*C   ')
@@ -1474,22 +1716,14 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) number_of_uFFs
 
     if(number_of_uFFs>0) then
-        if(allocated(enumeration_of_uFFs)) deallocate(enumeration_of_uFFs)
-        if(allocated(replicas_of_uFFs)) deallocate(replicas_of_uFFs)
         if(allocated(sets_of_uFFs)) deallocate(sets_of_uFFs)
-
-        allocate(enumeration_of_uFFs(1:number_of_uFFs))
         allocate(sets_of_uFFs(1:number_of_uFFs))
-        allocate(replicas_of_uFFs(1:number_of_uFFs))
 
         call MoveTO(51,'*p2  ')
-        read(51,*) enumeration_of_uFFs
-        call MoveTO(51,'*p3  ')
         do i=1,number_of_uFFs
-            read(51,*) sets_of_uFFs(i)
+            read(51,"(A)") dummyString
+            sets_of_uFFs(i)= trim(dummyString)
         end do
-        call MoveTO(51,'*p4  ')
-        read(51,*) replicas_of_uFFs
     end if
 
 
@@ -1500,21 +1734,14 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) number_of_lpPDFs
 
     if(number_of_lpPDFs>0) then
-        if(allocated(enumeration_of_lpPDFs)) deallocate(enumeration_of_lpPDFs)
-        if(allocated(replicas_of_lpPDFs)) deallocate(replicas_of_lpPDFs)
         if(allocated(sets_of_lpPDFs)) deallocate(sets_of_lpPDFs)
-        allocate(enumeration_of_lpPDFs(1:number_of_lpPDFs))
         allocate(sets_of_lpPDFs(1:number_of_lpPDFs))
-        allocate(replicas_of_lpPDFs(1:number_of_lpPDFs))
 
         call MoveTO(51,'*p2  ')
-        read(51,*) enumeration_of_lpPDFs
-        call MoveTO(51,'*p3  ')
         do i=1,number_of_lpPDFs
-            read(51,*) sets_of_lpPDFs(i)
+            read(51,"(A)") dummyString
+            sets_of_lpPDFs(i)= trim(dummyString)
         end do
-        call MoveTO(51,'*p4  ')
-        read(51,*) replicas_of_lpPDFs
     end if
     
 
@@ -1522,24 +1749,37 @@ subroutine ReadConstantsFile(file,prefix)
     call MoveTO(51,'*E   ')
     call MoveTO(51,'*p1  ')
 
-    read(51,*) number_of_hPDFs
-    if(number_of_hPDFs>0) then
-        if(allocated(enumeration_of_hPDFs)) deallocate(enumeration_of_hPDFs)
-        if(allocated(replicas_of_hPDFs)) deallocate(replicas_of_hPDFs)
-        if(allocated(sets_of_hPDFs)) deallocate(sets_of_hPDFs)
-        allocate(enumeration_of_hPDFs(1:number_of_hPDFs))
-        allocate(sets_of_hPDFs(1:number_of_hPDFs))
-        allocate(replicas_of_hPDFs(1:number_of_hPDFs))
+    read(51,*) number_of_gPDFs
+    if(number_of_gPDFs>0) then
+        if(allocated(sets_of_gPDFs)) deallocate(sets_of_gPDFs)
+        allocate(sets_of_gPDFs(1:number_of_gPDFs))
 
         call MoveTO(51,'*p2  ')
-        read(51,*) enumeration_of_hPDFs
-        call MoveTO(51,'*p3  ')
-        do i=1,number_of_hPDFs
-            read(51,*) sets_of_hPDFs(i)
+        do i=1,number_of_gPDFs
+            read(51,"(A)") dummyString
+            sets_of_gPDFs(i)= trim(dummyString)
         end do
-        call MoveTO(51,'*p4  ')
-        read(51,*) replicas_of_hPDFs
     end if
+
+
+    !-------Transversity PDF
+    if(FILEversion>34) then !!!!! hPDF was introduced in the 35.
+    call MoveTO(51,'*F   ')
+    call MoveTO(51,'*p1  ')
+
+    read(51,*) number_of_hPDFs
+    if(number_of_hPDFs>0) then
+        if(allocated(sets_of_hPDFs)) deallocate(sets_of_hPDFs)
+        allocate(sets_of_hPDFs(1:number_of_hPDFs))
+
+        call MoveTO(51,'*p2  ')
+        do i=1,number_of_hPDFs
+            read(51,"(A)") dummyString
+            sets_of_hPDFs(i)= trim(dummyString)
+        end do
+    end if
+    end if
+
     !# ----                           PARAMETERS OF EWinput                  -----
     call MoveTO(51,'*2   ')
     call MoveTO(51,'*p1  ')
@@ -1609,7 +1849,6 @@ subroutine ReadConstantsFile(file,prefix)
     call MoveTO(51,'*p3  ')
     read(51,*) TMDR_smooth
 
-
     !# ----                           PARAMETERS OF uTMDPDF                  -----
     call MoveTO(51,'*4   ')
     call MoveTO(51,'*p1  ')
@@ -1632,6 +1871,10 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) uTMDPDF_makeGrid
     call MoveTO(51,'*p3  ')
     read(51,*) uTMDPDF_runGridTest
+    call MoveTO(51,'*p4  ')
+    read(51,*) uTMDPDF_largeX
+    call MoveTO(51,'*p5  ')
+    read(51,*) uTMDPDF_orderLX
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDPDF_lambdaLength
@@ -1726,6 +1969,10 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) uTMDFF_makeGrid
     call MoveTO(51,'*p3  ')
     read(51,*) uTMDFF_runGridTest
+    call MoveTO(51,'*p4  ')
+    read(51,*) uTMDFF_largeX
+    call MoveTO(51,'*p5  ')
+    read(51,*) uTMDFF_orderLX
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_lambdaLength
@@ -1755,6 +2002,41 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) uTMDFF_subGridsB
     call MoveTO(51,'*p6  ')
     read(51,*) uTMDFF_grid_SizeB
+    call MoveTO(51,'*F   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) uTMDFF_makeGrid_inKT
+    call MoveTO(51,'*p2  ')
+    read(51,*) uTMDFF_runGridTest_inKT
+    call MoveTO(51,'*p3  ')
+    read(51,*) uTMDFF_numSubGridsX_inKT
+    deallocate(uTMDFF_subGridsX_inKT)
+    allocate(uTMDFF_subGridsX_inKT(0:uTMDFF_numSubGridsX_inKT))
+    call MoveTO(51,'*p4  ')
+    read(51,*) uTMDFF_subGridsX_inKT
+    call MoveTO(51,'*p5  ')
+    read(51,*) uTMDFF_grid_SizeX_inKT
+    call MoveTO(51,'*p6  ')
+    read(51,*) uTMDFF_numSubGridsKT_inKT
+    deallocate(uTMDFF_subGridsKT_inKT)
+    allocate(uTMDFF_subGridsKT_inKT(0:uTMDFF_numSubGridsKT_inKT))
+    call MoveTO(51,'*p7  ')
+    read(51,*) uTMDFF_subGridsKT_inKT
+    call MoveTO(51,'*p8  ')
+    read(51,*) uTMDFF_grid_SizeKT_inKT
+    call MoveTO(51,'*p9  ')
+    read(51,*) uTMDFF_minQ_inKT
+    call MoveTO(51,'*p10 ')
+    read(51,*) uTMDFF_maxQ_inKT
+    call MoveTO(51,'*p11 ')
+    read(51,*) uTMDFF_grid_SizeQ_inKT
+    call MoveTO(51,'*p12 ')
+    read(51,*) uTMDFF_numSubGridsB_inKT
+    deallocate(uTMDFF_subGridsB_inKT)
+    allocate(uTMDFF_subGridsB_inKT(0:uTMDFF_numSubGridsB_inKT))
+    call MoveTO(51,'*p13 ')
+    read(51,*) uTMDFF_subGridsB_inKT
+    call MoveTO(51,'*p14 ')
+    read(51,*) uTMDFF_grid_SizeB_inKT
     call MoveTO(51,'*G   ')
     call MoveTO(51,'*p1  ')
     read(51,*) uTMDFF_toleranceOGATA_TMM
@@ -1774,6 +2056,8 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) TMDF_OGATAh
     call MoveTO(51,'*p3  ')
     read(51,*) TMDF_qTMIN
+    call MoveTO(51,'*p4  ')
+    read(51,*) TMDF_hardScaleMIN
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDF_mass
@@ -1817,31 +2101,26 @@ subroutine ReadConstantsFile(file,prefix)
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_SIDIS_order
     call MoveTO(51,'*p2  ')
-    read(51,*) TMDX_SIDIS_qTcorr
-    call MoveTO(51,'*p3  ')
-    read(51,*) TMDX_SIDIS_M1corr
-    call MoveTO(51,'*p4  ')
-    read(51,*) TMDX_SIDIS_M2corr
-    call MoveTO(51,'*p5  ')
-    read(51,*) TMDX_SIDIS_qTinX1Z1corr
-    call MoveTO(51,'*p6  ')
-    read(51,*) TMDX_SIDIS_exactScale
+    read(51,*) TMDX_SIDIS_useKPC
     call MoveTO(51,'*B   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) TMDX_SIDIS_tolerance
+    read(51,*) TMDX_SIDIS_toleranceGEN
     call MoveTO(51,'*p2  ')
-    read(51,*) TMDX_SIDIS_ptSECTION
+    read(51,*) TMDX_SIDIS_toleranceINT
     call MoveTO(51,'*p3  ')
-    read(51,*) TMDX_SIDIS_toleranceZ
-    call MoveTO(51,'*p4  ')
-    read(51,*) TMDX_SIDIS_methodZ
-    call MoveTO(51,'*p5  ')
-    read(51,*) TMDX_SIDIS_toleranceX
-    call MoveTO(51,'*p6  ')
-    read(51,*) TMDX_SIDIS_methodX
+    read(51,*) TMDX_SIDIS_ptSECTION
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
-    read(51,*) TMDX_SIDIS_numProc
+    read(51,*) TMDX_SIDIS_qTcorr
+    call MoveTO(51,'*p2  ')
+    read(51,*) TMDX_SIDIS_M1corr
+    call MoveTO(51,'*p3  ')
+    read(51,*) TMDX_SIDIS_M2corr
+    call MoveTO(51,'*p4  ')
+    read(51,*) TMDX_SIDIS_exactX1Z1
+    call MoveTO(51,'*p5  ')
+    read(51,*) TMDX_SIDIS_exactScale
+    call MoveTO(51,'*D   ')
 
     !# ----                           PARAMETERS OF lpTMDPDF                  -----
     call MoveTO(51,'*11   ')
@@ -1951,10 +2230,10 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) wgtTMDPDF_withGluon
     call MoveTO(51,'*p2  ')
     read(51,*) wgtTMDPDF_numHadron
-    if(wgtTMDPDF_numHadron/=number_of_hPDFs) then
+    if(wgtTMDPDF_numHadron/=number_of_gPDFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) &
-        color('ESSENTIAL INCONSITENCY: the number of hPDFs is unequal to the number of wgtTMDPDFs',c_red)
+        color('ESSENTIAL INCONSITENCY: the number of gPDFs is unequal to the number of wgtTMDPDFs',c_red)
         if(outputLevel>0) write(*,*) color('                        it can lead to mistakes or crash',c_red)
         if(outputLevel>0) write(*,*) ' '
     end if
@@ -1965,6 +2244,12 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) wgtTMDPDF_makeGrid
     call MoveTO(51,'*p3  ')
     read(51,*) wgtTMDPDF_runGridTest
+    if(FILEversion>32) then !!!!! largeX for qgt was introduced in the 33.
+        call MoveTO(51,'*p4  ')
+        read(51,*) wgtTMDPDF_largeX
+        call MoveTO(51,'*p5  ')
+        read(51,*) wgtTMDPDF_orderLX
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) wgtTMDPDF_lambdaLength
@@ -2096,6 +2381,112 @@ subroutine ReadConstantsFile(file,prefix)
     call MoveTO(51,'*p3  ')
     read(51,*) TMDF_KPC_qTMIN
 
+    !# ----                           PARAMETERS OF wglTMDPDF                  -----
+    if(FILEversion>33) then !!!!! wglTMDPDF was introduced in the 34.
+    call MoveTO(51,'*16   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_wglTMDPDF
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_withGluon
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_numHadron
+    if(wglTMDPDF_numHadron/=number_of_hPDFs) then
+        if(outputLevel>0) write(*,*) ' '
+        if(outputLevel>0) write(*,*) &
+        color('ESSENTIAL INCONSITENCY: the number of hPDFs is unequal to the number of wglTMDPDFs',c_red)
+        if(outputLevel>0) write(*,*) color('                        it can lead to mistakes or crash',c_red)
+        if(outputLevel>0) write(*,*) ' '
+    end if
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_order
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_makeGrid
+    call MoveTO(51,'*p3  ')
+    read(51,*) wglTMDPDF_runGridTest
+    if(FILEversion>32) then !!!!! largeX for qgt was introduced in the 33.
+        call MoveTO(51,'*p4  ')
+        read(51,*) wglTMDPDF_largeX
+        call MoveTO(51,'*p5  ')
+        read(51,*) wglTMDPDF_orderLX
+    end if
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_lambdaLength
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_BMAX_ABS
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_toleranceINT
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_toleranceGEN
+    call MoveTO(51,'*p3  ')
+    read(51,*) wglTMDPDF_maxIteration
+    call MoveTO(51,'*E   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_numSubGridsX
+    deallocate(wglTMDPDF_subGridsX)
+    allocate(wglTMDPDF_subGridsX(0:wglTMDPDF_numSubGridsX))
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_subGridsX
+    call MoveTO(51,'*p3  ')
+    read(51,*) wglTMDPDF_grid_SizeX
+    call MoveTO(51,'*p4  ')
+    read(51,*) wglTMDPDF_numSubGridsB
+    deallocate(wglTMDPDF_subGridsB)
+    allocate(wglTMDPDF_subGridsB(0:wglTMDPDF_numSubGridsB))
+    call MoveTO(51,'*p5  ')
+    read(51,*) wglTMDPDF_subGridsB
+    call MoveTO(51,'*p6  ')
+    read(51,*) wglTMDPDF_grid_SizeB
+    call MoveTO(51,'*F   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_order_tw3
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_makeGrid_tw3
+    call MoveTO(51,'*p3  ')
+    read(51,*) wglTMDPDF_runGridTest_tw3
+    call MoveTO(51,'*I   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) wglTMDPDF_toleranceOGATA_TMM
+    call MoveTO(51,'*p2  ')
+    read(51,*) wglTMDPDF_hOGATA_TMM
+    call MoveTO(51,'*p3  ')
+    read(51,*) wglTMDPDF_muMIN_TMM
+    end if
+
+    !# ----                           PARAMETERS OF eeTMDFF                   -----
+    if(FILEversion>31) then !!!!! eeTMDFF was introduced in the 32.
+    call MoveTO(51,'*17  ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_eeTMDFF
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) eeTMDFF_withGluon
+    call MoveTO(51,'*p2  ')
+    read(51,*) eeTMDFF_numHadron
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) eeTMDFF_order
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) eeTMDFF_lambdaLength
+    call MoveTO(51,'*p2  ')
+    read(51,*) eeTMDFF_BMAX_ABS
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) eeTMDFF_toleranceINT
+    call MoveTO(51,'*p2  ')
+    read(51,*) eeTMDFF_toleranceGEN
+    call MoveTO(51,'*p3  ')
+    read(51,*) eeTMDFF_maxIteration
+    call MoveTO(51,'*F   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) eeTMDFF_makeGrid_inKT
+    else
+    if(outputLevel>0) write(*,*) 'aTMDe_setup: eeTMDFF is loaded by default parameters...'
+    end if
     CLOSE (51, STATUS='KEEP') 
 
     if(outputLevel>1) write(*,*) color('aTMDe_setup: constants-file loaded sucessfully.',c_green_bold)

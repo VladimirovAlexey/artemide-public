@@ -338,6 +338,26 @@ def setPDFreplica(n,h=1):
         raise TypeError()
     artemide.harpy.setpdfreplica(n,h)
     
+def setFFreplica(n,h=1):
+    """
+    Changes the replica for FF input.
+    
+    This is a temporary function will be changed in future versions
+
+    Parameters
+    ----------
+    n : Integer
+        Number of FF replica
+
+    Returns
+    -------
+    None.
+
+    """
+    if not isinstance(n,int):
+        raise TypeError()
+    artemide.harpy.setffreplica(n,h)
+    
 def sethPDFreplica(n,h=1):
     """
     Changes the replica for PDF input.
@@ -1330,6 +1350,159 @@ def get_uTMDPDF_ASX0(x,mu,h):
         raise ValueError("parameter h expected to be positive integer")
         
     return artemide.harpy.utmdpdf_asx0(x,mu,h)
+
+def get_uFF(x,mu,h):
+    """
+    Return the string of collinear FF used in uTMDFF at (x,mu)
+    (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)   
+     
+
+    Parameters
+    ----------
+    x : float in [0,1]
+        Bjorken x
+    mu : float
+        Scale of Moment mu [GeV]. Shoul be >0.8
+    h  : integer number of hadron
+
+    Returns
+    -------
+    [list of float]
+       (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)
+
+    """
+    
+    if not isinstance(x, float):
+        raise ValueError("parameter x must be float")
+    elif (x<0.) or (x>1.):
+        raise ValueError("parameter x must be in [0,1]")
+        
+    if not isinstance(mu, float):
+        raise ValueError("parameter mu must be float")    
+    if (mu<0.8):
+        raise ValueError("parameter mu must be >0.8 GeV")
+        
+    if not isinstance(h, int):
+        raise ValueError("parameter h must be integer")
+    elif h<1:
+        raise ValueError("parameter h expected to be positive integer")
+        
+    return artemide.harpy.utmdff_ff(x,mu,h)
+
+
+def get_uTMDFF_G0(x,mu,h):
+    """
+    Return the string of moment G0 for uTMDFF at (x,mu)
+    (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)   
+     
+
+    Parameters
+    ----------
+    x : float in [0,1]
+        Bjorken x
+    mu : float
+        Scale of Moment mu [GeV]. Shoul be >0.8
+    h  : integer number of hadron
+
+    Returns
+    -------
+    [list of float]
+       (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)
+
+    """
+    
+    if not isinstance(x, float):
+        raise ValueError("parameter x must be float")
+    elif (x<0.) or (x>1.):
+        raise ValueError("parameter x must be in [0,1]")
+        
+    if not isinstance(mu, float):
+        raise ValueError("parameter mu must be float")    
+    if (mu<0.8):
+        raise ValueError("parameter mu must be >0.8 GeV")
+        
+    if not isinstance(h, int):
+        raise ValueError("parameter h must be integer")
+    elif h<1:
+        raise ValueError("parameter h expected to be positive integer")
+        
+    return artemide.harpy.utmdff_g0(x,mu,h)
+
+def get_uTMDFF_X0(x,mu,h):
+    """
+    Return the string of moment X0 for uTMDFF at (x,mu)
+    (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)   
+     
+
+    Parameters
+    ----------
+    x : float in [0,1]
+        Bjorken x
+    mu : float
+        Scale of Moment mu [GeV]. Shoul be >0.8
+    h  : integer number of hadron
+
+    Returns
+    -------
+    [list of float]
+       (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)
+
+    """
+    
+    if not isinstance(x, float):
+        raise ValueError("parameter x must be float")
+    elif (x<0.) or (x>1.):
+        raise ValueError("parameter x must be in [0,1]")
+        
+    if not isinstance(mu, float):
+        raise ValueError("parameter mu must be float")    
+    if (mu<0.8):
+        raise ValueError("parameter mu must be >0.8 GeV")
+        
+    if not isinstance(h, int):
+        raise ValueError("parameter h must be integer")
+    elif h<1:
+        raise ValueError("parameter h expected to be positive integer")
+        
+    return artemide.harpy.utmdff_x0(x,mu,h)
+
+def get_uTMDFF_ASX0(x,mu,h):
+    """
+    Return the string of moment X0 for uTMDFF at (x,mu)
+    (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)   
+     
+
+    Parameters
+    ----------
+    x : float in [0,1]
+        Bjorken x
+    mu : float
+        Scale of Moment mu [GeV]. Shoul be >0.8
+    h  : integer number of hadron
+
+    Returns
+    -------
+    [list of float]
+       (bbar,cbar,sbar,ubar,dbar,gluon,d,u,s,c,b)
+
+    """
+    
+    if not isinstance(x, float):
+        raise ValueError("parameter x must be float")
+    elif (x<0.) or (x>1.):
+        raise ValueError("parameter x must be in [0,1]")
+        
+    if not isinstance(mu, float):
+        raise ValueError("parameter mu must be float")    
+    if (mu<0.8):
+        raise ValueError("parameter mu must be >0.8 GeV")
+        
+    if not isinstance(h, int):
+        raise ValueError("parameter h must be integer")
+    elif h<1:
+        raise ValueError("parameter h expected to be positive integer")
+        
+    return artemide.harpy.utmdff_asx0(x,mu,h)
 
 def get_SiversTMDPDF_g1(x,mu,h):
     """

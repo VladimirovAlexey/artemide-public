@@ -147,7 +147,7 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
         write(*,*) '		     Update the const-file with artemide.setup'
         write(*,*) '  '
         CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     call MoveTO(51,'*p2  ')
@@ -170,7 +170,7 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
         write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
         write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
         CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     call MoveTO(51,'*14   ')
@@ -201,9 +201,9 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
 
     if(lambdaNPlength<=0) then
     write(*,*) ErrorString(&
-    'Initialize: number of non-pertrubative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
+    'Initialize: number of non-perturbative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
             CLOSE (51, STATUS='KEEP')
-    stop
+    ERROR STOP
     end if
 
     !!!!! ---- parameters of numerical evaluation
@@ -406,11 +406,9 @@ function TMD_opt(x,bT,hadron)
         TMD_opt=0._dp
         return
     else if(x<1d-12) then
-        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
     else if(bT<0d0) then
-        write(*,*) ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
     end if
 
     TMD_opt=BoerMuldersTMDPDF_OPE_tw3_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)
@@ -468,11 +466,9 @@ function TMD_opt_inKT(x,kT,hadron)
         TMD_opt_inKT=0._dp
         return
     else if(x<1d-12) then
-        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
     else if(kT<0d0) then
-        write(*,*) ErrorString('Called kT<0. kT='//numToStr(kT)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called kT<0. kT='//numToStr(kT)//' . Evaluation STOP',moduleName)
     end if
 
     TMD_opt_inKT=Fourier_Levin(toFourier,kT)
@@ -550,8 +546,7 @@ function TMD_grid_inKT(x,kT,mu,hadron)
         if(hadron<0) TMD_grid_inKT=TMD_grid_inKT(5:-5:-1)
 
     else if(makeGrid_inKT) then
-        write(*,*) ErrorString("Attempt to extract TMD from grid, while grid is not ready. CHECK!",moduleName)
-        stop
+        ERROR STOP ErrorString("Attempt to extract TMD from grid, while grid is not ready. CHECK!",moduleName)
     else
         TMD_grid_inKT=TMD_ev_inKT(x,kT,mu,mu**2,hadron)
     end if

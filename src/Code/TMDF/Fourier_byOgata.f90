@@ -33,9 +33,9 @@ integer::outputLevel
 !!!!! I split the qT over runs qT<qTSegmentationBoundary
 !!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
 !!!!! It helps to convergen integrals, since h(optimal) ~ qT
-integer,parameter::hSegmentationNumber=5
-real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.001d0,0.01d0,0.1d0,1d0,5d0/)
-real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,1d0,50d0/)
+integer,parameter::hSegmentationNumber=6
+real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.001d0,0.01d0,0.1d0,1d0,2.d0,5d0/)
+real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,1.d0,10.d0,50.d0/)
 
 real(dp)::hOGATA,tolerance
 !!!weights of ogata quadrature

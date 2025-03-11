@@ -15,7 +15,7 @@ real(dp)::DY_KERNEL
 
 SELECT CASE(process)
 
-  CASE (1,2,101,102,103) !unpol. DY, EW-procces
+  CASE (1,2,3,101,102,103) !unpol. DY, EW-procces
 
     DY_KERNEL=1._dp
 

@@ -27,6 +27,7 @@ use aTMDe_Numerics
 use IntegrationRoutines
 use IO_functions
 use QCDinput
+use TMD_AD, only : Dpert_atL
 use wgtTMDPDF_model
 use Grid_wgtTMDPDF
 implicit none
@@ -36,10 +37,10 @@ implicit none
 private 
 
 !Current version of module
-character (len=5),parameter :: version="v3.00"
+character (len=5),parameter :: version="v3.01"
 character (len=13),parameter :: moduleName="wgtTMDPDF_OPE"
 !Last appropriate version of constants-file
-integer,parameter::inputver=30
+integer,parameter::inputver=33
 
 !--- general
 logical:: started=.false.
@@ -57,6 +58,9 @@ integer::messageCounter=0 !!! actual counter
 !!! Perturbative order
 integer :: orderMain=2 !! LO=0, NLO=1,...
 integer :: orderMainTW3=-50 !! LO=0, NLO=1,...
+!!! Order of large-X resummation
+logical :: resumLargeX=.false. !!!! could not be resummation of largeX
+integer :: orderLX=0 !! LO=0 [no-resummation], NLO=1,...
 
 !!! Phase space limitations parameters
 real(dp) :: xMin=0.001_dp !!! min x
@@ -107,8 +111,11 @@ contains
 !! Coefficient function
 INCLUDE 'Code/wgtTMDPDF/coeffFunc.f90'
 
+!! Coefficient function
+INCLUDE 'Code/wgtTMDPDF/coeffFunc_largeX.f90'
+
 !! Mellin convolution routine
-INCLUDE 'Code/Twist2/Twist2Convolution.f90'
+INCLUDE 'Code/Twist2/Twist2_WW.f90'
 
 
 function wgtTMDPDF_OPE_IsInitialized()
@@ -217,6 +224,43 @@ subroutine wgtTMDPDF_OPE_Initialize(file,prefix)
     call MoveTO(51,'*p3  ')
     read(51,*) runTest
 
+    call MoveTO(51,'*p4  ')
+    read(51,*) resumLargeX
+    if(resumLargeX) then
+        call MoveTO(51,'*p5  ')
+        read(51,*) order_global
+
+        SELECT CASE(trim(order_global))
+            CASE ("LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: LO'
+                orderLX =0
+            CASE ("NLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NLO'
+                orderLX=1
+            CASE ("NNLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NNLO'
+                orderLX=2
+            CASE ("N2LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NNLO'
+                orderLX=2
+            CASE ("NNNLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: N3LO'
+                orderLX=3
+            CASE ("N3LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: N3LO'
+                orderLX=3
+            CASE DEFAULT
+                if(outputLevel>0) then
+                    write(*,*) &
+                    WarningString('Initialize: unknown order for large-X resummation of coefficient function.',moduleName)
+                    write(*,*) WarningString('set to same order as the common part.',moduleName)
+                end if
+                orderLX=orderMain
+            END SELECT
+
+    if(outputLevel>2 .and. orderLX>-1) write(*,'(A,I1)') ' |  Large-X       =as^',orderLX
+    end if
+
     !!!!! ---- parameters of numerical evaluation
     call MoveTO(51,'*D   ')
     call MoveTO(51,'*p1  ')
@@ -296,9 +340,15 @@ subroutine wgtTMDPDF_OPE_Initialize(file,prefix)
     gridReady=.false.
 
     if(useGrid) then
-        call Twist2_ChGrid_MakeGrid(CxF_compute)
-        gridReady=.true.
-        if(runTest) call TestGrid(CxF_compute)
+        if(resumLargeX) then
+            call Twist2_ChGrid_MakeGrid(CxF_largeX_compute)
+            gridReady=.true.
+            if(runTest) call TestGrid(CxF_largeX_compute)
+        else
+            call Twist2_ChGrid_MakeGrid(CxF_compute)
+            gridReady=.true.
+            if(runTest) call TestGrid(CxF_compute)
+        end if
     end if
 
     started=.true.
@@ -318,7 +368,7 @@ function xf(x,Q,hadron)
     integer:: hadron
     real(dp), dimension(-5:5):: xf
     
-    xf=x_hPDF(x,Q,hadron)
+    xf=x_gPDF(x,Q,hadron)
     
 end function xf
 
@@ -350,17 +400,23 @@ function wgtTMDPDF_OPE_convolution(x,b,h,addGluon)
         return
     end if
 
+    !!!! The factor 1/x is removed because the WW part of wgt is multiplied by x
+
     !!! computation
     if(useGrid) then
         if(gridReady) then
-            wgtTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)/x
+            wgtTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)
         else
             call Warning_Raise('Called OPE_convolution while grid is not ready.',messageCounter,messageTrigger,moduleName)
             call wgtTMDPDF_OPE_resetGrid()
-            wgtTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)/x
+            wgtTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)
         end if
     else
-        wgtTMDPDF_OPE_convolution=CxF_compute(x,b,h,gluon)/x
+        if(resumLargeX) then
+            wgtTMDPDF_OPE_convolution=CxF_largeX_compute(x,b,h,gluon)
+        else
+            wgtTMDPDF_OPE_convolution=CxF_compute(x,b,h,gluon)
+        end if
     end if
 
 end function wgtTMDPDF_OPE_convolution
@@ -404,7 +460,12 @@ subroutine wgtTMDPDF_OPE_resetGrid()
     gridReady=.false.
     if(useGrid) then
         if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-        call Twist2_ChGrid_MakeGrid(CxF_compute)
+
+        if(resumLargeX) then
+            call Twist2_ChGrid_MakeGrid(CxF_largeX_compute)
+        else
+            call Twist2_ChGrid_MakeGrid(CxF_compute)
+        end if
 
         gridReady=.true.
     end if
@@ -416,12 +477,12 @@ subroutine wgtTMDPDF_OPE_SetPDFreplica(rep,hadron)
     integer,intent(in):: rep,hadron
     logical::newPDF
 
-    call QCDinput_SetlpPDFreplica(rep,hadron,newPDF)
+    call QCDinput_SetgPDFreplica(rep,hadron,newPDF)
     if(newPDF) then
         gridReady=.false.
         call wgtTMDPDF_OPE_resetGrid()
     else
-        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,' is the same as the used one. Nothing is done!')") &
+        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,') is the same as the used one. Nothing is done!')") &
         moduleName, rep
     end if
 

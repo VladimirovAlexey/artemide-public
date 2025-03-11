@@ -22,7 +22,7 @@ private
 
 !!!!!! 1=accurate but slow
 !!!!!! 2=fast but not accurate
-#define INTEGRATION_MODE 1
+#define INTEGRATION_MODE 2
 
 !Current version of module
 character (len=7),parameter :: moduleName="TMDX-DY"
@@ -273,6 +273,16 @@ subroutine TMDX_DY_Initialize(file,prefix)
   messageCounter=0
 
   started=.true.
+
+#if INTEGRATION_MODE==2
+    write(*,*)  color('--------------------------------------------------------',c_red)
+    write(*,*)  color('----------------------  WARNING!  ----------------------',c_red)
+    write(*,*)  color('--   TMDX_DY is in the approximate integration mode   --',c_red)
+    write(*,*)  color('--            Faster, but lower precision.            --',c_red)
+    write(*,*)  color('--    Switch to default version by changing flag      --',c_red)
+    write(*,*)  color('--   INTEGRATION_MODE in TMDX_DY.f90, and recompile   --',c_red)
+    write(*,*)  color('--------------------------------------------------------',c_red)
+#endif
 
   write(*,*)  color('----- arTeMiDe.TMD_DY '//trim(version)//': .... initialized',c_green)
 end subroutine TMDX_DY_Initialize
@@ -636,16 +646,9 @@ function xSec(var,process,incCut,CutParam)
     scaleZeta=var(4)  !! zeta=Q2
     scaleMu=sqrt(scaleZeta)
 
-    if(process(4)>=200 .and. process(4)<300) then
-      !!!!! these numbers are reseurved for ratios, thus not prefactors
-      xSec=KPC_DYconv(var(4),var(1),x1,x2,scaleMu*c2_global,process(2:4))
-
-    else
-      FF=KPC_DYconv(var(4),var(1),x1,x2,scaleMu*c2_global,process(2:4))
-      LC=LeptonCutFactorKPC(var,process(4),incCut,CutParam)
-
-      xSec=PreFactorKPC(var,process(1))*FF*LC
-    end if
+    FF=KPC_DYconv(var(4),var(1),x1,x2,scaleMu*c2_global,process(2:4))
+    LC=LeptonCutFactorKPC(var,process(4),incCut,CutParam)
+    xSec=PreFactorKPC(var,process(1))*FF*LC
 
   !!!!!!!!!!!!!!!!!!!! COMPUTATION WITHOUT KPC
   else
@@ -680,10 +683,12 @@ function Xsec_Yint(var,process,incCut,CutParam,ymin_in,ymax_in)
   real(dp),dimension(1:7) :: var
   logical,intent(in)::incCut
   real(dp),dimension(1:4),intent(in)::CutParam
+  integer,dimension(1:4)::process
   real(dp) :: Xsec_Yint
+
   real(dp) :: ymin, ymax,ymin_in,ymax_in
   real(dp) :: ymin_Check,ymax_Check
-  integer,dimension(1:4),intent(in)::process
+
 
   if(TMDF_IsconvergenceLost()) then
     Xsec_Yint=1d9
@@ -695,6 +700,8 @@ function Xsec_Yint(var,process,incCut,CutParam,ymin_in,ymax_in)
   if(process(1)==2) then
     ymin=yFromXF(ymin_in,var)
     ymax=yFromXF(ymax_in,var)
+
+    process(1)=1 !!!! this is important because the actual integration is over y, and process=2 contains Jacobian.
   else
     ymin=ymin_in
     ymax=ymax_in
@@ -793,10 +800,10 @@ function Xsec_Qint_Yint(var,process,incCut,CutParam,Qmin_in,Qmax_in,ymin_in,ymax
 #elif INTEGRATION_MODE==2
 !!!! in this case I only check for the Z-boson peak
 !!!! if it is in the region, I integrate over it specially
-  if(Qmin_in<MZ-2 .and. MZ+2<QMax_in) then
-    Xsec_Qint_Yint=Integrate_G7(integrandOverQ,Qmin_in,MZ-2)
-    Xsec_Qint_Yint=Xsec_Qint_Yint+Integrate_G7(integrandOverQ,MZ-2,MZ+2)
-    Xsec_Qint_Yint=Xsec_Qint_Yint+Integrate_G7(integrandOverQ,MZ+2,Qmax_in)
+  if(Qmin_in<MZ-3 .and. MZ+3<QMax_in) then
+    Xsec_Qint_Yint=Integrate_G7(integrandOverQ,Qmin_in,MZ-3)
+    Xsec_Qint_Yint=Xsec_Qint_Yint+Integrate_SA(integrandOverQ,MZ-3,MZ+3,toleranceINT)
+    Xsec_Qint_Yint=Xsec_Qint_Yint+Integrate_G7(integrandOverQ,MZ+3,Qmax_in)
   else
     Xsec_Qint_Yint=Integrate_G7(integrandOverQ,Qmin_in,Qmax_in)
   end if
@@ -818,77 +825,77 @@ end function Xsec_Qint_Yint
 !!!integration over PT is made by Num-sections
 !!!N even
 function Xsec_PTint_Qint_Yint(process,incCut,CutParam,s_in,qt_min_in,qt_max_in,Q_min_in,Q_max_in,ymin_in,ymax_in,Num)
-  real(dp),dimension(1:7)::var
-  logical,intent(in)::incCut
-  real(dp),dimension(1:4),intent(in)::CutParam
-  integer,dimension(1:4),intent(in)::process
-  real(dp):: Xsec_PTint_Qint_Yint
-  real(dp),intent(in):: ymin_in,ymax_in,Q_min_in,Q_max_in,qt_min_in,qt_max_in,s_in
-  real(dp):: Q_min,Q_max,qt_min,qt_max,s
-  integer,intent(in) :: Num
+real(dp),dimension(1:7)::var
+logical,intent(in)::incCut
+real(dp),dimension(1:4),intent(in)::CutParam
+integer,dimension(1:4),intent(in)::process
+real(dp):: Xsec_PTint_Qint_Yint
+real(dp),intent(in):: ymin_in,ymax_in,Q_min_in,Q_max_in,qt_min_in,qt_max_in,s_in
+real(dp):: Q_min,Q_max,qt_min,qt_max,s
+integer,intent(in) :: Num
 
-  if(TMDF_IsconvergenceLost()) then
-    Xsec_PTint_Qint_Yint=1d9
-    return
-  end if
+if(TMDF_IsconvergenceLost()) then
+  Xsec_PTint_Qint_Yint=1d9
+  return
+end if
 
-  !!!------------------------- checking Q----------
-  if(Q_min_in<0.9d0) then
-    call Warning_Raise('Attempt to compute xSec with Q<0.9.',messageCounter,messageTrigger,moduleName)
-    write(*,*) "Qmin =",Q_min_in," (Qmin set to 1.GeV)"
-    Q_min=1._dp
-  else
-    Q_min=Q_min_in
-  end if
+!!!------------------------- checking Q----------
+if(Q_min_in<0.9d0) then
+  call Warning_Raise('Attempt to compute xSec with Q<0.9.',messageCounter,messageTrigger,moduleName)
+  write(*,*) "Qmin =",Q_min_in," (Qmin set to 1.GeV)"
+  Q_min=1._dp
+else
+  Q_min=Q_min_in
+end if
 
-  if(Q_max_in<Q_min) then
-    call Warning_Raise('Attempt to compute xSec with Qmax<Qmin. RESULT 0',messageCounter,messageTrigger,moduleName)
-    Xsec_PTint_Qint_Yint=0._dp
-    return
-  end if
-  Q_max=Q_max_in
+if(Q_max_in<Q_min) then
+  call Warning_Raise('Attempt to compute xSec with Qmax<Qmin. RESULT 0',messageCounter,messageTrigger,moduleName)
+  Xsec_PTint_Qint_Yint=0._dp
+  return
+end if
+Q_max=Q_max_in
 
-  !!!------------------------- checking S----------
-  if(s_in<0.9d0) then
-    call Warning_Raise('Attempt to compute xSec with s<0.9.',messageCounter,messageTrigger,moduleName)
-    write(*,*) "s =",s_in," (s set to Qmin)"
-    s=Q_min
-  else
-    s=s_in
-  end if
+!!!------------------------- checking S----------
+if(s_in<0.9d0) then
+  call Warning_Raise('Attempt to compute xSec with s<0.9.',messageCounter,messageTrigger,moduleName)
+  write(*,*) "s =",s_in," (s set to Qmin)"
+  s=Q_min
+else
+  s=s_in
+end if
 
-  !!!------------------------- checking PT----------
-  if(qT_min_in<0.0d0) then
-    call Warning_Raise('Attempt to compute xSec with qT<0.',messageCounter,messageTrigger,moduleName)
-    write(*,*) "qTmin =",qT_min_in," (qTmin set to 0.GeV)"
-    qT_min=1._dp
-  else
-    qT_min=qT_min_in
-  end if
+!!!------------------------- checking PT----------
+if(qT_min_in<0.0d0) then
+  call Warning_Raise('Attempt to compute xSec with qT<0.',messageCounter,messageTrigger,moduleName)
+  write(*,*) "qTmin =",qT_min_in," (qTmin set to 0.GeV)"
+  qT_min=1._dp
+else
+  qT_min=qT_min_in
+end if
 
-  if(qT_max_in<qT_min) then
-    call Warning_Raise('Attempt to compute xSec with qTmax<qTmin. RESULT 0',messageCounter,messageTrigger,moduleName)
-    Xsec_PTint_Qint_Yint=0._dp
-    return
-  end if
-  qT_max=qT_max_in
+if(qT_max_in<qT_min) then
+  call Warning_Raise('Attempt to compute xSec with qTmax<qTmin. RESULT 0',messageCounter,messageTrigger,moduleName)
+  Xsec_PTint_Qint_Yint=0._dp
+  return
+end if
+qT_max=qT_max_in
 
-  !!!------------------------- checking Y----------
+!!!------------------------- checking Y----------
 
-  if(ymax_in<ymin_in) then
-    call Warning_Raise('Attempt to compute xSec with Ymax<Ymin. RESULT 0',messageCounter,messageTrigger,moduleName)
-    Xsec_PTint_Qint_Yint=0._dp
-    return
-  end if
+if(ymax_in<ymin_in) then
+  call Warning_Raise('Attempt to compute xSec with Ymax<Ymin. RESULT 0',messageCounter,messageTrigger,moduleName)
+  Xsec_PTint_Qint_Yint=0._dp
+  return
+end if
 
 
-  if(qt_min<qTMin_ABS) then
-    var=kinematicArray(qTMin_ABS,s_in,(Q_min+Q_max)/2,(ymin_in+ymax_in)/2)
-  else
-    var=kinematicArray(qt_min,s_in,(Q_min+Q_max)/2,(ymin_in+ymax_in)/2)
-  end if
+if(qt_min<qTMin_ABS) then
+  var=kinematicArray(qTMin_ABS,s_in,(Q_min+Q_max)/2,(ymin_in+ymax_in)/2)
+else
+  var=kinematicArray(qt_min,s_in,(Q_min+Q_max)/2,(ymin_in+ymax_in)/2)
+end if
 
-  Xsec_PTint_Qint_Yint=Integrate_SN(integrandOverQT,qt_min,qt_max,Num)
+Xsec_PTint_Qint_Yint=Integrate_SN(integrandOverQT,qt_min,qt_max,Num)
 
 contains
 
@@ -1126,6 +1133,8 @@ subroutine MainInterface_AsAAAloo(X,process,s,qT,Q,y,includeCuts,CutParameters,N
   integer::nn
   real(dp),dimension(1:4)::CutParam
 
+if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
+
   !! determine number of sections
   if(present(Num)) then
     nn=Num
@@ -1153,259 +1162,265 @@ subroutine MainInterface_AsAAAloo(X,process,s,qT,Q,y,includeCuts,CutParameters,N
 
 end subroutine MainInterface_AsAAAloo
   
-  subroutine xSec_DY_List(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
-    integer,intent(in),dimension(:,:)::process            !the number of process
-    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
-    real(dp),intent(in),dimension(:,:)::qT            !(qtMin,qtMax)
-    real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
-    real(dp),intent(in),dimension(:,:)::y                !(ymin,ymax)
-    logical,intent(in),dimension(:)::includeCuts        !include cuts
-    real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
-    integer,intent(in),dimension(:),optional::Num        !number of sections
-    real(dp),dimension(:),intent(out)::X
-    integer :: i,length
-    integer,allocatable::nn(:)
-    
-    length=size(s)
-    
-  !!! cheking sizes
-  if(size(X)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of xSec and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
+subroutine xSec_DY_List(X,process,s,qT,Q,y,includeCuts,CutParameters,Num)
+  integer,intent(in),dimension(:,:)::process            !the number of process
+  real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+  real(dp),intent(in),dimension(:,:)::qT            !(qtMin,qtMax)
+  real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
+  real(dp),intent(in),dimension(:,:)::y                !(ymin,ymax)
+  logical,intent(in),dimension(:)::includeCuts        !include cuts
+  real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
+  integer,intent(in),dimension(:),optional::Num        !number of sections
+  real(dp),dimension(:),intent(out)::X
+  integer :: i,length
+  integer,allocatable::nn(:)
+
+if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
+
+  length=size(s)
+
+!!! cheking sizes
+if(size(X)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of xSec and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of process and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(qT,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of qT and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(y,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of y and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(Q,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of Q and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(includeCuts)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of includeCuts and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(CutParameters,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of CutParameters and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,2)/=4) then
+  write(*,*) ErrorString('xSec_DY_List: process list must be (:,1:4).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(qT,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: qt list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(y,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: y list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(Q,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: Q list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+
+
+  CallCounter=CallCounter+length
+
+  allocate(nn(1:length))
+  if(present(Num)) then
+      if(size(Num,1)/=length) then
+    write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of Num and s lists are not equal.'
+    write(*,*) 'Evaluation stop'
     stop
   end if
-  if(size(process,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of process and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
+  nn=Num
+  else
+      do i=1,length
+          nn=NumPT_auto(qT(i,2)-qT(i,1),(Q(i,2)+Q(i,1))/2d0)
+      end do
   end if
-  if(size(qT,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of qT and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(y,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of y and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(Q,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of Q and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(includeCuts)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of includeCuts and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(CutParameters,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of CutParameters and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(process,2)/=4) then
-    write(*,*) ErrorString('xSec_DY_List: process list must be (:,1:4).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(qT,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: qt list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(y,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: y list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(Q,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: Q list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-    
-    
-    CallCounter=CallCounter+length
-    
-    allocate(nn(1:length))
-    if(present(Num)) then
-        if(size(Num,1)/=length) then
-      write(*,*) 'ERROR: arTeMiDe_DY: xSec_DY_List: sizes of Num and s lists are not equal.'
-      write(*,*) 'Evaluation stop'
-      stop
-    end if
-    nn=Num
-    else
-        do i=1,length
-            nn=NumPT_auto(qT(i,2)-qT(i,1),(Q(i,2)+Q(i,1))/2d0)
-        end do
-    end if
-    !$OMP PARALLEL DO DEFAULT(SHARED)
-    
-     do i=1,length
-       X(i)=Xsec_PTint_Qint_Yint(process(i,1:4),includeCuts(i),CutParameters(i,1:4),&
-                s(i),qT(i,1),qT(i,2),Q(i,1),Q(i,2),y(i,1),y(i,2),nn(i))
-     end do
-    !$OMP END PARALLEL DO
-    deallocate(nn)
-  end subroutine xSec_DY_List
+  !$OMP PARALLEL DO DEFAULT(SHARED)
+
+    do i=1,length
+      X(i)=Xsec_PTint_Qint_Yint(process(i,1:4),includeCuts(i),CutParameters(i,1:4),&
+              s(i),qT(i,1),qT(i,2),Q(i,1),Q(i,2),y(i,1),y(i,2),nn(i))
+    end do
+  !$OMP END PARALLEL DO
+  deallocate(nn)
+end subroutine xSec_DY_List
   
-  subroutine xSec_DY_List_BINLESS(X,process,s,qT,Q,y,includeCuts,CutParameters)
-    integer,intent(in),dimension(:,:)::process            !the number of process
-    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
-    real(dp),intent(in),dimension(:)::qT            !(qtMin,qtMax)
-    real(dp),intent(in),dimension(:)::Q                !(Qmin,Qmax)
-    real(dp),intent(in),dimension(:)::y                !(ymin,ymax)
-    logical,intent(in),dimension(:)::includeCuts        !include cuts
-    real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
-    real(dp),dimension(:),intent(out)::X
-    
-    real(dp),allocatable,dimension(:,:)::vv
-    integer :: i,length
-    
-    length=size(s)
-    
-    !!! cheking sizes
-  if(size(X)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of xSec and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(process,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of process and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(qT)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of qT and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(y)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of y and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(Q)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of Q and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(includeCuts)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of includeCuts and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(CutParameters,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of CutParameters and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(process,2)/=4) then
-    write(*,*) ErrorString('xSec_DY_List_BINLESS: process list must be (:,1:4).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-    
-    CallCounter=CallCounter+length
-    
-    allocate(vv(1:length,1:7))
-    
-    !$OMP PARALLEL DO DEFAULT(SHARED)
-    
-     do i=1,length
-       vv(i,1:7)=kinematicArray(qt(i),s(i),Q(i),y(i))
-       X(i)=xSec(vv(i,1:7),process(i,1:4),includeCuts(i),CutParameters(i,1:4))
-       
-     end do
-    !$OMP END PARALLEL DO
-    deallocate(vv)
-  end subroutine xSec_DY_List_BINLESS
+subroutine xSec_DY_List_BINLESS(X,process,s,qT,Q,y,includeCuts,CutParameters)
+  integer,intent(in),dimension(:,:)::process            !the number of process
+  real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+  real(dp),intent(in),dimension(:)::qT            !(qtMin,qtMax)
+  real(dp),intent(in),dimension(:)::Q                !(Qmin,Qmax)
+  real(dp),intent(in),dimension(:)::y                !(ymin,ymax)
+  logical,intent(in),dimension(:)::includeCuts        !include cuts
+  real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
+  real(dp),dimension(:),intent(out)::X
 
+  real(dp),allocatable,dimension(:,:)::vv
+  integer :: i,length
 
-  !!!! This subroutine simplifies all integrations to few points
-  !!!! It is very inaccurate, but very fast
-  subroutine xSec_DY_List_APPROXIMATE(X,process,s,qT,Q,y,includeCuts,CutParameters)
-    integer,intent(in),dimension(:,:)::process            !the number of process
-    real(dp),intent(in),dimension(:)::s                !Mandelshtam s
-    real(dp),intent(in),dimension(:,:)::qT            !(qtMin,qtMax)
-    real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
-    real(dp),intent(in),dimension(:,:)::y                !(ymin,ymax)
-    logical,intent(in),dimension(:)::includeCuts        !include cuts
-    real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
-    real(dp),dimension(:),intent(out)::X
-    integer :: i,length
+if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
 
-    length=size(s)
+  length=size(s)
 
   !!! cheking sizes
-  if(size(X)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of xSec and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(process,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of process and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(qT,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of qT and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(y,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of y and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(Q,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of Q and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(includeCuts)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of includeCuts and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(CutParameters,1)/=length) then
-    write(*,*) ErrorString('xSec_DY_List: sizes of CutParameters and s lists are not equal.',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(process,2)/=4) then
-    write(*,*) ErrorString('xSec_DY_List: process list must be (:,1:4).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(qT,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: qt list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(y,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: y list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
-  if(size(Q,2)/=2) then
-    write(*,*) ErrorString('xSec_DY_List: Q list must be (:,1:2).',moduleName)
-    write(*,*) ErrorString('Evaluation stop',moduleName)
-    stop
-  end if
+if(size(X)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of xSec and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of process and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(qT)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of qT and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(y)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of y and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(Q)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of Q and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(includeCuts)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of includeCuts and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(CutParameters,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: sizes of CutParameters and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,2)/=4) then
+  write(*,*) ErrorString('xSec_DY_List_BINLESS: process list must be (:,1:4).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+
+  CallCounter=CallCounter+length
+
+  allocate(vv(1:length,1:7))
+
+  !$OMP PARALLEL DO DEFAULT(SHARED)
+
+    do i=1,length
+      vv(i,1:7)=kinematicArray(qt(i),s(i),Q(i),y(i))
+      X(i)=xSec(vv(i,1:7),process(i,1:4),includeCuts(i),CutParameters(i,1:4))
+
+    end do
+  !$OMP END PARALLEL DO
+  deallocate(vv)
+end subroutine xSec_DY_List_BINLESS
 
 
-    CallCounter=CallCounter+length
+!!!! This subroutine simplifies all integrations to few points
+!!!! It is very inaccurate, but very fast
+subroutine xSec_DY_List_APPROXIMATE(X,process,s,qT,Q,y,includeCuts,CutParameters)
+  integer,intent(in),dimension(:,:)::process            !the number of process
+  real(dp),intent(in),dimension(:)::s                !Mandelshtam s
+  real(dp),intent(in),dimension(:,:)::qT            !(qtMin,qtMax)
+  real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
+  real(dp),intent(in),dimension(:,:)::y                !(ymin,ymax)
+  logical,intent(in),dimension(:)::includeCuts        !include cuts
+  real(dp),intent(in),dimension(:,:)::CutParameters            !(p1,p2,eta1,eta2)
+  real(dp),dimension(:),intent(out)::X
+  integer :: i,length
 
-    !$OMP PARALLEL DO DEFAULT(SHARED)
+if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
 
-     do i=1,length
-       X(i)=Xsec_PTint_Qint_Yint_APROX(process(i,1:4),includeCuts(i),CutParameters(i,1:4),&
-                s(i),qT(i,1),qT(i,2),Q(i,1),Q(i,2),y(i,1),y(i,2))
-     end do
-    !$OMP END PARALLEL DO
-  end subroutine xSec_DY_List_APPROXIMATE
+  length=size(s)
+
+!!! cheking sizes
+if(size(X)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of xSec and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of process and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(qT,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of qT and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(y,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of y and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(Q,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of Q and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(includeCuts)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of includeCuts and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(CutParameters,1)/=length) then
+  write(*,*) ErrorString('xSec_DY_List: sizes of CutParameters and s lists are not equal.',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(process,2)/=4) then
+  write(*,*) ErrorString('xSec_DY_List: process list must be (:,1:4).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(qT,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: qt list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(y,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: y list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+if(size(Q,2)/=2) then
+  write(*,*) ErrorString('xSec_DY_List: Q list must be (:,1:2).',moduleName)
+  write(*,*) ErrorString('Evaluation stop',moduleName)
+  stop
+end if
+
+
+  CallCounter=CallCounter+length
+
+  !$OMP PARALLEL DO DEFAULT(SHARED)
+
+    do i=1,length
+      X(i)=Xsec_PTint_Qint_Yint_APROX(process(i,1:4),includeCuts(i),CutParameters(i,1:4),&
+              s(i),qT(i,1),qT(i,2),Q(i,1),Q(i,2),y(i,1),y(i,2))
+    end do
+  !$OMP END PARALLEL DO
+end subroutine xSec_DY_List_APPROXIMATE
   
 end module TMDX_DY

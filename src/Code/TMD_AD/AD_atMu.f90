@@ -8,42 +8,57 @@
 !!!-----------------------------Anomalous dimensions at scale mu------------------------------------------
 !!!-------------------------------------------------------------------------------------------------------
   
-! The TMD rapidity anomalous dimension D, pertrubative expression
+! The TMD rapidity anomalous dimension D, perturbative expression
 ! order=0 Dpert=as^0=0
 ! order=1 Dpert=as^1=0
 ! ...
+!!!!! in order is not specified the orderD is taken
 function Dpert(mu,bT,f)
     real(dp),intent(in):: bT,mu
     integer,intent(in):: f
     real(dp)::Dpert
     integer:: Nf,n,k
     real(dp)::LL,astrong,inter
-    
+
     LL=2_dp*LOG(bt*mu*C0_inv_const)
     astrong=As(mu)
-    Dpert=0_dp
+    !Dpert=0_dp
     
     Nf=ActiveNf(mu)
-    
+
+    Dpert=Dpert_atL(astrong,Nf,LL,orderD,f)
+end function Dpert
+
+!!!!!! The TMD rapidity anomalous dimension D, perturbative expression
+!!!!!! computed at (alpha,Nf,Lmu) and the order orderIN
+pure function Dpert_atL(alpha,Nf,Lmu,orderIN,f)
+    real(dp),intent(in):: alpha,Lmu
+    integer,intent(in):: f,Nf,orderIN
+    real(dp)::Dpert_atL
+    integer:: n,k
+    real(dp)::inter
+
+    Dpert_atL=0._dp
+
     if(f==0) then!gluon
-      do n=1,orderD
-        inter=0_dp
-        do k=0,orderD
-         inter=inter+dnk_G(n,k,Nf)*(LL**k)
+      do n=1,orderIN
+        inter=0._dp
+        do k=0,orderIN
+         inter=inter+dnk_G(n,k,Nf)*(Lmu**k)
         end do
-        Dpert=Dpert+inter*(astrong**n)
+        Dpert_atL=Dpert_atL+inter*(alpha**n)
       end do
      else!quark
-      do n=1,orderD
+      do n=1,orderIN
         inter=0_dp
-        do k=0,orderD
-         inter=inter+dnk_Q(n,k,Nf)*(LL**k)
+        do k=0,orderIN
+         inter=inter+dnk_Q(n,k,Nf)*(Lmu**k)
         end do
-        Dpert=Dpert+inter*(astrong**n)
+        Dpert_atL=Dpert_atL+inter*(alpha**n)
       end do
     end if
 
-end function Dpert
+end function Dpert_atL
   
 ! The TMD UV anomalous dimension gammaV
 ! order=0 gammaV=as^0=0

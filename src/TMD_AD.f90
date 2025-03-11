@@ -98,7 +98,7 @@ integer::orderZETA      !for zeta-line
 public:: TMD_AD_Initialize
 !public:: betaQCD,GammaCusp_q,GammaCusp_g,gammaV_q, gammaV_g,dnk_q,dnk_g,dnkl_q,dnkl_g
 !public:: vnk_q,vnk_g,OMEGA_q,OMEGA_g,pFACTOR_q,pFACTOR_g
-public:: zetaMUpert,gammaV,Dpert,Dresum,GammaCusp,zetaSL,RADEvolution,zFUNC
+public:: zetaMUpert,gammaV,Dpert,Dpert_atL,Dresum,GammaCusp,zetaSL,RADEvolution,zFUNC
 
 contains
 

@@ -12,7 +12,7 @@
  
 *A   : ---- Global I/O ----
 *p1  : Input file Version (used to check version compatibility)
-          30
+          35
 *p2  : Output level (0 = no output except critical, 1 = + WARNINGS, 2 = + info,  3 = + details)
            2
 *p3  : Message trigger (the number of continious non-critical warning before stop showing them)
@@ -34,7 +34,11 @@
 # ----                           PARAMETERS OF QCDinput                 -----
 # ---------------------------------------------------------------------------
 *1   :
- 
+*p1  : path to the directory with LHA-tables
+  Prog
+*p2  : Name of LHA set for alphaQCD
+ NNPDF31_nnlo_as_0118
+
 *A   : ---- quarks threashold masses ----
 *p1  : mass of charm-quark
    1.2749999999999999     
@@ -44,41 +48,31 @@
    172.90000000000001     
  
 *B   : ---- uPDF sets----
-*p1  : total number of PDFs to initialize (0= initialization is skipped)
+*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 3)
            1
-*p2  : reference number for hadrons
-    1
-*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
+*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
  NNPDF31_nnlo_as_0118
-*p4  : list of initialization replicas
-    0
  
 *C   : ---- uFF sets----
-*p1  : total number of FFs to initialize (0= initialization is skipped)
+*p1  : total number of FFs to initialize (0= initialization is skipped; maximum 3)
            0
-*p2  : reference number for hadrons
-    0
-*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
-*p4  : list of initialization replicas
-    0
+*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
  
 *D   : ----lpPDF sets----
-*p1  : total number of PDFs to initialize (0= initialization is skipped)
+*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 1)
            0
-*p2  : reference number for hadrons
-    0
-*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
-*p4  : list of initialization replicas
-    0
+*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
  
-*E   : ----hPDF sets----
-*p1  : total number of PDFs to initialize (0= initialization is skipped)
+*E   : ----gPDF (helicity) sets----
+*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)
            0
-*p2  : reference number for hadrons
-    0
-*p3  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
-*p4  : list of initialization replicas
-    0
+*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
+
+*F   : ----hPDF (transversity) sets----
+*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)
+           0
+*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number
+
  
  
 # ---------------------------------------------------------------------------
@@ -156,8 +150,7 @@
    0.000001
 *p3  : The smoothing parmaeters for small-b stabilization
    0.01
- 
- 
+
 # ---------------------------------------------------------------------------
 # ----                           PARAMETERS OF uTMDPDF                  -----
 # ---------------------------------------------------------------------------
@@ -173,11 +166,15 @@
 
 *B   : ---- OPE main definitions ----
 *p1  : Order of coefficient function
- LO
+ N3LO
 *p2  : Prepare grid
  T
 *p3  : run the test of the grid (takes some time)
  F
+*p4  : Use large-X resummation in the coefficient function of OPE
+ F
+*p5  : Order of the large-X resummation (should be bigger-or-equal to order in p1)
+ N3LO
 
 *C   : ---- Parameters of NP model ----
 *p1  : Length of lambdaNP
@@ -209,7 +206,7 @@
 
 *F   : ---- Transform and grid in KT-space ----
 *p1  : Prepare grid
- T
+ F
 *p2  : run the test of the grid (takes some time)
  F
 *p3  : Number of subgrids in X (required to read the next line)
@@ -266,6 +263,10 @@
  F
 *p3  : run the test of the grid (takes some time)
  F
+*p4  : Use large-X resummation in the coefficient function of OPE
+ F
+*p5  : Order of large-X resummation (should be bigger-or-equal to order in p1)
+ N3LO
 
 *C   : ---- Parameters of NP model ----
 *p1  : Length of lambdaNP
@@ -295,13 +296,35 @@
 *p6  : Number of nodes in the B-subgrid
    8
  
-*F   : ---- Transformation to KT-space ----
-*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
-   1.0000000000000000E-004
-*p2  : Ogata quadrature integration step
-   1.0000000000000000E-003 
-*p3  : Minimum value of kT (below that value function is constant)
-   0.0001
+*F   : ---- Transform and grid in KT-space ----
+*p1  : Prepare grid
+ F
+*p2  : run the test of the grid (takes some time)
+ F
+*p3  : Number of subgrids in X (required to read the next line)
+   4
+*p4  : Intervals for subgrids in X (must include 1., as the last point)
+0.00001  0.001  0.1  0.7  1.
+*p5  : Number of nodes in the X-subgrid
+   16
+*p6  : Number of subgrids in KT (required to read the next line)
+   5
+*p7  : Intervals for subgrids in KT (below and above ultimate points the value is frozen)
+0.01  1.0  5.  15. 50. 200.
+*p8  : Number of nodes in the KT-subgrid
+   16
+*p9  : Minimal Q in the grid
+   1.0000000000000
+*p10 : Maximal Q in the grid
+   200.0000000000000
+*p11 : Number of nodes in the Q-grid
+   40
+*p12 : Number of subgrids in B [for Hankel transform] (required to read the next line)
+   5
+*p13 : Intervals for subgrids in B [for Hankel transform]
+0.00001  0.01  0.2  2.  8.  25.
+*p14 : Number of nodes in the B-subgrid [for Hankel transform]
+   16
    
 *G   : ---- Computation of Transverse Momentum Moments (TMM) ----
 *p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
@@ -324,6 +347,8 @@
    1.0000000000000000E-003
 *p3  : Minimal qT (for smaller values the expression is constant)
    1.0000000000000000E-003
+*p4  : Minimal hard scale (Q, mu, zeta1, zeta2) (for smaller values the error is generated)
+   0.8
 *B   : ---- Global garameters of structure functions----
 *p1  : Mass parameter used in the structure function (mass of hadron)
   0.93827199935913086     
@@ -342,7 +367,7 @@
 *p3  : Use resummation of pi^2-corrections in hard coefficient
  F
 *B   : ---- Numerical evaluation parameters ----
-*p1  : Tolerance general (variable comparision, etc.)
+*p1  : Tolerance general (variable comparison, etc.)
    1.0000000000000000E-006
 *p2  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)
    1.0000000000000000E-004
@@ -352,11 +377,13 @@
    30.0000000
 *p5  : Minimal value of qT (lower values are fixed to this number)
    0.0001
+
 *C   : ---- Definition of LP TMD factorization ----
 *p1  : Use the exact LP values of x1 and x2 (include qT/Q correction)
  T
 *p2  : Use the exact LP value for factorization scale (include qT/Q correction)
  F
+
 *D   : ---- Definition of TMD factorization with KPC ----
 *p1  : Include terms induced by fiducial cuts
  T
@@ -370,33 +397,32 @@
 *A   : ---- Main definitions ----
 *p1  : Order of coefficient function
  LO
-*p2  : Use transverse momentum corrections in kinematics
- T
-*p3  : Use target mass corrections in kinematics
- T
-*p4  : Use product mass corrections in kinematics
- T
-*p5  : Use transverse momentum corrections in x1 and z1
- T
-*p6  : Use the exact values for factorization scales (include qT/Q correction)
+*p2  : Utilize KPC formula (T=KPC formula, F=LP formula)
  F
+
 *B   : ---- Numerical evaluation parameters ----
-*p1  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)
+*p1  : Tolerance general (variable comparison, etc.)
+   1.0000000000000000E-006
+*p2  : Tolerance (relative tolerance for bin-integration routines, except pt-integration)
    1.0000000000000000E-003
-*p2  : Minimal number of sections for pt-integration
-           4
-*p3  : Tolerance for Z-integration (relative tolerance for Z-bin-integration routines)
-   1.0000000000000000E-003
-*p4  : Method for Z-bin integration (see manual)
- SA  
-*p5  : Tolerance for X-integration (relative tolerance for X-bin-integration routines)
-   1.0000000000000000E-003
-*p6  : Method for X-bin integration (see manual)
- SA  
-*C   : ---- Parameters for parallel evaluation (used only if compiled with openMP) ----
-*p1  : Maximum number of processors to use
-           8
- 
+*p3  : Minimal number of sections for pt-integration
+           6
+*p4  : Minimal value of pT (lower values are fixed to this number)
+   0.0001
+
+*C   : ---- Definition of LP TMD factorization ----
+*p1  : Account induced transverse momentum corrections
+ T
+*p2  : Account induced target mass corrections
+ T
+*p3  : Account induced product mass corrections
+ T
+*p4  : Use exact LP values for x1 and z1
+ T
+*p5  : Use the exact LP value for factorization scale
+ F
+
+*D   : ---- Definition of TMD factorization with KPC ----
  
 # ---------------------------------------------------------------------------
 # ----                           PARAMETERS OF lpTMDPDF                 -----
@@ -536,6 +562,10 @@
  T
 *p3  : run the test of the grid (takes some time)
            F
+*p4  : Use large-X resummation in the coefficient function of OPE
+ F
+*p5  : Order of large-X resummation (should be bigger-or-equal to order in p1)
+ N3LO
 
 *C   : ---- Parameters of NP model ----
 *p1  : Length of lambdaNP
@@ -667,10 +697,10 @@
    0.8
 
 # ---------------------------------------------------------------------------
-# ----                           PARAMETERS OF TMDF-KPC-DY              -----
+# ----                           PARAMETERS OF TMDF-KPC                 -----
 # ---------------------------------------------------------------------------
-*15   :
-*p1  : initialize TMDF-KPC-DY module
+*15  :
+*p1  : initialize TMDF-KPC module
  F
 *A   : ---- Main definitions ----
 *p1  : NOT YET
@@ -682,3 +712,117 @@
    1.0000000000000000E-004
 *p3  : Minimum qT value (below the qT-value is frozen)
    1.0000000000000000E-003
+
+# ---------------------------------------------------------------------------
+# ----                         PARAMETERS OF wglTMDPDF                  -----
+# ---------------------------------------------------------------------------
+*16  :
+*p1  : initialize wglTMDPDF module
+ F
+
+*A   : ---- Main definitions ----
+*p1  : Include gluon TMDPDF
+ F
+*p2  : Number of hadrons (in order starting with 1)
+ 0
+
+*B   : ---- OPE[tw2] main definitions ----
+*p1  : Order of coefficient function
+ NLO
+*p2  : Prepare grid
+ T
+*p3  : run the test of the grid (takes some time)
+           F
+*p4  : Use large-X resummation in the coefficient function of OPE
+ F
+*p5  : Order of large-X resummation (should be bigger-or-equal to order in p1)
+ N3LO
+
+*C   : ---- Parameters of NP model ----
+*p1  : Length of lambdaNP
+           7
+*p2  : Absolute maximum b (for larger b, TMD=0)
+           100.000000
+
+*D   : ---- Numerical evaluation parameters ----
+*p1  : Tolerance (relative tolerance of convolution integral)
+   1.0000000000000000E-006
+*p2  : Tolerance general (used for various comparisons)
+   1.0000000000000000E-006
+*p3  : Maximum number of iterations (for adaptive integration)
+       10000
+
+*E   : ---- OPE[tw2] Parameters of grid ----
+*p1  : Number of subgrids in X (required to read the next line)
+   3
+*p2  : Intervals for subgrids in X (must include 1., as the last point)
+0.001  0.1  0.5  1.
+*p3  : Number of nodes in the X-subgrid
+   8
+*p4  : Number of subgrids in B (required to read the next line)
+   4
+*p5  : Intervals for subgrids in B (below and above ultimate points the value is frozen)
+0.00001  0.01  0.2  2.  25.
+*p6  : Number of nodes in the B-subgrid
+   8
+
+*F   : ---- OPE[tw3] main definitions ----
+*p1  : Order of coefficient function
+ NA
+*p2  : Prepare grid
+ F
+*p3  : run the test of the grid (takes some time)
+           F
+
+*G   : ---- OPE[tw3] Parameters of grid ----
+ 
+*H   : ---- Transformation to KT-space ----
+*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
+   1.0000000000000000E-004
+*p2  : Ogata quadrature integration step
+   1.0000000000000000E-003 
+*p3  : Minimum value of kT (below that value function is constant)
+   0.0001   
+
+*I   : ---- Computation of Transverse Momentum Moments (TMM) ----
+*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
+   1.0000000000000000E-004
+*p2  : Ogata quadrature integration step
+   1.0000000000000000E-003 
+*p3  : Minimum value of mu [GeV] (below that value the computation is terminated)
+   0.8
+
+# ---------------------------------------------------------------------------
+# ----                           PARAMETERS OF eeTMDFF                  -----
+# ---------------------------------------------------------------------------
+*17  :
+*p1  : initialize eeTMDFF module
+ F
+
+*A   : ---- Main definitions ----
+*p1  : Include gluon TMDPDF
+ F
+*p2  : Number of hadrons (in order starting with 1)
+ 1
+
+*B   : ---- OPE main definitions ----
+*p1  : Order of coefficient function
+ LO
+
+*C   : ---- Parameters of NP model ----
+*p1  : Length of lambdaNP
+           2
+*p2  : Absolute maximum b (for larger b, TMD=0)
+   100.00000000000000
+
+*D   : ---- Numerical evaluation parameters ----
+*p1  : Tolerance (relative tolerance of convolution integral)
+   9.9999999999999995E-007
+*p2  : Tolerance general (used for various comparisons)
+   9.9999999999999995E-007
+*p3  : Maximum number of iterations (for adaptive integration)
+       10000
+ 
+*F   : ---- Transform and grid in KT-space ----
+*p1  : Prepare grid
+ F

@@ -73,7 +73,8 @@ function CxF_compute(x,bT,hadron,includeGluon)
     real(dp):: bTcurrent,lx
 
     real(dp),dimension(-5:5)::deltaPart,PLUSremnant
-    real(dp):: muAt1,asAt1,LogAt1,NfAt1,Cqq,Cgg,Csingqq,Csinggg
+    real(dp):: muAt1,asAt1,LogAt1,Cqq,Cgg,Csingqq,Csinggg
+    integer::NfAt1
     real(dp),dimension(1:3)::CplusAt1_gg,CplusAt1_qq
     real(dp),dimension(-5:5)::PDFat1
 
@@ -103,6 +104,10 @@ function CxF_compute(x,bT,hadron,includeGluon)
     LogAt1=LogMuB(bTcurrent,x,1._dp)
     NfAt1=activeNf(muAt1)
     PDFat1=xf(x,muAt1,hadron)
+    if(ISNAN(PDFat1(-5))) then
+    write(*,*) "---------->",x,muAt1,hadron
+    error stop
+    end if
 
     !!!! delta-part
     !! C(y)~delta(1-y)
@@ -161,10 +166,9 @@ function CxF_compute(x,bT,hadron,includeGluon)
        yCUT=(100._dp+x)/101._dp
     end if
 
-    CxF_compute=CxF_compute+PLUSremnant&
-            +Integrate_GK_array5(FFreg,x,yCUT,toleranceINT)&
-            +Integrate_GK_array5(FFplus,x,yCUT,toleranceINT)&
-            +Integrate_largey()
+    CxF_compute=CxF_compute&
+            +Integrate_GK_array5(FFplus,x,yCUT,toleranceINT)+PLUSremnant+Integrate_largey_PLUS()&
+            +Integrate_GK_array5(FFreg,x,yCUT,toleranceINT)+Integrate_largey_Reg()
 
     end if
 
@@ -174,7 +178,10 @@ function CxF_compute(x,bT,hadron,includeGluon)
     write(*,*) ErrorString('convolution computed to NAN. CHECK INTEGRATION',moduleName)
     write(*,*) '----- information on last call -----'
     write(*,*) 'x=', x, 'bT=',bT,' i=',i, 'hadron=',hadron,' result=',CxF_compute(i)
-
+    write(*,*) "--FF-->",PDFat1
+    write(*,*) "delta->",(/Csingqq,Csingqq,Csingqq,Csingqq,Csingqq,&
+    Csinggg,Csingqq,Csingqq,Csingqq,Csingqq,Csingqq/)
+    error stop
    end if
   end do
 
@@ -187,7 +194,8 @@ function CxF_compute(x,bT,hadron,includeGluon)
     function FFreg(y)
         real(dp),dimension(-5:5)::FFreg
         real(dp),intent(in)::y
-        real(dp)::muCurrent,asCurrent,LogCurrent,NfCurrent,Aqq,Aqg,Agq,Agg,Aqqp,Aqqb,PDFsum
+        real(dp)::muCurrent,asCurrent,LogCurrent,Aqq,Aqg,Agq,Agg,Aqqp,Aqqb,PDFsum
+        integer::NfCurrent
         real(dp),dimension(-5:5)::PDFs
         real(dp),dimension(1:parametrizationLength):: var
 
@@ -221,8 +229,13 @@ function CxF_compute(x,bT,hadron,includeGluon)
         else
             Aqq=sum(var*Bqq)
             Aqg=sum(var*Bqg)
+            if(includeGluon) then
             Agq=sum(var*Bgq)
             Agg=sum(var*Bgg)
+            else
+            Agq=0._dp
+            Agg=0._dp
+            end if
             Aqqb=sum(var*Bqqb)
             Aqqp=sum(var*Bqqp)
 
@@ -252,7 +265,8 @@ function CxF_compute(x,bT,hadron,includeGluon)
         real(dp),intent(in)::y
         real(dp),dimension(1:3)::Cplus_qq,Cplus_gg,listLY
         real(dp),dimension(-5:5)::PDF,inter1,inter2
-        real(dp)::muCurrent,asCurrent,LogCurrent,NfCurrent,dummy1,dummy2,ly
+        real(dp)::muCurrent,asCurrent,LogCurrent,dummy1,dummy2,ly
+        integer::NfCurrent
 
         !!! very rare error, if y~1 (up to machine precision) freeze it!
         if(y<0.999999999d0) then
@@ -305,13 +319,18 @@ function CxF_compute(x,bT,hadron,includeGluon)
 
 
     !!!!! approximate integration of y~1. It is presice up to 5-6 digits for y~0.9999, and x<0.8
-    function Integrate_largey()
-        real(dp),dimension(-5:5)::Integrate_largey
+    !!!!! This is a part that result from the (..)_+ distribution
+    !!!!! the approximation is like that
+    !!!!! \int_y0^1 dy/y [f(x/y)-f(x)]/(1-y) \sim (1-y0) x f'(x) for y0->1
+    !!!!! it is the same as [f(x/y0)-f(x)] for y0->1
+    !!!!! and similar for ~log-terms
+    function Integrate_largey_PLUS()
+        real(dp),dimension(-5:5)::Integrate_largey_PLUS
         real(dp),dimension(1:3)::Cplus_qq,Cplus_gg
-        real(dp)::muCurrent,asCurrent,LogCurrent,NfCurrent,Aqq,Aqg,Agq,Agg,Aqqp,Aqqb,PDFsum
-        real(dp),dimension(-5:5)::partPLUS,partReg,PDFs
+        real(dp)::muCurrent,asCurrent,LogCurrent
+        integer::NfCurrent
+        real(dp),dimension(-5:5)::PDFs
         real(dp)::lY,dummy1,dummy2
-        real(dp),dimension(1:parametrizationLength):: var
 
         lY=log(1._dp-yCUT)
 
@@ -337,24 +356,40 @@ function CxF_compute(x,bT,hadron,includeGluon)
 
             dummy1=sum((/1._dp,lY-1._dp,2._dp+lY*(lY-2._dp)/)*Cplus_qq)
             dummy2=sum((/1._dp,lY-1._dp,2._dp+lY*(lY-2._dp)/)*Cplus_gg)
-            partPLUS=(/dummy1,dummy1,dummy1,dummy1,dummy1,&
+            Integrate_largey_PLUS=(/dummy1,dummy1,dummy1,dummy1,dummy1,&
             dummy2,dummy1,dummy1,dummy1,dummy1,dummy1/)*(PDFs-PDFat1)
         else
             PDFs=xf(x/yCUT,muAt1,hadron)
 
             dummy1=sum((/1._dp,lY-1._dp,2._dp+lY*(lY-2._dp)/)*CplusAt1_qq)
             dummy2=sum((/1._dp,lY-1._dp,2._dp+lY*(lY-2._dp)/)*CplusAt1_gg)
-            partPLUS=(/dummy1,dummy1,dummy1,dummy1,dummy1,&
+            Integrate_largey_PLUS=(/dummy1,dummy1,dummy1,dummy1,dummy1,&
             dummy2,dummy1,dummy1,dummy1,dummy1,dummy1/)*(PDFs-PDFat1)
         end if
+
+    end function Integrate_largey_PLUS
+
+    !!!!! approximate integration of y~1. It is presice up to 5-6 digits for y~0.9999, and x<0.8
+    !!!!! the approximation is done as
+    !!!!! \int_y0^1 f(x/y) g[y] \sim f[x]\int_y0^1 g[y] the integrals over g[y] are taken analytically for y0->1
+    function Integrate_largey_Reg()
+        real(dp),dimension(-5:5)::Integrate_largey_Reg
+        real(dp)::Aqq,Aqg,Agq,Agg,Aqqp,Aqqb,PDFsum
+        real(dp),dimension(-5:5)::PDFs
+        real(dp),dimension(1:parametrizationLength):: var
 
         !!! the integral over regular part is simpler
         !!!! it is just the value f[x]int_x^1 ...
         var=parametrizationStringAt1(yCUT)
         Aqq=sum(var*Bqq)
         Aqg=sum(var*Bqg)
-        Agq=sum(var*Bgq)
-        Agg=sum(var*Bgg)
+        if(includeGluon) then
+            Agq=sum(var*Bgq)
+            Agg=sum(var*Bgg)
+        else
+            Agq=0._dp
+            Agg=0._dp
+        end if
         Aqqb=sum(var*Bqqb)
         Aqqp=sum(var*Bqqp)
 
@@ -362,7 +397,7 @@ function CxF_compute(x,bT,hadron,includeGluon)
 
         PDFsum=PDFs(-5)+PDFs(-4)+PDFs(-3)+PDFs(-2)+PDFs(-1)+PDFs(1)+PDFs(2)+PDFs(3)+PDFs(4)+PDFs(5)
 
-        partReg=(/&
+        Integrate_largey_Reg=(/&
         Aqq*PDFs(-5)+Aqqb*PDFs(5)+Aqqp*PDFsum+Aqg*PDFs(0),&
         Aqq*PDFs(-4)+Aqqb*PDFs(4)+Aqqp*PDFsum+Aqg*PDFs(0),&
         Aqq*PDFs(-3)+Aqqb*PDFs(3)+Aqqp*PDFsum+Aqg*PDFs(0),&
@@ -375,8 +410,6 @@ function CxF_compute(x,bT,hadron,includeGluon)
         Aqq*PDFs(4)+Aqqb*PDFs(-4)+Aqqp*PDFsum+Aqg*PDFs(0),&
         Aqq*PDFs(5)+Aqqb*PDFs(-5)+Aqqp*PDFsum+Aqg*PDFs(0)/)
 
-        Integrate_largey=partReg+partPLUS
-
-    end function Integrate_largey
+    end function Integrate_largey_Reg
 
 end function CxF_compute

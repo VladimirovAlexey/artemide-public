@@ -27,6 +27,7 @@ use aTMDe_Numerics
 use IntegrationRoutines
 use IO_functions
 use QCDinput
+use TMD_AD, only : Dpert_atL
 use uTMDFF_model
 use Grid_uTMDFF
 implicit none
@@ -56,6 +57,9 @@ integer::messageCounter=0 !!! actual counter
 
 !!! Perturbative order
 integer :: orderMain=2 !! LO=0, NLO=1,...
+!!! Order of large-X resummation
+logical :: resumLargeX
+integer :: orderLX=2 !! LO=0 [no-resummation], NLO=1,...
 
 !!! Phase space limitations parameters
 real(dp) :: xMin=0.0001_dp !!! min x
@@ -88,6 +92,7 @@ logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., th
 !!--------------------------------------Public interface-----------------------------------------
 public::uTMDFF_OPE_IsInitialized,uTMDFF_OPE_Initialize,uTMDFF_OPE_convolution
 public::uTMDFF_OPE_resetGrid,uTMDFF_OPE_SetPDFreplica,uTMDFF_OPE_SetScaleVariation
+public::uTMDFF_X0_AS,uTMDFF_OPE_FF
 
 !!!!!!----FOR TEST
 !public::MakeGrid,ExtractFromGrid,CxF_compute,TestGrid
@@ -97,8 +102,14 @@ contains
 !! Coefficient function
 INCLUDE 'Code/uTMDFF/coeffFunc.f90'
 
+!! Elements of coefficient function at Large-X
+INCLUDE 'Code/Twist2/Twist2LargeX.f90'
+
 !! Mellin convolution routine
 INCLUDE 'Code/Twist2/Twist2Convolution.f90'
+
+!! Mellin convolution for AS-term
+INCLUDE 'Code/Twist2/Twist2-AS-term.f90'
 
 function uTMDFF_OPE_IsInitialized()
     logical::uTMDFF_OPE_IsInitialized
@@ -211,11 +222,47 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
         END SELECT
 
     if(outputLevel>2 .and. orderMain>-1) write(*,'(A,I1)') ' |  Coef.func.    =as^',orderMain
-
     call MoveTO(51,'*p2  ')
     read(51,*) useGrid
     call MoveTO(51,'*p3  ')
     read(51,*) runTest
+
+    call MoveTO(51,'*p4  ')
+    read(51,*) resumLargeX
+    if(resumLargeX) then
+        call MoveTO(51,'*p5  ')
+        read(51,*) order_global
+
+        SELECT CASE(trim(order_global))
+            CASE ("LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: LO'
+                orderLX =0
+            CASE ("NLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NLO'
+                orderLX=1
+            CASE ("NNLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NNLO'
+                orderLX=2
+            CASE ("N2LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: NNLO'
+                orderLX=2
+            CASE ("NNNLO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: N3LO'
+                orderLX=3
+            CASE ("N3LO")
+                if(outputLevel>1) write(*,*) trim(moduleName)//' Large-X order set: N3LO'
+                orderLX=3
+            CASE DEFAULT
+                if(outputLevel>0) then
+                    write(*,*) &
+                    WarningString('Initialize: unknown order for large-X resummation of coefficient function.',moduleName)
+                    write(*,*) WarningString('set to same order as the common part.',moduleName)
+                end if
+                orderLX=orderMain
+            END SELECT
+
+    if(outputLevel>2 .and. orderLX>-1) write(*,'(A,I1)') ' |  Large-X       =as^',orderLX
+    end if
 
     !!!!! ---- parameters of numerical evaluation
     call MoveTO(51,'*D   ')
@@ -271,9 +318,15 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
     gridReady=.false.
 
     if(useGrid) then
-        call Twist2_ChGrid_MakeGrid(CxF_compute)
-        gridReady=.true.
-        if(runTest) call TestGrid(CxF_compute)
+        if(resumLargeX) then
+            call Twist2_ChGrid_MakeGrid(CxF_LargeX_compute)
+            gridReady=.true.
+            if(runTest) call TestGrid(CxF_LargeX_compute)
+        else
+            call Twist2_ChGrid_MakeGrid(CxF_compute)
+            gridReady=.true.
+            if(runTest) call TestGrid(CxF_compute)
+        end if
     end if
 
     started=.true.
@@ -297,6 +350,17 @@ function xf(x,Q,hadron)
     
 end function xf
 
+!!!! this is function which sends PDF directly to the output
+!!!! needed solely for analysis of TMDs, to not to run LHAPDF again
+!!!! NOTE: it is not mutiplied by x
+function uTMDFF_OPE_FF(x,mu,hadron)
+    real(dp) :: x,mu
+    integer:: hadron
+    real(dp), dimension(-5:5):: uTMDFF_OPE_FF
+
+    uTMDFF_OPE_FF=xFF(x,mu,hadron)/x
+
+end function uTMDFF_OPE_FF
 
 !!!!! in the case of TMDFF one computes the convolution as
 !!! int_z^1 dy/y C[z/y] d[y]/y^2 = 1/z^3 int_z^1 dy [y^2C](y) D[z/y],
@@ -339,11 +403,53 @@ function uTMDFF_OPE_convolution(x,b,h,addGluon)
             uTMDFF_OPE_convolution=ExtractFromGrid(x,b,h)/x**3
         end if
     else
-        uTMDFF_OPE_convolution=CxF_compute(x,b,h,gluon)/x**3
+        if(resumLargeX) then
+            uTMDFF_OPE_convolution=CxF_LargeX_compute(x,b,h,gluon)/x**3
+        else
+            uTMDFF_OPE_convolution=CxF_compute(x,b,h,gluon)/x**3
+        end if
     end if
 
 end function uTMDFF_OPE_convolution
 
+function uTMDFF_X0_AS(x,mu,mu0,h,addGluon)
+    real(dp),dimension(-5:5)::uTMDFF_X0_AS
+    real(dp),intent(in)::x,mu,mu0
+    integer,intent(in)::h
+    logical,optional,intent(in)::addGluon
+
+    logical::gluon
+
+    !!! check gluonity
+    if(present(addGluon)) then
+        gluon=addGluon
+    else
+        gluon=withGluon
+    end if
+
+      !!! test boundaries
+    if(x>1d0) then
+        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        uTMDFF_X0_AS=0._dp
+        return
+    else if(x==1.d0) then
+        uTMDFF_X0_AS=0._dp
+        return
+    else if(x<1d-12) then
+        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
+        stop
+    end if
+
+    !!!! case NA
+    if(orderMain==-50) then
+        uTMDFF_X0_AS=0._dp
+        return
+    end if
+
+    !!! computation
+    uTMDFF_X0_AS=CxF_AS(x,mu,mu0,h,gluon)/x**3
+
+end function uTMDFF_X0_AS
 
 !!!!!!!!!! ------------------------ SUPPORINTG ROUTINES --------------------------------------
 !!! This subroutine force reconstruction of the grid (if griding is ON)
@@ -351,7 +457,11 @@ subroutine uTMDFF_OPE_resetGrid()
     gridReady=.false.
     if(useGrid) then
         if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-        call Twist2_ChGrid_MakeGrid(CxF_compute)
+        if(resumLargeX) then
+            call Twist2_ChGrid_MakeGrid(CxF_LargeX_compute)
+        else
+            call Twist2_ChGrid_MakeGrid(CxF_compute)
+        end if
 
         gridReady=.true.
     end if
@@ -363,12 +473,12 @@ subroutine uTMDFF_OPE_SetPDFreplica(rep,hadron)
     integer,intent(in):: rep,hadron
     logical::newPDF
 
-    call QCDinput_SetPDFreplica(rep,hadron,newPDF)
+    call QCDinput_SetFFreplica(rep,hadron,newPDF)
     if(newPDF) then
         gridReady=.false.
         call uTMDFF_OPE_resetGrid()
     else
-        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of FF (',I4,' is the same as the used one. Nothing is done!')") &
+        if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of FF (',I4,') is the same as the used one. Nothing is done!')") &
         moduleName, rep
     end if
 
