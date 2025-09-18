@@ -24,7 +24,7 @@ private
 
 !------------------------------------------Tables-----------------------------------------------------------------------
 integer,parameter::Nmax=1000
-INCLUDE 'Tables/BesselZero1000.f90'
+INCLUDE 'Code/Tables/BesselZero1000.f90'
 
 character(len=8),parameter :: moduleName="Ogata"
 character(len=11):: parentModuleName

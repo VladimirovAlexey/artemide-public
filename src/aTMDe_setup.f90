@@ -14,7 +14,7 @@ implicit none
 
 private
 
-character (len=5),parameter :: version="v3.01"
+character (len=5),parameter :: version="v3.02"
 character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
 integer,parameter::inputVer=35
@@ -724,7 +724,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) inputVer
     write(51,"('*p2  : Output level (0 = no output except critical, 1 = + WARNINGS, 2 = + info,  3 = + details)')")
     write(51,*) outputLevel
-    write(51,"('*p3  : Message trigger (the number of continious non-critical warning before stop showing them)')")
+    write(51,"('*p3  : Message trigger (the number of continuous non-critical warning before stop showing them)')")
     write(51,*) messageTrigger
     write(51,"(' ')")
     write(51,"('*B   : ---- Universal physic parameters ----')")
@@ -1122,7 +1122,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_DY_toleranceINT
     write(51,"('*p3  : Minimal number of sections for pt-integration')")
     write(51,*) TMDX_DY_ptSECTION
-    write(51,"('*p4  : Maximum size of the Q-bin integration (larger bins are desected)')")
+    write(51,"('*p4  : Maximum size of the Q-bin integration (larger bins are dissected)')")
     write(51,*) TMDX_DY_maxQbinSize
     write(51,"('*p5  : Minimal value of qT (lower values are fixed to this number)')")
     write(51,*) TMDX_DY_minqTabs
@@ -1469,7 +1469,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p1  : NOT YET')")
     write(51,"(' ')")
     write(51,"('*B   : ---- Numerical evaluation parameters ----')")
-    write(51,"('*p1  : Tolerance general (variable comparision, etc.)')")
+    write(51,"('*p1  : Tolerance general (variable comparison, etc.)')")
     write(51,*) TMDF_KPC_toleranceGEN
     write(51,"('*p2  : Tolerance integral (Integration tollerance)')")
     write(51,*) TMDF_KPC_toleranceINT
@@ -1858,7 +1858,7 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) uTMDPDF_withGluon
     call MoveTO(51,'*p2  ')
     read(51,*) uTMDPDF_numHadron
-    if(uTMDPDF_numHadron/=number_of_uPDFs) then
+    if(include_uTMDPDF .and. uTMDPDF_numHadron/=number_of_uPDFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) color('ESSENTIAL INCONSITENCY: the number of uPDFs is unequal to the number of uTMDPDFs',c_red)
         if(outputLevel>0) write(*,*) color('                        it can lead to mistakes or crash',c_red)
@@ -1956,7 +1956,7 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) uTMDFF_withGluon
     call MoveTO(51,'*p2  ')
     read(51,*) uTMDFF_numHadron
-    if(uTMDFF_numHadron/=number_of_uFFs) then
+    if(include_uTMDFF .and. uTMDFF_numHadron/=number_of_uFFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) color('ESSENTIAL INCONSITENCY: the number of uFFs is unequal to the number of uTMDFFs',c_red)
         if(outputLevel>0) write(*,*) color('                        it can lead to mistakes or crash',c_red)
@@ -2134,7 +2134,7 @@ subroutine ReadConstantsFile(file,prefix)
     end if
     call MoveTO(51,'*p2  ')
     read(51,*) lpTMDPDF_numHadron
-    if(lpTMDPDF_numHadron/=number_of_lpPDFs) then
+    if(include_lpTMDPDF .and. lpTMDPDF_numHadron/=number_of_lpPDFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) &
             color('ESSENTIAL INCONSITENCY: the number of lpPDFs is unequal to the number of lpTMDPDFs',c_red)
@@ -2230,7 +2230,7 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) wgtTMDPDF_withGluon
     call MoveTO(51,'*p2  ')
     read(51,*) wgtTMDPDF_numHadron
-    if(wgtTMDPDF_numHadron/=number_of_gPDFs) then
+    if(include_wgtTMDPDF .and. wgtTMDPDF_numHadron/=number_of_gPDFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) &
         color('ESSENTIAL INCONSITENCY: the number of gPDFs is unequal to the number of wgtTMDPDFs',c_red)
@@ -2391,7 +2391,7 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) wglTMDPDF_withGluon
     call MoveTO(51,'*p2  ')
     read(51,*) wglTMDPDF_numHadron
-    if(wglTMDPDF_numHadron/=number_of_hPDFs) then
+    if(include_wglTMDPDF .and. wglTMDPDF_numHadron/=number_of_hPDFs) then
         if(outputLevel>0) write(*,*) ' '
         if(outputLevel>0) write(*,*) &
         color('ESSENTIAL INCONSITENCY: the number of hPDFs is unequal to the number of wglTMDPDFs',c_red)

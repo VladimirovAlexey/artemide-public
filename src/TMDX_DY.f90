@@ -1411,7 +1411,6 @@ if(size(Q,2)/=2) then
   stop
 end if
 
-
   CallCounter=CallCounter+length
 
   !$OMP PARALLEL DO DEFAULT(SHARED)

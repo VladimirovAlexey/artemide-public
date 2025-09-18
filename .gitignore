@@ -1,0 +1,25 @@
+#.out files produced by fortran
+a.out
+*.out
+*.mod
+*.o
+fort.*
+
+# result of python compilation
+*.so
+/__pycache__/*
+
+# result of TeX compilation
+*.aux
+*.log
+*.synctex.gz
+
+#linux trash
+.nfs*
+*.kate-swp
+
+#Large Kernel-Files
+*.ker
+
+#artemide-files
+aTMDe-temporary

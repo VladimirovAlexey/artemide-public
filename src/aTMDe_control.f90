@@ -202,7 +202,7 @@ subroutine artemide_Initialize(file,prefix,order)
     call MoveTO(51,'*p1  ')
     read(51,*) include_wgtTMDPDF
     if(include_wgtTMDPDF) then
-        call MoveTO(51,'*B   ')
+        call MoveTO(51,'*C   ')
         call MoveTO(51,'*p1  ')
         read(51,*) NPlength_wgtTMDPDF
         allocate(lambdaNP_wgtTMDPDF(1:NPlength_wgtTMDPDF))

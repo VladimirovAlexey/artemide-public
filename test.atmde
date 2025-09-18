@@ -15,7 +15,7 @@
           35
 *p2  : Output level (0 = no output except critical, 1 = + WARNINGS, 2 = + info,  3 = + details)
            2
-*p3  : Message trigger (the number of continious non-critical warning before stop showing them)
+*p3  : Message trigger (the number of continuous non-critical warning before stop showing them)
            6
  
 *B   : ---- Universal physic parameters ----
@@ -128,7 +128,7 @@
 *A   : ---- Main definitions ----
 *p1  : Order of evolution
  N3LO
-*p2  : Override the general definition of the pertrubative order (in this case orders are defined by the list below)
+*p2  : Override the general definition of the perturbative order (in this case orders are defined by the list below)
    F
 *p3  : Order of Gamma-cusp (LO=1-loop, NLO=2-loop, ...)
    N2LO
@@ -148,7 +148,7 @@
    1.0000000000000000E-006
 *p2  : The smallest value of b (for smaller OPE is frozen)
    0.000001
-*p3  : The smoothing parmaeters for small-b stabilization
+*p3  : The smoothing parameters for small-b stabilization
    0.01
 
 # ---------------------------------------------------------------------------
@@ -373,7 +373,7 @@
    1.0000000000000000E-004
 *p3  : Minimal number of sections for pt-integration
            6
-*p4  : Maximum size of the Q-bin integration (larger bins are desected)
+*p4  : Maximum size of the Q-bin integration (larger bins are dissected)
    30.0000000
 *p5  : Minimal value of qT (lower values are fixed to this number)
    0.0001
@@ -706,7 +706,7 @@
 *p1  : NOT YET
 
 *B   : ---- Numerical evaluation parameters ----
-*p1  : Tolerance general (variable comparision, etc.)
+*p1  : Tolerance general (variable comparison, etc.)
    1.0000000000000000E-006
 *p2  : Tolerance (Integration tollerance)
    1.0000000000000000E-004

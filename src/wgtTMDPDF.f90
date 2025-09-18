@@ -59,7 +59,7 @@ real(dp)::kT_FREEZE=0.0001_dp  !!!!! parameter of freezing the low-kT-value
 
 !----Ogata Tables---
 integer,parameter::Nmax=1000
-INCLUDE 'Tables/BesselZero1000.f90'
+INCLUDE 'Code/Tables/BesselZero1000.f90'
 
 !!!!! I split the qT over runs qT<qTSegmentationBoundary
 !!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
@@ -352,6 +352,11 @@ function TMD_opt(x,bT,hadron)
 
     TMD_opt=wgtTMDPDF_OPE_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)&
         +wgtTMDPDF_OPE_tw3_convolution(x,bT,abs(hadron))*FNP_tw3(x,bT,abs(hadron),lambdaNP)
+
+!     write(*,*) "1--->",wgtTMDPDF_OPE_convolution(x,bT,abs(hadron))
+!     write(*,*) "2--->",FNP(x,bT,abs(hadron),lambdaNP)
+!     write(*,*) "3--->",wgtTMDPDF_OPE_tw3_convolution(x,bT,abs(hadron))
+!     write(*,*) "4--->",FNP_tw3(x,bT,abs(hadron),lambdaNP)
 
     if(hadron<0) TMD_opt=TMD_opt(5:-5:-1)
 

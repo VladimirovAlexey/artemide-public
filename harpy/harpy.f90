@@ -20,11 +20,105 @@ use wgtTMDPDF
 use BoerMuldersTMDPDF
 use TMDR_model
 use TMDR
+use TMDF
+use SnowFlake
+use SnowFlake_Model
 
 !!! this flag is requared to guaranty that artemide is not started twice (it lead to the crush)
 logical::started=.false.
 
 contains
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! SNOWFLAKE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+subroutine Initialize_snowflake(file)
+character(len=*)::file
+
+call SnowFlake_Initialize(file)
+call SnowFlake_Model_Initialize()
+
+end subroutine Initialize_snowflake
+
+!!!!! update the evolution tables
+subroutine UpdateEvolutionTable(mu0,mu1)
+real*8,intent(in)::mu0,mu1
+
+!call ComputeEvolution(mu0,mu1,alpha,U1=Tu,D1=Td,S1=Ts,U2=dTu,D2=dTd,S2=dTs,G1=Tp,G2=Tm,inputQ="T",inputG="T")
+call ComputeEvolution(mu0,mu1,alpha,U1=SplusU,D1=SplusD,S1=SplusS,U2=SminusU,D2=SminusD,S2=SminusS,G1=Tp,G2=Tm,&
+    inputQ="C",inputG="T")
+
+end subroutine UpdateEvolutionTable
+
+subroutine UpdateNPparameters(lambdaIN)
+real*8,intent(in)::lambdaIN(:)
+
+call SetNPparameters(lambdaIN)
+
+end subroutine UpdateNPparameters
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!! call routines
+function SnowFlake_G2_List(X,Q,f,ListLength)
+integer,intent(in)::ListLength
+real*8,intent(in),dimension(:)::X               !x-Bjorken
+real*8,intent(in),dimension(:)::Q               !Q
+integer,intent(in),dimension(:)::f              !flavor/process
+real*8,dimension(1:ListLength)::SnowFlake_G2_List
+
+call G2_List(SnowFlake_G2_List,X,Q,f)
+
+end function SnowFlake_G2_List
+
+function SnowFlake_D2_List(Q,f,ListLength)
+integer,intent(in)::ListLength
+real*8,intent(in),dimension(:)::Q               !Q
+integer,intent(in),dimension(:)::f              !flavor/process
+real*8,dimension(1:ListLength)::SnowFlake_D2_List
+
+call D2_List(SnowFlake_D2_List,Q,f)
+
+end function SnowFlake_D2_List
+
+
+!!!!!! Returns the twist-3 function with option T
+function GetTw3PDF_T(x1,x2,Q,f)
+real*8,intent(in)::x1,x2                      !x-variables
+real*8,intent(in)::Q                          !Q
+integer,intent(in)::f                         !flavor
+
+GetTw3PDF_T=GetPDF(x1,x2,Q,f,outputT='T')
+
+end function GetTw3PDF_T
+
+!!!!!! Returns the twist-3 function with option S
+function GetTw3PDF_S(x1,x2,Q,f)
+real*8,intent(in)::x1,x2                      !x-variables
+real*8,intent(in)::Q                          !Q
+integer,intent(in)::f                         !flavor
+
+GetTw3PDF_S=GetPDF(x1,x2,Q,f,outputT='S')
+
+end function GetTw3PDF_S
+
+!!!!!! Returns the twist-3 function with option C
+function GetTw3PDF_C(x1,x2,Q,f)
+real*8,intent(in)::x1,x2                      !x-variables
+real*8,intent(in)::Q                          !Q
+integer,intent(in)::f                         !flavor
+
+GetTw3PDF_C=GetPDF(x1,x2,Q,f,outputT='C')
+
+end function GetTw3PDF_C
+
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! ARTEMIDE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!GENERAL
   subroutine Initialize(file)
@@ -691,6 +785,7 @@ contains
     real*8::DY_xSec_Single
     real*8::X
     
+    call TMDF_ResetCounters()
     call xSec_DY(X,process,s,qT,Q,y,includeCuts,CutParameters)
     DY_xSec_Single=X
   
@@ -707,6 +802,7 @@ contains
     real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
     real*8,dimension(1:ListLength)::DY_xSec_List
     
+    call TMDF_ResetCounters()
     call xSec_DY_List(DY_xSec_List,process,s,qT,Q,y,includeCuts,CutParameters)
   
   end function DY_xSec_List
@@ -722,6 +818,7 @@ contains
     real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
     real*8,dimension(1:ListLength)::DY_xSec_List_APPROXIMATE
 
+    call TMDF_ResetCounters()
     call xSec_DY_List_APPROXIMATE(DY_xSec_List_APPROXIMATE,process,s,qT,Q,y,includeCuts,CutParameters)
 
   end function DY_xSec_List_APPROXIMATE
@@ -737,6 +834,7 @@ contains
     real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
     real*8,dimension(1:ListLength)::DY_xSec_BINLESS_List
 
+    call TMDF_ResetCounters()
     call xSec_DY_List_BINLESS(DY_xSec_BINLESS_List,process,s,qT,Q,y,includeCuts,CutParameters)
   
   end function DY_xSec_BINLESS_List
@@ -757,6 +855,7 @@ contains
     real*8,intent(in),dimension(1:4)::Cuts			!(ymin,yMax,W2min,W2max)
     real*8::SIDIS_xSec_Single
     
+    call TMDF_ResetCounters()
     call xSec_SIDIS(SIDIS_xSec_Single,process,s,pT,z,x,Q,doCut,Cuts)
   
   end function SIDIS_xSec_Single
@@ -773,6 +872,7 @@ contains
     real*8,intent(in),dimension(1:2)::masses			!(mTARGET,mPRODUCT)
     real*8::SIDIS_xSec_Single_withMasses
     
+    call TMDF_ResetCounters()
     call xSec_SIDIS(SIDIS_xSec_Single_withMasses,process,s,pT,z,x,Q,doCut,Cuts,masses)
   
   end function SIDIS_xSec_Single_withMasses
@@ -790,6 +890,7 @@ contains
     real*8,intent(in),dimension(:,:)::masses			!(mTARGET,mPRODUCT)
     real*8,dimension(1:ListLength)::SIDIS_xSec_List
     
+    call TMDF_ResetCounters()
     call xSec_SIDIS_List_forharpy(SIDIS_xSec_List,process,s,pT,z,x,Q,doCut,Cuts,masses)
   
   end function SIDIS_xSec_List
@@ -805,6 +906,7 @@ contains
     real*8,intent(in),dimension(:,:)::masses			!(mTARGET,mPRODUCT)
     real*8,dimension(1:ListLength)::SIDIS_xSec_BINLESS_List
     
+    call TMDF_ResetCounters()
     call xSec_SIDIS_BINLESS_List_forharpy(SIDIS_xSec_BINLESS_List,process,s,pT,z,x,Q,masses)
   
   end function SIDIS_xSec_BINLESS_List

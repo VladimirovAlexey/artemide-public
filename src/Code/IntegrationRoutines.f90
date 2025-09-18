@@ -21,8 +21,8 @@ use aTMDe_numerics
 implicit none
 
 private
-INCLUDE '../Tables/G7K15.f90'
-INCLUDE '../Tables/G20K41.f90'
+INCLUDE 'Tables/G7K15.f90'
+INCLUDE 'Tables/G20K41.f90'
 
 public::Integrate_S5,Integrate_SN,Integrate_SA,Integrate_SA_2D
 public::Integrate_G3,Integrate_G7,Integrate_K15,Integrate_K41,Integrate_GK,Integrate_GK2041

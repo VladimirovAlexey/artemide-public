@@ -8,6 +8,145 @@
 import artemide
 import numpy
 
+
+################## snow-part
+
+def initialize_snowflake(fileName):
+    """
+    Initialization of snowflake
+
+    Parameters
+    ----------
+    fileName : string
+        The path to the constants-file
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    import os.path
+    if os.path.exists(fileName):
+    
+        artemide.harpy.initialize_snowflake(fileName)
+    else:
+        raise FileNotFoundError('INI-file '+fileName+' NOT FOUND')
+
+def UpdateTables(mu0,mu1):
+    """
+    
+
+    Parameters
+    ----------
+    mu0 : float
+        Initial scale of the evolution tables. At this scale the boundary is defined.
+    mu1 : float
+        Max value of scale
+
+    Returns
+    -------
+    None.
+
+    """
+    
+    if isinstance(mu0,float) and isinstance(mu1,float):
+        if(mu0<mu1):
+            artemide.harpy.updateevolutiontable(mu0,mu1)
+        else:
+            raise ValueError("mu0 should be smaller than mu1")
+    else:
+        raise TypeError("mu0 and mu1 Must be float")
+            
+def setNPparameters_tw3(l):
+    """
+    Set NP parameters 
+
+    Parameters
+    ----------
+    l : float array
+        list of NP parameters
+
+    Returns
+    -------
+    None.
+
+    """
+    if isinstance(l,list) or isinstance(l,numpy.ndarray):
+        artemide.harpy.updatenpparameters(numpy.asfortranarray(l))
+    else:
+        raise TypeError()
+        
+def G2List(x,Q,f):
+    if(len(x)!=len(Q) or len(x)!=len(f)):
+        raise ValueError("Lengths of list is different")
+        
+    return artemide.harpy.snowflake_g2_list(numpy.asfortranarray(x),\
+                                       numpy.asfortranarray(Q),\
+                                       numpy.asfortranarray(f),
+                                       len(x))
+        
+def D2List(Q,f):
+    return artemide.harpy.snowflake_d2_list(numpy.asfortranarray(Q),\
+                                       numpy.asfortranarray(f),
+                                       len(Q))
+
+def get_PDF_tw3(x1,x2,Q,f,output="T"):
+    """
+    Return the value of tw3 PDF at (x1,x2,-x1-x2) at Q
+    The option output coincides with the definition in snowflake
+    
+     
+
+    Parameters
+    ----------
+    x1 : float in [-1,1]
+        Bjorken x1
+    x2 : float in [-1,1]
+        Bjorken x2
+    Q : float >0
+        scale
+    f : integer 1,2,3,...
+        flavor
+    output : charcther, optional
+        can be 'T', 'S', or 'C'
+
+    Returns
+    -------
+    float
+
+    """
+    
+    if not isinstance(x1, float):
+        raise ValueError("parameter x1 must be float")
+    if not isinstance(x2, float):
+        raise ValueError("parameter x2 must be float")
+    if (x1<-1.) or (x1>1.):
+        return 0.
+    if (x2<-1.) or (x2>1.):
+        return 0.
+    if (x2+x1<-1.) or (x2+x1>1.):
+        return 0.
+    if not isinstance(Q, float):
+        raise ValueError("parameter Q must be float")
+    if (Q<0.8):
+        raise ValueError("parameter Q must be positive (>0.8)")
+    if not isinstance(f, int):
+        raise ValueError("parameter f must be integer")
+    elif not(f in [-10,-5,-4,-3,-2,-1,0,1,2,3,4,5]):
+        raise ValueError("parameter f must be -10,-5,..,-1,0,1,..,5")
+        
+    if output=="T":
+        return artemide.harpy.gettw3pdf_t(x1,x2,Q,f)
+    elif output=="C":
+        return artemide.harpy.gettw3pdf_c(x1,x2,Q,f)
+    elif output=="S":
+        return artemide.harpy.gettw3pdf_s(x1,x2,Q,f)
+    else:
+        raise ValueError("parameter 'output' must be T, C, or S")
+
+################## artemide-part
+
 def initialize(fileName):
     """
     Initialization of artemide

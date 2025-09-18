@@ -442,7 +442,7 @@ function wglTMDPDF_OPE_tw3_convolution(x,b,h,addGluon)
     !!!! test for boundaries is done in wglTMDPDF_lowScale5 (on the enty to this procedure)
 
     !!!! case NA
-    if(orderMain==-50) then
+    if(orderMainTW3==-50) then
         if(gluon) then
             wglTMDPDF_OPE_tw3_convolution=1._dp
         else

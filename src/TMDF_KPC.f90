@@ -303,8 +303,8 @@ function KPC_DYconv(Q2,qT_in,x1,x2,mu,proc1)
 !          open(unit=10,file="out1.txt",action="write",status="new")
 !      end if
 
-    !KPC_DYconv=Integrate_GK(Integrand_forTheta,0._dp,pi,toleranceINT)
-    KPC_DYconv=Integrate_GK(Integrand_forAlpha,0._dp,piHalf,toleranceINT)
+    KPC_DYconv=Integrate_GK(Integrand_forTheta,0._dp,pi,toleranceINT)
+    !KPC_DYconv=Integrate_GK(Integrand_forAlpha,0._dp,piHalf,toleranceINT)
 
      !close(10)
 
@@ -448,12 +448,16 @@ function KPC_SIDISconv(Q2, qT_in, x1, z1 ,mu, proc1)
         qT = qT_in
     end if
 
+    !write(*,*) "---->",Q2,qT,x1,z1
+
     LocalCounter = 0
 
-    tau2 = Q2 + qT**2
+    tau2 = Q2 - qT**2
     dT = qT**2/tau2
 
-    KPC_SIDISconv = Integrate_GK(Integrand_forDeltat2, 0._dp, 1._dp, toleranceINT)
+    !KPC_SIDISconv = Integrate_GK(Integrand_forDeltat2, 0._dp, 1._dp, toleranceINT)
+
+    KPC_SIDISconv = Integrate_GK(Integrand_forDelta_th, -1._dp, 1._dp, toleranceINT)
 
 contains
 
@@ -461,13 +465,42 @@ contains
 function Integrand_forDeltat2(Deltat)
     real(dp) :: Integrand_forDeltat2
     real(dp), intent(in) :: Deltat
-    !real(dp) :: Deltat
 
-    !Deltat = sqrt(Deltat2)
     Integrand_forDeltat2 = INT_overTHETA_SIDIS(Q2, tau2, dT, x1, z1, mu, proc1, Deltat)
-!         write(*,"('{',F16.12,',',F16.8,'},')") Deltat2,Integrand_forDeltat2
+    !write(*,"('{',F16.12,',',F16.8,'},')") Deltat,Integrand_forDeltat2
 
 end function Integrand_forDeltat2
+
+!!! Integral over Delta with a special change of variable that resolves the peak.
+!!! ATTENTION!! It is assumed that the peak is at delta=qT/Q. Ig it moves away the integrand resolve another region.
+!!! The change of variables is
+!!! omega= arctan[a (delta-d)/(delta(1-2d)+d)]/arctan[a] where d is the position of the peak and a is assumed width of the peak
+!!! omega in [-1,1] with omega=0 <--> delta=d
+function Integrand_forDelta_th(omega)
+    real(dp) :: Integrand_forDelta_th
+    real(dp), intent(in) :: omega
+    real(dp) :: d,a,delta,atan_a,tan_o,jacobian
+
+    d=qT/Sqrt(Q2)
+    a=1._dp/d
+    atan_a=atan(a)
+    tan_o=tan(omega*atan_a)
+
+    !!!! expression for delta as function of omega
+    delta=d*(a+tan_o)/(a+(2*d-1)*tan_o)
+    !!!
+    jacobian=2*a*(1-d)*d*atan_a*(1+tan_o**2)/(a+(2*d-1)*tan_o)**2
+
+    if(ISNAN(delta)) then
+    write(*,*) "---->",d,a,atan_a,tan_o,delta,jacobian
+
+    end if
+
+    !Deltat = sqrt(Deltat2)
+    Integrand_forDelta_th = jacobian*INT_overTHETA_SIDIS(Q2, tau2, dT, x1, z1, mu, proc1, delta)
+    !write(*,"('{',F16.12,',',F16.8,'},')") Deltat,Integrand_forDeltat2
+
+end function Integrand_forDelta_th
 
 end function KPC_SIDISconv
 
@@ -477,7 +510,7 @@ function INT_overTHETA_SIDIS(Q2, tau2, dT, x1, z1, mu, proc1, Deltat)
     integer, intent(in), dimension(1:3) :: proc1
     real(dp) :: INT_overTHETA_SIDIS
 
-    INT_overTHETA_SIDIS=Integrate_GK(Integrand_forTHETA_SIDIS, 0._dp, pix2, toleranceINT)
+    INT_overTHETA_SIDIS=2*Integrate_GK(Integrand_forTHETA_SIDIS, 0.d0, pi, toleranceINT)
 
 contains
 
@@ -485,7 +518,7 @@ contains
 function Integrand_forTHETA_SIDIS(theta)
     real(dp) :: Integrand_forTHETA_SIDIS
     real(dp), intent(in) :: theta
-    real(dp) :: S, Lam, xi, zeta, K, kh, cosT
+    real(dp) :: S, Lam, xi, zeta, K, kh, cosT,RRR
 
     cosT = cos(theta)
 
@@ -505,9 +538,9 @@ function Integrand_forTHETA_SIDIS(theta)
     if(kh < toleranceGEN) kh = toleranceGEN
 
     LocalCounter = LocalCounter + 1
-
+    RRR=TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
     Integrand_forTHETA_SIDIS = 2*(1-x1)*zeta*(1+dT)/(x1**2*sqrt(Lam))*Deltat&
-    *SIDIS_KERNEL(Q2,tau2,dT*tau2,S,Lam,proc1(3))*TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
+    *SIDIS_KERNEL(Q2,tau2,dT*tau2,S,Lam,proc1(3))*RRR
 
 !     write(*,*) "--------->>>", Q2, tau2, dT, x1, z1
 !     write(*,*) "Deltat,cosT -->>>", Deltat,cosT
@@ -518,6 +551,10 @@ function Integrand_forTHETA_SIDIS(theta)
 !     write(*,*) "2--->", SIDIS_KERNEL(Q2,tau2,dT*tau2,S,Lam,proc1(3))
 !     write(*,*) TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
 !     stop
+
+    !write(44,*) Deltat,theta,Integrand_forTHETA_SIDIS
+    !write(44,*) Deltat,theta,TMD_pair(Q2,xi,zeta,K,kh,mu,proc1)
+
 
 end function Integrand_forTHETA_SIDIS
 
