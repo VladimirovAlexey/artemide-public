@@ -12,10 +12,10 @@
  
 *A   : ---- Global I/O ----
 *p1  : Input file Version (used to check version compatibility)
-          35
+          39
 *p2  : Output level (0 = no output except critical, 1 = + WARNINGS, 2 = + info,  3 = + details)
            2
-*p3  : Message trigger (the number of continuous non-critical warning before stop showing them)
+*p3  : Message trigger (the number of continious non-critical warning before stop showing them)
            6
  
 *B   : ---- Universal physic parameters ----
@@ -377,6 +377,12 @@
    30.0000000
 *p5  : Minimal value of qT (lower values are fixed to this number)
    0.0001
+*p6  : Attempt to evaluate sequences of qT-bins in a single run by default
+   F
+*p7  : Order of qT-interpolation in the partitioning
+   10
+*p8  : Maximum range of qT to evaluate in a single sequence (in GeV)
+   15.0
 
 *C   : ---- Definition of LP TMD factorization ----
 *p1  : Use the exact LP values of x1 and x2 (include qT/Q correction)
@@ -409,6 +415,12 @@
            6
 *p4  : Minimal value of pT (lower values are fixed to this number)
    0.0001
+*p5  : Attempt to evaluate sequences of pT-bins in a single run by default
+   F
+*p6  : Order of pT-interpolation in the partitioning
+   10
+*p7  : Maximum range of QT=(pT/z) to evaluate in a single sequence (in GeV)')")
+   18.0
 
 *C   : ---- Definition of LP TMD factorization ----
 *p1  : Account induced transverse momentum corrections
@@ -441,7 +453,7 @@
 *p1  : Order of coefficient function
  NLO
 *p2  : Prepare grid
- F
+ T
 *p3  : run the test of the grid (takes some time)
  F
 
@@ -525,7 +537,19 @@
        10000
 
 *E   : ---- (OPE) Parameters of grid ----
- 
+*p1  : Number of subgrids in X (required to read the next line)
+   2
+*p2  : Intervals for subgrids in X (must include 1., as the last point)
+0.01  0.5  1.
+*p3  : Number of nodes in the X-subgrid
+   16
+*p4  : Number of subgrids in B (required to read the next line)
+   5
+*p5  : Intervals for subgrids in B (below and above ultimate points the value is frozen)
+0.00001  0.01  0.2  2.  8.  25.
+*p6  : Number of nodes in the B-subgrid
+   16
+   
 *F   : ---- Transformation to KT-space ----
 *p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
    1.0000000000000000E-004
@@ -625,7 +649,7 @@
 # ----                         PARAMETERS OF BoerMuldersTMDPDF          -----
 # ---------------------------------------------------------------------------
 *14  :
-*p1  : initialize SiversTMDPDF module
+*p1  : initialize BoerMuldersTMDPDF module
  F
 
 *A   : ---- Main definitions ----
@@ -826,3 +850,78 @@
 *F   : ---- Transform and grid in KT-space ----
 *p1  : Prepare grid
  F
+ 
+ # --------------------------------------------------------------------------
+# ----                         PARAMETERS OF CollinsTMDPDFF             -----
+# ---------------------------------------------------------------------------
+*18  :
+*p1  : initialize CollinsTMDFF module
+ F
+
+*A   : ---- Main definitions ----
+*p1  : Include gluon TMDPDF
+ F
+*p2  : Number of hadrons (in order starting with 1)
+ 0
+
+*B   : ---- OPE[tw3] main definitions ----
+*p1  : Order of coefficient function
+ NA
+*p2  : Prepare grid
+ F
+*p3  : run the test of the grid (takes some time)
+ F
+
+*C   : ---- Parameters of NP model ----
+*p1  : Length of lambdaNP
+           1
+*p2  : Absolute maximum b (for larger b, TMD=0)
+   100.00000000000000
+
+*D   : ---- Numerical evaluation parameters ----
+*p1  : Tolerance (relative tolerance of convolution integral)
+   9.9999999999999995E-007
+*p2  : Tolerance general (used for various comparisons)
+   9.9999999999999995E-007
+*p3  : Maximum number of iterations (for adaptive integration)
+       10000
+       
+*E   : ---- (OPE) Parameters of grid ----
+ 
+*F   : ---- Transform and grid in KT-space ----
+*p1  : Prepare grid
+ T
+*p2  : run the test of the grid (takes some time)
+ F
+*p3  : Number of subgrids in X (required to read the next line)
+   4
+*p4  : Intervals for subgrids in X (must include 1., as the last point)
+0.00001  0.001  0.1  0.7  1.
+*p5  : Number of nodes in the X-subgrid
+   16
+*p6  : Number of subgrids in KT (required to read the next line)
+   5
+*p7  : Intervals for subgrids in KT (below and above ultimate points the value is frozen)
+0.01  1.0  5.  15. 50. 200.
+*p8  : Number of nodes in the KT-subgrid
+   16
+*p9  : Minimal Q in the grid
+   1.0000000000000
+*p10 : Maximal Q in the grid
+   200.0000000000000
+*p11 : Number of nodes in the Q-grid
+   40
+*p12 : Number of subgrids in B [for Hankel transform] (required to read the next line)
+   5
+*p13 : Intervals for subgrids in B [for Hankel transform]
+0.00001  0.01  0.2  2.  8.  25.
+*p14 : Number of nodes in the B-subgrid [for Hankel transform]
+   16
+   
+*G   : ---- Computation of Transverse Momentum Moments (TMM) ----
+*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)
+   1.0000000000000000E-004
+*p2  : Ogata quadrature integration step
+   1.0000000000000000E-003 
+*p3  : Minimum value of mu [GeV] (below that value the computation is terminated)
+   0.8

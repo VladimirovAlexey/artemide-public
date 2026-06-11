@@ -10,10 +10,10 @@ aTMDeHOME       = $(PWD)
 FCompilator=gfortran
 
 #PUT HERE extra flags for compilator (put "space" if not flags requared)
-Fflags= -O3 -cpp -march=native  -fforce-addr -fstrength-reduce -fcaller-saves -funroll-loops -fopenmp
+Fflags= -O3 -cpp -mavx2  -fforce-addr -fstrength-reduce -fcaller-saves -funroll-loops -fopenmp
 # This should be as string because it is how f2py eats it.
-FflagsHARPY= '-O3 -cpp -march=native  -fforce-addr -fstrength-reduce -fcaller-saves -funroll-loops -fopenmp'
-#### Fir debuging
+FflagsHARPY= '-O3 -cpp -mavx2  -fforce-addr -fstrength-reduce -fcaller-saves -funroll-loops -fopenmp'
+#### For debuging
 #Fflags=  -O3 -cpp -march=native  -fforce-addr -fstrength-reduce -fcaller-saves -funroll-loops -Wall -fopenmp
 #path to fortran compilator (needed for f2py)
 #Fpath=/usr/bin/f95
@@ -41,10 +41,16 @@ HDIR		= $(aTMDeHOME)/harpy
 
 aTMDeFILES = \
 $(SOURCEDIR)/Code/aTMDe_Numerics.f90 \
-$(SOURCEDIR)/Code/IO_functions.f90 \
-$(SOURCEDIR)/Code/IntegrationRoutines.f90 \
-$(SOURCEDIR)/Code/InverseMatrix.f90 \
+$(SOURCEDIR)/Code/aTMDe_interfaces.f90 \
+$(SOURCEDIR)/Code/aTMDe_IO.f90 \
+$(SOURCEDIR)/Code/aTMDe_math.f90 \
+$(SOURCEDIR)/Code/aTMDe_Integration.f90 \
+$(SOURCEDIR)/Code/aTMDe_invMatrix.f90 \
+$(SOURCEDIR)/Code/aTMDe_Ogata.f90 \
+$(SOURCEDIR)/Code/aTMDe_optGrid.f90 \
+$(SOURCEDIR)/Code/aTMDe_xGrid.f90 \
 $(SOURCEDIR)/Code/LHA/LHA_alpha.f90 \
+$(SOURCEDIR)/Code/LHA/LHA_PDF.f90 \
 $(SOURCEDIR)/LeptonCutsDY.f90 \
 $(SOURCEDIR)/aTMDe_setup.f90 \
 $(SOURCEDIR)/QCDinput.f90 \
@@ -73,6 +79,9 @@ $(SOURCEDIR)/wglTMDPDF.f90 \
 $(SOURCEDIR)/Model/BoerMuldersTMDPDF_model.f90 \
 $(SOURCEDIR)/BoerMuldersTMDPDF_OPE.f90 \
 $(SOURCEDIR)/BoerMuldersTMDPDF.f90 \
+$(SOURCEDIR)/Model/CollinsTMDFF_model.f90 \
+$(SOURCEDIR)/CollinsTMDFF_OPE.f90 \
+$(SOURCEDIR)/CollinsTMDFF.f90 \
 $(SOURCEDIR)/eeTMDFF.f90 \
 $(SOURCEDIR)/Model/eeTMDFF_model.f90 \
 $(SOURCEDIR)/TMDF.f90 \
@@ -86,7 +95,6 @@ $(SOURCEDIR)/Code/Twist2/Twist2Convolution.f90 \
 $(SOURCEDIR)/Code/Twist2/largeX_ADs.f90 \
 $(SOURCEDIR)/Code/Twist2/Twist2_WW.f90 \
 $(SOURCEDIR)/Code/Twist2/Twist2LargeX.f90 \
-$(SOURCEDIR)/Code/Twist2/Twist2_ChGrid.f90 \
 $(SOURCEDIR)/Code/Twist2/Twist2-AS-term.f90
 
 Twist3Files=\
@@ -94,8 +102,6 @@ $(SOURCEDIR)/Code/Twist3/placeHolder.f90
 
 KTspaceFiles=\
 $(SOURCEDIR)/Code/KTspace/Fourier_Levin.f90\
-$(SOURCEDIR)/Code/KTspace/Fourier.f90\
-$(SOURCEDIR)/Code/KTspace/Moment.f90\
 $(SOURCEDIR)/Code/KTspace/grid_inKT.f90
 
 TMD_ADFiles=\
@@ -120,6 +126,12 @@ $(SOURCEDIR)/Code/lpTMDPDF/coeffFunc.f90
 SiversTMDPDFFiles=\
 $(SOURCEDIR)/Code/SiversTMDPDF/placeHolder.f90
 
+BoerMuldersTMDPDFFiles=\
+$(SOURCEDIR)/Code/BoerMuldersTMDPDF/placeHolder.f90
+
+CollinsTMDFFFiles=\
+$(SOURCEDIR)/Code/CollinsTMDFF/placeHolder.f90
+
 wgtTMDPDFFiles=\
 $(SOURCEDIR)/Code/wgtTMDPDF/coeffFunc.f90 \
 $(SOURCEDIR)/Code/wgtTMDPDF/coeffFunc_largeX.f90
@@ -129,7 +141,7 @@ $(SOURCEDIR)/Code/wglTMDPDF/coeffFunc.f90 \
 $(SOURCEDIR)/Code/wglTMDPDF/coeffFunc_largeX.f90
 
 TMDFFiles=\
-$(SOURCEDIR)/Code/TMDF/Fourier_byOgata.f90
+$(SOURCEDIR)/Code/TMDF/placeHolder.f90
 
 TMDKPCFiles=\
 $(SOURCEDIR)/Code/TMDF_KPC/TMDpairs.f90\
@@ -140,7 +152,8 @@ aTMDeSetupFiles=\
 $(SOURCEDIR)/Code/aTMDe_setup/placeHolder.f90
 
 TMDXFiles=\
-$(SOURCEDIR)/Code/TMDX/DYcoeff-func.f90
+$(SOURCEDIR)/Code/TMDX/DYcoeff-func.f90\
+$(SOURCEDIR)/Code/aTMDe_xGrid.f90
 
 aTMDeMODEL = \
 $(SOURCEDIR)/Model/TMDR_model.f90 \
@@ -149,6 +162,7 @@ $(SOURCEDIR)/Model/uTMDFF_model.f90 \
 $(SOURCEDIR)/Model/lpTMDPDF_model.f90 \
 $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 \
 $(SOURCEDIR)/Model/BoerMuldersTMDPDF_model.f90 \
+$(SOURCEDIR)/Model/CollinsTMDFF_model.f90 \
 $(SOURCEDIR)/Model/wgtTMDPDF_model.f90
 
 
@@ -170,12 +184,18 @@ $(SNOWDIR)/ExpressionsForD2.f90
 
 aTMDeOBJ = \
 $(OBJ)/aTMDe_Numerics.o \
-$(OBJ)/IO_functions.o \
-$(OBJ)/IntegrationRoutines.o \
-$(OBJ)/InverseMatrix.o \
+$(OBJ)/aTMDe_interfaces.o \
+$(OBJ)/aTMDe_IO.o \
+$(OBJ)/aTMDe_math.o \
+$(OBJ)/aTMDe_Integration.o \
+$(OBJ)/aTMDe_Ogata.o \
+$(OBJ)/aTMDe_optGrid.o \
+$(OBJ)/aTMDe_xGrid.o \
+$(OBJ)/aTMDe_invMatrix.o \
 $(OBJ)/LeptonCutsDY.o \
 $(OBJ)/aTMDe_setup.o \
 $(OBJ)/LHA_alpha.o \
+$(OBJ)/LHA_PDF.o \
 $(OBJ)/QCDinput.o \
 $(OBJ)/EWinput.o\
 $(OBJ)/TMD_AD.o\
@@ -202,6 +222,9 @@ $(OBJ)/wglTMDPDF.o \
 $(OBJ)/BoerMuldersTMDPDF_model.o \
 $(OBJ)/BoerMuldersTMDPDF_OPE.o \
 $(OBJ)/BoerMuldersTMDPDF.o \
+$(OBJ)/CollinsTMDFF_model.o \
+$(OBJ)/CollinsTMDFF_OPE.o \
+$(OBJ)/CollinsTMDFF.o \
 $(OBJ)/eeTMDFF_model.o \
 $(OBJ)/eeTMDFF.o \
 $(OBJ)/TMDF.o \
@@ -221,9 +244,15 @@ $(OBJ)/SnowFlake.o \
 #these are utility object needed to compale any artemide module
 aTMDeUTILITY = \
 $(OBJ)/aTMDe_Numerics.o \
-$(OBJ)/IO_functions.o \
-$(OBJ)/IntegrationRoutines.o\
-$(OBJ)/InverseMatrix.o
+$(OBJ)/aTMDe_interfaces.o \
+$(OBJ)/aTMDe_IO.o \
+$(OBJ)/aTMDe_math.o\
+$(OBJ)/aTMDe_Integration.o\
+$(OBJ)/aTMDe_Ogata.o\
+$(OBJ)/aTMDe_optGrid.o\
+$(OBJ)/aTMDe_invMatrix.o
+#$(OBJ)/aTMDe_xGrid.o
+
 
 
 ################################################################### COMPILATION OF ARTEMIDE ####################################
@@ -292,18 +321,43 @@ $(OBJ)/aTMDe_Numerics.o: $(SOURCEDIR)/Code/aTMDe_Numerics.f90
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/IO_functions.o: $(SOURCEDIR)/Code/IO_functions.f90 $(OBJ)/aTMDe_Numerics.o
-	$(FC) -c $(SOURCEDIR)/Code/IO_functions.f90 -I$(MOD)
+$(OBJ)/aTMDe_interfaces.o: $(SOURCEDIR)/Code/aTMDe_interfaces.f90 $(OBJ)/aTMDe_Numerics.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_interfaces.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/IntegrationRoutines.o: $(SOURCEDIR)/Code/IntegrationRoutines.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/IO_functions.o
-	$(FC) -c $(SOURCEDIR)/Code/IntegrationRoutines.f90 -I$(MOD)
+$(OBJ)/aTMDe_IO.o: $(SOURCEDIR)/Code/aTMDe_IO.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_IO.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/InverseMatrix.o: $(SOURCEDIR)/Code/InverseMatrix.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/IO_functions.o
-	$(FC) -c $(SOURCEDIR)/Code/InverseMatrix.f90 -I$(MOD)
+$(OBJ)/aTMDe_math.o: $(SOURCEDIR)/Code/aTMDe_math.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o $(OBJ)/aTMDe_IO.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_math.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/aTMDe_Integration.o: $(SOURCEDIR)/Code/aTMDe_Integration.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o $(OBJ)/aTMDe_IO.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_Integration.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/aTMDe_Ogata.o: $(SOURCEDIR)/Code/aTMDe_Ogata.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o $(OBJ)/aTMDe_IO.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_Ogata.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/aTMDe_optGrid.o: $(SOURCEDIR)/Code/aTMDe_optGrid.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o $(OBJ)/aTMDe_IO.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_optGrid.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/aTMDe_xGrid.o: $(SOURCEDIR)/Code/aTMDe_xGrid.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_interfaces.o $(OBJ)/aTMDe_IO.o $(OBJ)/EWinput.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_xGrid.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/aTMDe_invMatrix.o: $(SOURCEDIR)/Code/aTMDe_invMatrix.f90 $(OBJ)/aTMDe_Numerics.o $(OBJ)/aTMDe_IO.o
+	$(FC) -c $(SOURCEDIR)/Code/aTMDe_invMatrix.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
@@ -318,7 +372,13 @@ $(OBJ)/LHA_alpha.o: $(SOURCEDIR)/Code/LHA/LHA_alpha.f90 $(aTMDeUTILITY)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/QCDinput.o: $(SOURCEDIR)/QCDinput.f90 $(OBJ)/LHA_alpha.o $(aTMDeUTILITY) $(SOURCEDIR)/Code/LHA/LHA_PDF.f90
+$(OBJ)/LHA_PDF.o: $(SOURCEDIR)/Code/LHA/LHA_PDF.f90 $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Code/LHA/LHA_PDF.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/QCDinput.o: $(SOURCEDIR)/QCDinput.f90 $(OBJ)/LHA_alpha.o $(OBJ)/LHA_PDF.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/QCDinput.f90 -I$(MOD) $(FOPT)
 	mv *.o $(OBJ)
@@ -402,7 +462,7 @@ $(OBJ)/lpTMDPDF.o: $(SOURCEDIR)/lpTMDPDF.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Mode
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/SiversTMDPDF_model.o: $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(aTMDeUTILITY)
+$(OBJ)/SiversTMDPDF_model.o: $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(OBJ)/SnowFlake_Model.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/Model/SiversTMDPDF_model.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -420,7 +480,7 @@ $(OBJ)/SiversTMDPDF.o: $(SOURCEDIR)/SiversTMDPDF.f90 $(OBJ)/QCDinput.o $(OBJ)/TM
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/wgtTMDPDF_model.o: $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(aTMDeUTILITY)
+$(OBJ)/wgtTMDPDF_model.o: $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(OBJ)/SnowFlake_Model.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/Model/wgtTMDPDF_model.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -456,7 +516,7 @@ $(OBJ)/wglTMDPDF.o: $(SOURCEDIR)/wglTMDPDF.f90 $(OBJ)/QCDinput.o $(OBJ)/TMDR.o $
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/BoerMuldersTMDPDF_model.o: $(SOURCEDIR)/Model/BoerMuldersTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(aTMDeUTILITY)
+$(OBJ)/BoerMuldersTMDPDF_model.o: $(SOURCEDIR)/Model/BoerMuldersTMDPDF_model.f90 $(OBJ)/SnowFlake.o $(OBJ)/SnowFlake_Model.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/Model/BoerMuldersTMDPDF_model.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -474,6 +534,24 @@ $(OBJ)/BoerMuldersTMDPDF.o: $(SOURCEDIR)/BoerMuldersTMDPDF.f90 $(OBJ)/QCDinput.o
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
+$(OBJ)/CollinsTMDFF_model.o: $(SOURCEDIR)/Model/CollinsTMDFF_model.f90 $(OBJ)/SnowFlake.o $(OBJ)/SnowFlake_Model.o $(aTMDeUTILITY)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/Model/CollinsTMDFF_model.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/CollinsTMDFF_OPE.o: $(SOURCEDIR)/CollinsTMDFF_OPE.f90 $(OBJ)/QCDinput.o $(SOURCEDIR)/Model/CollinsTMDFF_model.f90 $(Twist3Files) $(aTMDeUTILITY) $(CollinsTMDFFFiles)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/CollinsTMDFF_OPE.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
+$(OBJ)/CollinsTMDFF.o: $(SOURCEDIR)/CollinsTMDFF.f90 $(OBJ)/QCDinput.o $(OBJ)/TMDR.o $(SOURCEDIR)/Model/CollinsTMDFF_model.f90 $(SOURCEDIR)/CollinsTMDFF_OPE.f90 $(KTspaceFiles) $(aTMDeUTILITY) $(CollinsTMDFFFiles)
+#	mkdir -p obj
+	$(FC) -c $(SOURCEDIR)/CollinsTMDFF.f90 -I$(MOD)
+	mv *.o $(OBJ)
+	mv *.mod $(MOD)
+
 $(OBJ)/eeTMDFF_model.o: $(SOURCEDIR)/Model/eeTMDFF_model.f90 $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/Model/eeTMDFF_model.f90 -I$(MOD)
@@ -486,13 +564,13 @@ $(OBJ)/eeTMDFF.o: $(SOURCEDIR)/eeTMDFF.f90 $(OBJ)/QCDinput.o $(OBJ)/TMDR.o $(SOU
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDF.o: $(SOURCEDIR)/TMDF.f90 $(TMDFFiles) $(OBJ)/EWinput.o $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(OBJ)/wgtTMDPDF.o $(OBJ)/BoerMuldersTMDPDF.o $(OBJ)/wglTMDPDF.o $(OBJ)/eeTMDFF.o $(aTMDeUTILITY)
+$(OBJ)/TMDF.o: $(SOURCEDIR)/TMDF.f90 $(TMDFFiles) $(OBJ)/EWinput.o $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(OBJ)/wgtTMDPDF.o $(OBJ)/BoerMuldersTMDPDF.o $(OBJ)/CollinsTMDFF.o $(OBJ)/wglTMDPDF.o $(OBJ)/eeTMDFF.o $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDF.f90 -I$(MOD)
 	mv *.o $(OBJ)
 	mv *.mod $(MOD)
 
-$(OBJ)/TMDF_KPC.o: $(SOURCEDIR)/TMDF_KPC.f90 $(OBJ)/EWinput.o $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(OBJ)/wgtTMDPDF.o $(OBJ)/BoerMuldersTMDPDF.o $(OBJ)/wglTMDPDF.o $(OBJ)/eeTMDFF.o $(TMDKPCFiles) $(aTMDeUTILITY)
+$(OBJ)/TMDF_KPC.o: $(SOURCEDIR)/TMDF_KPC.f90 $(OBJ)/EWinput.o $(OBJ)/uTMDPDF.o $(OBJ)/uTMDFF.o $(OBJ)/lpTMDPDF.o $(OBJ)/SiversTMDPDF.o $(OBJ)/wgtTMDPDF.o $(OBJ)/BoerMuldersTMDPDF.o $(OBJ)/CollinsTMDFF.o $(OBJ)/wglTMDPDF.o $(OBJ)/eeTMDFF.o $(TMDKPCFiles) $(aTMDeUTILITY)
 #	mkdir -p obj
 	$(FC) -c $(SOURCEDIR)/TMDF_KPC.f90 -I$(MOD)
 	mv *.o $(OBJ)
@@ -547,7 +625,7 @@ test:
 ################################################ update constants part ##############################
 
 $(BIN)/update-const: $(aTMDeHOME)/Prog/update-constants-file.f90 $(OBJ)/aTMDe_setup.o $(aTMDeUTILITY)
-	$(FC) $(aTMDeHOME)/Prog/update-constants-file.f90 $(aTMDeOBJ) $(FOPT) -I$(MOD) -o update-const
+	$(FC) $(aTMDeHOME)/Prog/update-constants-file.f90 $(aTMDeOBJ) $(snowOBJ) $(FOPT) -I$(MOD) -o update-const
 	mv update-const $(BIN)/update-const
 	
 ################################################  HARPY PART  #######################################
