@@ -163,7 +163,8 @@ function Dresum(mu,bT,f)
         commulant=commulant+((alpha/(1_dp-X))**n)*inter
         end do
         
-        Dresum=-GammaCusp_G(0,Nf)/betaQCD(0,Nf)*commulant
+        !!!! thanks to Patricia Gutierrez for spoting error in this formula!!
+        Dresum=-GammaCusp_G(0,Nf)/betaQCD(0,Nf)/2_dp*commulant
     else !!! quark case
         commulant=lX
         do n=1,orderDresum

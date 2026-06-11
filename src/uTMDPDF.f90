@@ -6,6 +6,7 @@
 !	if you use this module please, quote 1706.01473
 !
 !	18.08.2023  Implementation in ver.3.0
+!	13.10.2025  Update of class system
 !
 !				A.Vladimirov (18.08.2023)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -20,7 +21,8 @@ end module gridInKT_uTMDPDF
 
 module uTMDPDF
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
+use aTMDe_Ogata
 use QCDinput
 use Fourier_Levin_uTMDPDF
 use gridInKT_uTMDPDF
@@ -34,7 +36,7 @@ implicit none
 private 
 
 !Current version of module
-character (len=5),parameter :: version="v3.00"
+character (len=5),parameter :: version="v3.03"
 character (len=7),parameter :: moduleName="uTMDPDF"
 !Last appropriate version of constants-file
 integer,parameter::inputver=30
@@ -47,16 +49,14 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WRNING mesagges. In order not to spam too much
-integer::messageTrigger=6
+
+type(Warning_OBJ)::Warning_Handler
 
 !!! the length and array of NP parameters
 integer::lambdaNPlength
 real(dp),dimension(:),allocatable::lambdaNP
 real(dp)::BMAX_ABS=100._dp !!! for large values of b returns 0
 real(dp)::toleranceGEN !!! tolerance general
-
-integer :: messageCounter
 
 !!!------------------------------ General parameters----------------------------------------------
 logical::includeGluon=.false.   !! gluons included/non-included
@@ -67,16 +67,7 @@ real(dp)::TMDmass=1._dp         !! mass parameter used as mass-scale
 
 integer,parameter::TMDtypeN=0 !!!!! this is the order of Bessel-transform (IT IS STRICT FOR TMD)
 
-!----Ogata Tables---
-integer,parameter::Nmax=1000
-INCLUDE 'Code/Tables/BesselZero1000.f90'
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
-!!!!! It helps to convergen integrals, since h(optimal) ~ qT
-integer,parameter::hSegmentationNumber=7
-real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.0001d0,0.001d0,0.01d0,1d0,2d0,5d0,10d0/)
-real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,10d0,50d0,100d0,200d0/)
+type(OgataIntegrator)::Hankel
 
 !!!------------------------------ Parameters of transform in KT space and KT-grid ------------------------------
 logical::makeGrid_inKT,gridIsReady_inKT
@@ -84,15 +75,6 @@ logical::makeGrid_inKT,gridIsReady_inKT
 !!!------------------------------ Parameters of transform to TMM -------------------------------------------
 
 real(dp)::muTMM_min=0.8_dp  !!!!! minimal mu
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! For TMM this split is the same as for inKT
-
-real(dp)::hOGATA_TMM,toleranceOGATA_TMM
-!!!weights of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww_TMM
-!!!nodes of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb_TMM
 
 !!-----------------------------------------------Public interface---------------------------------------------------
 
@@ -111,9 +93,6 @@ end interface
 
 contains
 
-!INCLUDE 'Code/KTspace/Fourier.f90'
-INCLUDE 'Code/KTspace/Moment.f90'
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 function uTMDPDF_IsInitialized()
@@ -127,7 +106,8 @@ subroutine uTMDPDF_Initialize(file,prefix)
     character(len=*),optional::prefix
     character(len=300)::path
     logical::initRequired
-    integer::FILEver
+    integer::FILEver,messageTrigger
+    real(dp)::hOGATA_TMM,toleranceOGATA_TMM
 
     if(started) return
 
@@ -171,7 +151,7 @@ subroutine uTMDPDF_Initialize(file,prefix)
         write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
         write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
         CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     call MoveTO(51,'*4   ')
@@ -205,7 +185,7 @@ subroutine uTMDPDF_Initialize(file,prefix)
         write(*,*) ErrorString(&
         'Initialize: number of non-perturbative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
             CLOSE (51, STATUS='KEEP')
-        stop
+        ERROR STOP
     end if
 
     !!!!! ---- parameters of numerical evaluation
@@ -229,6 +209,7 @@ subroutine uTMDPDF_Initialize(file,prefix)
 
     CLOSE (51, STATUS='KEEP') 
 
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
 
     if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
     if(outputLevel>2 .and. .not.includeGluon) write(*,'(A)') ' ... gluons are not included'
@@ -248,7 +229,8 @@ subroutine uTMDPDF_Initialize(file,prefix)
 
     gridIsReady_inKT=.false.
 
-    call PrepareTablesTMM()
+    !!!!!! TODO: fix the minimal value of KT
+    Hankel=OgataIntegrator(moduleName,outputLevel,TMDtypeN, toleranceOGATA_TMM,hOGATA_TMM,TMDmass,0.0001d0)
 
     if(.not.TMDR_IsInitialized()) then
         if(outputLevel>2) write(*,*) '.. initializing TMDR (from ',moduleName,')'
@@ -269,7 +251,6 @@ subroutine uTMDPDF_Initialize(file,prefix)
     end if
 
     started=.true.
-    messageCounter=0
 
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.uTMDPDF '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
@@ -300,7 +281,7 @@ end subroutine uTMDPDF_SetScaleVariation
 subroutine uTMDPDF_SetLambdaNP(lambdaIN)
     real(dp),intent(in)::lambdaIN(:)
     integer::ll
-    messageCounter=0
+    call Warning_Handler%Reset()
 
     ll=size(lambdaIN)
     if(ll/=lambdaNPlength) then
@@ -399,7 +380,7 @@ function uTMDPDF_lowScale5(x,bT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         uTMDPDF_lowScale5=0._dp
         return
      else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -409,11 +390,9 @@ function uTMDPDF_lowScale5(x,bT,hadron)
         uTMDPDF_lowScale5=0._dp
         return
     else if(x<1d-12) then
-        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
     else if(bT<0d0) then
-        write(*,*) ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
     end if
 
     uTMDPDF_lowScale5=uTMDPDF_OPE_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)
@@ -434,7 +413,7 @@ function TMD_opt(x,bT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         TMD_opt=0._dp
         return
      else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -444,11 +423,9 @@ function TMD_opt(x,bT,hadron)
         TMD_opt=0._dp
         return
     else if(x<toleranceGEN) then
-        write(*,*) ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called x<0. x='//numToStr(x)//' . Evaluation STOP',moduleName)
     else if(bT<0d0) then
-        write(*,*) ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
-        stop
+        ERROR STOP ErrorString('Called b<0. b='//numToStr(bT)//' . Evaluation STOP',moduleName)
     end if
 
     TMD_opt=uTMDPDF_OPE_convolution(x,bT,abs(hadron))*FNP(x,bT,abs(hadron),lambdaNP)
@@ -499,7 +476,7 @@ function TMD_opt_inKT(x,kT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         TMD_opt_inKT=0._dp
         return
      else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -645,7 +622,12 @@ function uTMDPDF_TMM_G(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    uTMDPDF_TMM_G=Moment_G(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    uTMDPDF_TMM_G=Hankel%Moment_G(F,mu)
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -656,6 +638,12 @@ function uTMDPDF_TMM_G(x,mu,hadron)
     uTMDPDF_TMM_G(4)=0_dp
     uTMDPDF_TMM_G(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function uTMDPDF_TMM_G
 
@@ -665,7 +653,12 @@ function uTMDPDF_TMM_X(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    uTMDPDF_TMM_X=Moment_X(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    uTMDPDF_TMM_X=Hankel%Moment_X(F,mu)
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -676,6 +669,12 @@ function uTMDPDF_TMM_X(x,mu,hadron)
     uTMDPDF_TMM_X(4)=0_dp
     uTMDPDF_TMM_X(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function uTMDPDF_TMM_X
 

@@ -8,15 +8,17 @@
 !    ver 1.2: release (AV, 15.12.2017)
 !    ver 1.32: part of functions migrated to TMDF, rest updated (AV, 16.08.2018)
 !    ver 2.02:                            (AV,16.08.2019)
+!    ver 3.03:                            (AV,14.02.2026)
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDX_SIDIS
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_math
+use aTMDe_IO
 use TMDF
 use TMDF_KPC
 use QCDinput
 use EWinput
-use IntegrationRoutines
+use aTMDe_Integration
 
 implicit none
 private
@@ -27,15 +29,15 @@ private
 
 !Current version of module
 character (len=10),parameter :: moduleName="TMDX-SIDIS"
-character (len=5),parameter :: version="v3.01"
-!Last appropriate verion of constants-file
-integer,parameter::inputver=31
+character (len=5),parameter :: version="v3.03"
+!Last appropriate version of constants-file
+integer,parameter::inputver=39
 
 real(dp) :: toleranceINT=0.0001d0
 real(dp) :: toleranceGEN=0.0000001d0
 
-integer::outputlevel
-integer::messageTrigger
+integer::outputlevel=2
+type(Warning_OBJ)::Warning_Handler
 
 logical::started=.false.
 
@@ -60,9 +62,18 @@ logical:: useKPC !!! use the KPC formula
 integer::NumPTdefault=6
 real(dp)::ptMIN_global=0.00001d0
 
+!!!--------- approximate evaluation of pT-bin integration
+!!! Idea is based on the fact, that cross-section curve is very smooth vs. pT,
+!!! so few-point Chebyshev approximation gives very good result and can be split into bins and integrated exactly
+logical::doPartitioning_byDefault=.false.
+integer::NumChNodes=10
+real(dp)::MaxQT_range_toPartite=18._dp  !!!!! if the range is bigger than this, it is cut
+!!! the matrix of interpolation, and Chebyschev nodes
+real(dp),allocatable,dimension(:,:)::ChInterpolationMatrix
+real(dp),allocatable,dimension(:)::ChNodes
+
 real(dp)::c2_global
 
-integer::messageCounter
 integer::GlobalCounter
 integer::CallCounter
 
@@ -70,7 +81,8 @@ integer::CallCounter
 public::TMDX_SIDIS_ShowStatistic,TMDX_SIDIS_Initialize,&
     TMDX_SIDIS_IsInitialized,TMDX_SIDIS_ResetCounters,TMDX_SIDIS_SetScaleVariation
 
-public::xSec_SIDIS,xSec_SIDIS_BINLESS,xSec_SIDIS_List,xSec_SIDIS_List_forharpy,xSec_SIDIS_BINLESS_List_forharpy
+public::xSec_SIDIS,xSec_SIDIS_BINLESS,xSec_SIDIS_List,xSec_SIDIS_BINLESS_List_forharpy,&
+    Xsec_PTspectrum_Zint_Xint_Qint
 
 
 
@@ -88,7 +100,7 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     character(len=300)::path
     logical::initRequired
     character(len=8)::orderMain
-    integer::FILEver
+    integer::i,j,FILEver,messageTrigger
 
     if(started) return
 
@@ -122,6 +134,13 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     call MoveTO(51,'*p1  ')
     read(51,*) hc2
 
+    !$    if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: parallel evaluation of cross-sections is to be used'
+    !$    call MoveTO(51,'*C   ')
+    !$    call MoveTO(51,'*p1  ')
+    !$    read(51,*) i
+    !$    call OMP_set_num_threads(i)
+    !$    if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: number of threads for parallel evaluation is set to ', i
+
     call MoveTO(51,'*10   ')
     call MoveTO(51,'*p1  ')
     read(51,*) initRequired
@@ -154,7 +173,7 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
             orderH_global=1
     END SELECT
     if(outputLevel>1) write(*,*) '    artemide.TMDX_SIDIS: the used order is ',trim(orderMain)
-    
+
     call MoveTO(51,'*p2   ')
     read(51,*) useKPC
     if(outputLevel>1 .and. useKPC) write(*,*) color('    artemide.TMDX_SIDIS: using TMD factorization with KPC',c_cyan)
@@ -170,6 +189,12 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     read(51,*) NumPTdefault
     call MoveTO(51,'*p4  ')
     read(51,*) ptMIN_global
+    call MoveTO(51,'*p5  ')
+    read(51,*) doPartitioning_byDefault
+    call MoveTO(51,'*p6  ')
+    read(51,*) NumChNodes
+    call MoveTO(51,'*p7  ')
+    read(51,*) MaxQT_range_toPartite
 
 
     !!------------------------------------LP FACTORIZATION
@@ -212,6 +237,8 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
 
     CLOSE (51, STATUS='KEEP')
 
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
+
     if(.not.EWinput_IsInitialized()) then
         if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
         if(present(prefix)) then
@@ -241,12 +268,23 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
       end if
     end if
 
+    !!!! the defintiion of CHebyshev interpolation matrix, which interpolates the
+    NumChNodes = 10
+    allocate(ChInterpolationMatrix(0:NumChNodes,0:NumChNodes),ChNodes(0:NumChNodes))
+    do i=0,NumChNodes
+    ChNodes(i)=cos(i*pi/NumChNodes)
+    do j=0,NumChNodes
+        ChInterpolationMatrix(i,j)=Cos(i*j*pi/NumChNodes)*2/NumChNodes
+        if(i==0 .or. i==NumChNodes) ChInterpolationMatrix(i,j)=ChInterpolationMatrix(i,j)/2
+        if(j==0 .or. j==NumChNodes) ChInterpolationMatrix(i,j)=ChInterpolationMatrix(i,j)/2
+    end do
+    end do
+
 
     c2_global=1d0
 
     GlobalCounter=0
     CallCounter=0
-    messageCounter=0
 
 #if INTEGRATION_MODE==2
     write(*,*)  color('--------------------------------------------------------',c_red)
@@ -257,7 +295,7 @@ subroutine TMDX_SIDIS_Initialize(file,prefix)
     write(*,*)  color('-- INTEGRATION_MODE in TMDX_SIDIS.f90, and recompile  --',c_red)
     write(*,*)  color('--------------------------------------------------------',c_red)
 #endif
-    
+
     started=.true.
     write(*,*)  color('----- arTeMiDe.TMD_SIDIS '//trim(version)//': .... initialized',c_green)
 end subroutine TMDX_SIDIS_Initialize
@@ -266,9 +304,9 @@ subroutine TMDX_SIDIS_ResetCounters()
 if(outputlevel>2) call TMDX_SIDIS_ShowStatistic()
 GlobalCounter=0
 CallCounter=0
-messageCounter=0
+call Warning_Handler%Reset()
 end subroutine TMDX_SIDIS_ResetCounters
-  
+
 
 subroutine TMDX_SIDIS_ShowStatistic()
 
@@ -276,8 +314,8 @@ write(*,'(A,ES12.3)') 'TMDX SIDIS statistics   total calls of point xSec  :  ',R
 write(*,'(A,ES12.3)') '                              total calls of xSecF :  ',Real(CallCounter)
 write(*,'(A,F12.3)')  '                                         avarage M :  ',Real(GlobalCounter)/Real(CallCounter)
 end subroutine TMDX_SIDIS_ShowStatistic
-  
-  
+
+
 !!!!Call this after TMD initializetion but before NP, and X parameters
 subroutine TMDX_SIDIS_SetScaleVariation(c2_in)
 real(dp),intent(in)::c2_in
@@ -296,7 +334,7 @@ end subroutine TMDX_SIDIS_SetScaleVariation
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!! PROCESS DEFINITION !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-  
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!FUNCTIONS FOR OPERATION WITH KINEMATICS!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -353,7 +391,7 @@ end if
 kinematicArray=(/pT,Q,Q2,x,z,y,varepsilon,gamma2,rho2,rhoPEPR2,sM2,M2target,M2product/)
 
 end function kinematicArray
-  
+
 !!! xy(s-M^2)=Q^2
 pure function YfromSXQ2(sM2,x,Q2)
 real(dp),intent(in)::sM2,x,Q2
@@ -412,7 +450,7 @@ z1=var(5)*fac1*fac2
 !if(x1<0.0001d0) write(*,*) '>>>>>>>>>>>>>>>',x1,z1,qT,var
 
 end subroutine CalculateX1Z1qT
-  
+
 !!!! update a given kinematic array with new value of x.
 pure subroutine SetX(x,var)
 real(dp) ,dimension(1:13),intent(inout)::var
@@ -769,7 +807,7 @@ if(useKPC) then
     scaleZeta=var(3)
 
     !!!!! (Q^2,qT,x1,z1,mu,procc)
-    FF=KPC_SIDISconv(var(3),qT,x1,z1,scaleMu*c2_global,process(2:4))
+    FF=KPC_SIDISconv(var(3),qT,x1,z1,var(7),scaleMu*c2_global,process(2:4))
     xSec=PreFactorKPC(var,process,x1,z1,qT)*FF
 
 else !!!! LP formula
@@ -812,7 +850,7 @@ real(dp)::zMin,zMax
 
 !!!!-- check th input z-values
 if(zmax_in > 1d0) then
-    call Warning_Raise('upper limit of z-integration is >1. It is set to 1.',messageCounter,messageTrigger,moduleName)
+    call Warning_Handler%WarningRaise('upper limit of z-integration is >1. It is set to 1.')
     zMax=1d0
   else
     zMax=zMax_in
@@ -890,12 +928,11 @@ else
 end if
 
 if(xmax > 1) then
-  call Warning_Raise('upper limit of x-integration is >1. It is set to 1.',messageCounter,messageTrigger,moduleName)
+  call Warning_Handler%WarningRaise('upper limit of x-integration is >1. It is set to 1.')
   xmax=1d0
 end if
 if(xmin < 0.000001d0) then
-  write(*,*) ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
-  stop
+  ERROR STOP ErrorString('lower limit of x-integration is < 10^{-6}. Evaluation stop.',moduleName)
 end if
 
 !! in case of cut we determine the recut values
@@ -1096,6 +1133,96 @@ end function integrandOverPT
 
 end function Xsec_Zint_Xint_Qint_PTint
 
+!---------------------------------INTEGRATED over pT (and Z and Q and X) -------------------------------------------------------------
+!!!!! This is analog of Xsec_Zint_Xint_Qint_PTint but with PT-bins
+!!! integration over PT is made by interpolation of the whole range and integrating exactly the Chebishev interpolation
+!!! the bins are presented as list of minimal, and maximal values. All other parameters are same for all bins
+function Xsec_pTspectrum_Zint_Xint_Qint(process,s,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,ptMin_in,ptMax_in,doCut,Cuts,m1,m2)
+logical,intent(in)::doX,doQ,doZ,doCut
+real(dp),dimension(1:4),intent(in) :: Cuts
+integer,dimension(1:4),intent(in):: process
+real(dp),intent(in) :: s,Qmin,Qmax,xMin,xMax,zMin,zMax, m1, m2
+real(dp), dimension(1:),intent(in) :: ptMin_in, ptMax_in
+real(dp), dimension(1:size(ptMin_in)) :: Xsec_pTspectrum_Zint_Xint_Qint
+
+integer::nBINS,i,j
+real(dp),dimension(1:13)::var
+real(dp):: pt_min(1:size(ptMin_in)),pt_max(1:size(ptMin_in))
+real(dp)::pT_bin_MAX,pT_bin_MIN,diffAB,sumAB,pTInter
+real(dp),dimension(0:NumChNodes)::fAtNodes,vectorR
+!!!!! scale for the rescaling of large integrals
+real(dp),parameter::scaleL=2.5_dp
+
+if(TMDF_IsconvergenceLost()) then
+  Xsec_pTspectrum_Zint_Xint_Qint=1d9
+  return
+end if
+
+nBINS=size(ptMin_in)
+if(size(ptMax_in)/=nBINS) then
+  ERROR STOP ErrorString('Sizes of pT-min and pT-max lists do not coincide',moduleName)
+end if
+
+!!!------------------------- checking pT  ------------------
+do i=1,nBINS
+  if(ptMin_in(i)<0.0d0) then
+    call Warning_Handler%WarningRaise('Attempt to compute xSec with pT<0.')
+    write(*,*) "pTmin =",ptMin_in(i)," (pTmin set to 0.GeV)"
+    pt_min(i)=ptMIN_global
+  else
+    pt_min(i)=ptMin_in(i)
+  end if
+  if(ptMax_in(i)<pt_min(i)) then
+    call Warning_Handler%WarningRaise('Attempt to compute xSec with pTmax<pTmin. RESULT 0')
+    Xsec_pTspectrum_Zint_Xint_Qint=0._dp
+    return
+  end if
+  pt_max(i)=ptMax_in(i)
+end do
+
+!!!!!------------------------ here we start the actual computation
+!!!! determining the size of total qT-range
+pT_bin_MIN=minval(pT_min)
+pT_bin_MAX=maxval(pT_max)
+
+! write(*,*) pT_bin_MAX
+!
+!!!! makein intermidiate variables.
+!!!---(1) linear
+diffAB=(pT_bin_MAX-pT_bin_MIN)/2
+sumAB=(pT_bin_MAX+pT_bin_MIN)/2
+
+!!!!!! Computation of the function at nodes
+!!!! longest part computation of the cross-section
+
+! write(*,*) "Number of Chebishev nodes", NumChNodes
+
+
+do i=0,NumChNodes
+  !!!!! ----(1) linear
+  pTInter=diffAB*ChNodes(i)+sumAB
+  var=kinematicArray(pTInter,s,(zmin+zmax)/2d0,(xmin+xmax)/2d0,(Qmin+Qmax)/2d0,m1,m2)
+  fAtNodes(i)=2*pTInter*Xsec_Zint_Xint_Qint(var,process,doZ,zMin,zMax,doX,xMin,xMax,doQ,Qmin,Qmax,doCut,Cuts)
+
+end do
+
+!!!! multiply by the interpolation matrix
+fAtNodes=matmul(ChInterpolationMatrix,fAtNodes)
+!!!! compute the integral
+do i=1,nBINS
+   !!!!! ----(1) linear
+   vectorR=ChebyshevT_int_array(NumChNodes,(pT_max(i)-sumAB)/diffAB)-ChebyshevT_int_array(NumChNodes,(pT_min(i)-sumAB)/diffAB)
+
+   Xsec_pTspectrum_Zint_Xint_Qint(i)=diffAB*dot_product(vectorR,fAtNodes)
+   !write(*,*) "---->",vectorR
+end do
+
+contains
+
+
+end function Xsec_pTspectrum_Zint_Xint_Qint
+
+
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!  MAIN INTERFACE !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -1134,7 +1261,7 @@ if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check IN
 
 end subroutine xSec_SIDIS
 
-subroutine xSec_SIDIS_List(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
+subroutine xSec_SIDIS_List(xx,process,s,pT,z,x,Q,doCut,Cuts,masses,doPartitioning)
   integer,intent(in),dimension(:,:)::process            !the number of process
   real(dp),intent(in),dimension(:)::s                !Mandelshtam s
   real(dp),intent(in),dimension(:,:)::pT            !(qtMin,qtMax)
@@ -1144,134 +1271,15 @@ subroutine xSec_SIDIS_List(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
   logical,intent(in),dimension(:)::doCut            !triger cuts
   real(dp),intent(in),dimension(:,:)::Cuts            !(ymin,yMax,W2)
   real(dp),intent(in),dimension(:,:),optional::masses        !(mass_target,mass-product)GeV
+  logical, intent(in), optional :: doPartitioning
   real(dp),dimension(:),intent(out)::xx
+
+  real(dp),dimension(1:size(s),1:2)::m2_list
   integer :: i,length
 
-if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
-
-  length=size(s)
-  CallCounter=CallCounter+length
-
-  !!! cheking sizes
-  if(size(xx)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of xSec and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(process,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of process and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(pT,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of pT and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(x,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of x and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(Q,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of Q and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(z,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of z and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(doCut)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of doCut and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(Cuts,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of Cuts and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(process,2)/=4) then
-    write(*,*) ErrorString('xSec_SIDIS_List: process list must be (:,1:3).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(pT,2)/=2) then
-    write(*,*) ErrorString('xSec_SIDIS_List: pt list must be (:,1:2).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(x,2)/=2) then
-    write(*,*) ErrorString('xSec_SIDIS_List: x list must be (:,1:2).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(Q,2)/=2) then
-    write(*,*) ErrorString('xSec_SIDIS_List: Q list must be (:,1:2).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(z,2)/=2) then
-    write(*,*) ErrorString('xSec_SIDIS_List: z list must be (:,1:2).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-  if(size(Cuts,2)/=4) then
-    write(*,*) ErrorString('xSec_SIDIS_List: cuts list must be (:,1:4).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-
-  CallCounter=CallCounter+length
-  if(PRESENT(masses)) then
-
-  if(size(masses,1)/=length) then
-    write(*,*) ErrorString('xSec_SIDIS_List: sizes of masses and s lists are not equal.',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-      if(size(masses,2)/=2) then
-    write(*,*) ErrorString('xSec_SIDIS_List: mass list must be (:,1:2).',moduleName)
-    write(*,*) 'Evaluation stop'
-    stop
-  end if
-
-  !$OMP PARALLEL DO DEFAULT(SHARED)
-  do i=1,length
-  xx(i)=xSecFULL(process(i,1:4),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-          masses(i,1)**2,masses(i,2)**2)
-  end do
-  !$OMP END PARALLEL DO
-
-  else
-
-  !$OMP PARALLEL DO DEFAULT(SHARED)
-  do i=1,length
-  xx(i)=xSecFULL(process(i,1:4),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-          0._dp,0._dp)
-  end do
-  !$OMP END PARALLEL DO
-
-  end if
-
-end subroutine xSec_SIDIS_List
-
-
-!!!! problem is that f2py does not like optional arguments.. in any form
-subroutine xSec_SIDIS_List_forharpy(xx,process,s,pT,z,x,Q,doCut,Cuts,masses)
-  integer,intent(in),dimension(:,:)::process            !the number of process
-  real(dp),intent(in),dimension(:)::s                !Mandelshtam s
-  real(dp),intent(in),dimension(:,:)::pT            !(qtMin,qtMax)
-  real(dp),intent(in),dimension(:,:)::z                !(zmin,zmax)
-  real(dp),intent(in),dimension(:,:)::x                !(xmin,xmax)
-  real(dp),intent(in),dimension(:,:)::Q                !(Qmin,Qmax)
-  logical,intent(in),dimension(:)::doCut            !triger cuts
-  real(dp),intent(in),dimension(:,:)::Cuts            !(ymin,yMax,W2)
-  real(dp),intent(in),dimension(:,:)::masses        !(mass_target,mass-product)GeV
-  real(dp),dimension(:),intent(out)::xx
-  integer :: i,length
+  logical::doP
+  integer::k,j,numberOfP,listOfParts(1:size(s))
+  integer,allocatable:: partI1(:),partSize(:)
 
 if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check INI-file.',moduleName)
 
@@ -1323,23 +1331,99 @@ if(.not.started) ERROR STOP ErrorString('The module is not initialized. Check IN
   end if
 
   CallCounter=CallCounter+length
-
-  if(size(masses,1)/=length) then
-    ERROR STOP ErrorString('xSec_SIDIS_List: sizes of masses and s lists are not equal.',moduleName)
+  if(PRESENT(masses)) then
+    if(size(masses,1)/=length) then
+      ERROR STOP ErrorString('xSec_SIDIS_List: sizes of masses and s lists are not equal.',moduleName)
+    end if
+    if(size(masses,2)/=2) then
+      ERROR STOP ErrorString('xSec_SIDIS_List: mass list must be (:,1:2).',moduleName)
+    end if
+    m2_list(1:length,1:2)=masses(1:length,1:2)**2
+  else
+    m2_list(1:length,1:2)=0._dp
   end if
-  if(size(masses,2)/=2) then
-    ERROR STOP ErrorString('xSec_SIDIS_List: mass list must be (:,1:2).',moduleName)
+
+  if(present(doPartitioning)) then
+    doP=doPartitioning
+  else
+    doP=doPartitioning_byDefault
   end if
 
-  !$OMP PARALLEL DO DEFAULT(SHARED)
-  do i=1,length
+  if(doP) then
+  !!!! attempt to make partitioning in to pt-sectors
+  !!!! basically, I run though the whole list and compare the terms if all (except pT) are the same, they are marked by the same number
+  !!!! Only consequetive ranges are marked, and there is also upper cut
+    k=1
+    listOfParts(1)=k
+    do i=2,length
+      if(&
+      pT(i,2)*2>(z(i,1)+z(i,2))*MaxQT_range_toPartite &  !!! check the max size by formula pt/z=qT>maxPT
+      .or.(abs(x(i,1)-x(i-1,1))>toleranceGEN) .or. (abs(x(i,2)-x(i-1,2))>toleranceGEN) &
+      .or.(abs(z(i,1)-z(i-1,1))>toleranceGEN) .or. (abs(z(i,2)-z(i-1,2))>toleranceGEN) &
+      .or.(abs(Q(i,1)-Q(i-1,1))>toleranceGEN) .or. (abs(Q(i,2)-Q(i-1,2))>toleranceGEN) &
+      .or.(process(i,1)/=process(i-1,1)) .or. (process(i,2)/=process(i-1,2)) .or. (process(i,3)/=process(i-1,3)) &
+      .or.(process(i,4)/=process(i-1,4)) .or. (abs(s(i-1)-s(i))>toleranceGEN) .or. (doCut(i-1).neqv.doCut(i)) &
+      .or.(abs(Cuts(i,1)-Cuts(i-1,1))>toleranceGEN) &
+      .or.(abs(Cuts(i,2)-Cuts(i-1,2))>toleranceGEN) &
+      .or.(abs(Cuts(i,3)-Cuts(i-1,3))>toleranceGEN) &
+      .or.(abs(Cuts(i,4)-Cuts(i-1,4))>toleranceGEN) &
+      .or.(abs(m2_list(i,1)-m2_list(i-1,1))>toleranceGEN) .or. (abs(m2_list(i,2)-m2_list(i-1,2))>toleranceGEN) &
+      .or.(pT(i-1,2)>pT(i,1)+toleranceGEN) & !!!!! the bins are succesive
+      ) k=k+1
 
-  xx(i)=xSecFULL(process(i,1:4),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
-          masses(i,1)**2,masses(i,2)**2)
-  end do
-  !$OMP END PARALLEL DO
-end subroutine xSec_SIDIS_List_forharpy
+      listOfParts(i)=k
+    end do
+    numberOfP=k
+    !!!! partitions is a list that contain initial numbers of each partition
+    allocate(partI1(1:numberOfP))
+    partI1(1)=1
+    k=2
+    do i=2,length
+      if(listOfParts(i)/=listOfParts(i-1)) then
+        partI1(k)=i
+        k=k+1
+      end if
+    end do
 
+    !!!! partSize is a list that contain sizes of partI1
+    allocate(partSize(1:numberOfP))
+
+    do i=1,numberOfP-1
+      partSize(i)=partI1(i+1)-partI1(i)
+    end do
+    partSize(numberOfP)=length-partI1(numberOfP)+1
+
+   !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(SHARED)
+    do i=1,numberOfP
+      !!!!! if bin is not partitioned, it is computed usually
+      if(partSize(i)==1) then
+        XX(partI1(i))=xSecFULL(&
+              process(partI1(i),1:4),s(partI1(i)),pT(partI1(i),1),pT(partI1(i),2),&
+              z(partI1(i),1),z(partI1(i),2),x(partI1(i),1),x(partI1(i),2),&
+              Q(partI1(i),1),Q(partI1(i),2),doCut(partI1(i)),Cuts(partI1(i),1:4),&
+              m2_list(partI1(i),1),m2_list(partI1(i),2))
+      else
+        !!! actual computation
+        XX(partI1(i):partI1(i)+partSize(i)-1)=Xsec_pTspectrum_Zint_Xint_Qint(&
+            process(partI1(i),1:4),s(partI1(i)),.true.,z(partI1(i),1),z(partI1(i),2),.true.,&
+            x(partI1(i),1),x(partI1(i),2), .true., Q(partI1(i),1),Q(partI1(i),2),&
+            pT(partI1(i):partI1(i)+partSize(i)-1,1),pT(partI1(i):partI1(i)+partSize(i)-1,2),&
+            doCut(partI1(i)),Cuts(partI1(i),1:4),m2_list(partI1(i),1),m2_list(partI1(i),2))
+
+      end if
+    end do
+    !$OMP END PARALLEL DO
+  else
+  !!!!!--------------- compute in the usual way
+    !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(SHARED)
+    do i=1,length
+    xx(i)=xSecFULL(process(i,1:4),s(i),pt(i,1),pt(i,2),z(i,1),z(i,2),x(i,1),x(i,2),Q(i,1),Q(i,2),doCut(i),Cuts(i,1:4),&
+            m2_list(i,1),m2_list(i,2))
+    end do
+    !$OMP END PARALLEL DO
+  end if
+
+end subroutine xSec_SIDIS_List
 
 !!! helper to incapsulate PARALLEL variables
 function xSecFULL(proc,s,ptmin,ptmax,zmin,zmax,xmin,xmax,Qmin,Qmax,doCut,Cuts,m1,m2)
@@ -1413,7 +1497,7 @@ subroutine xSec_SIDIS_BINLESS_List_forharpy(xx,process,s,pT,z,x,Q,masses)
     ERROR STOP ErrorString('xSec_SIDIS_BINLESS_List: mass list must be (:,1:2).',moduleName)
   end if
 
-  !$OMP PARALLEL DO DEFAULT(SHARED)
+  !$OMP PARALLEL DO SCHEDULE(DYNAMIC) DEFAULT(SHARED)
   do i=1,length
   xx(i)=xSec_SIDIS_BINLESS(process(i,1:4),s(i),pt(i),z(i),x(i),Q(i),masses(i,1)**2,masses(i,2)**2)
   end do

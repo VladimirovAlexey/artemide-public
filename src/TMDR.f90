@@ -16,7 +16,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module TMDR
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 use QCDinput
 use TMDR_model
 use TMD_AD
@@ -50,7 +50,8 @@ integer::orderZETA      !for zeta-line
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-integer::messageTrigger=5
+type(Warning_OBJ)::Warning_Handler
+
 logical::started=.false.
 
 !! Scale variation of OPE
@@ -62,7 +63,7 @@ real(dp)::bFREEZE=1d-6
 !! Parameter that interpolaes the small-b part of zeta-line
 real(dp)::smoothingParameter=0.01d0
 
-integer::counter,messageCounter
+integer::counter
 
 !------------------------------------------Non-pertrubative parameters--------------------------------------------------
 
@@ -101,7 +102,7 @@ subroutine TMDR_Initialize(file,prefix)
     logical::initRequired
     character(len=8)::orderMain,orderI
     logical::overrideORDER=.false.
-    integer::FILEver
+    integer::FILEver,messageTrigger
     
     if(started) return
     
@@ -288,6 +289,7 @@ subroutine TMDR_Initialize(file,prefix)
     if(outputLevel>2) write(*,'(A,ES10.3)') ' |   tolerance=',tolerance
     
     CLOSE (51, STATUS='KEEP') 
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
     
     call TMD_AD_Initialize(orderCusp,orderV,orderD,orderDresum,orderZETA)
     
@@ -314,7 +316,6 @@ subroutine TMDR_Initialize(file,prefix)
     
     started=.true.
     counter=0
-    messageCounter=0
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDR '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
 end subroutine TMDR_Initialize
@@ -471,7 +472,7 @@ function TMDR_Rzeta(b,muf,zetaf,f)
     write(*,*) 'Dpert=',Dpert(muOPE(b,c1_global),bSTAR(bLocal),f),&
     '\int G =',RADEvolution(muOPE(b,c1_global),muf,f), 'DNP=',DNP(bLocal,f)
     write(*,*) 'Evaluation stop'
-    stop
+    error stop
   end if
 
 end function TMDR_Rzeta
@@ -493,10 +494,10 @@ subroutine TMDR_SetScaleVariation(c1_in)
         if(outputLevel>0) write(*,*) WarningString('variation in c1 is enourmous. c1 is set to 2',moduleName)
         c1_global=2d0
     else if(abs(c1_in-c1_global)<tolerance) then
-        if(outputLevel>1) write(*,*) color('TMDR: c1-variation is ignored. c1='//real8ToStr(c1_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('TMDR: c1-variation is ignored. c1='//numToStr(c1_global),c_yellow)
     else
         c1_global=c1_in
-        if(outputLevel>1) write(*,*) color('TMDR: set scale variations c1 as:'//real8ToStr(c1_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('TMDR: set scale variations c1 as:'//numToStr(c1_global),c_yellow)
     end if
 end subroutine TMDR_SetScaleVariation
 

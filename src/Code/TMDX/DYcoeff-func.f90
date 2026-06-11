@@ -117,8 +117,7 @@ function EffCouplingHFF(mu)
   !!! we consider only two situations mu<mTOP (Nf=5) and mu >mTOP (Nf=6)
   !!! for mu<mBOTTOM we do nothing (this situation posible never appears)
   if(mu<=mTOP) then
-    if(mu<mBOTTOM) call Warning_Raise('no threashold matching for Higgs-DY for mu<mBOTTOM',&
-                            messageCounter,messageTrigger,modulename)
+    if(mu<mBOTTOM) call Warning_Handler%WarningRaise('no threashold matching for Higgs-DY for mu<mBOTTOM')
   
   
   !!betaT is beta-function at mT  it is normalized to be 1 at LO
@@ -138,9 +137,7 @@ function EffCouplingHFF(mu)
       EffCouplingHFF=EffCouplingHFF+alphaT**2*98.44444444444444d0
       
   if(orderH_global>=3) then
-    call Warning_Raise(&
-            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
-            messageCounter,messageTrigger,modulename)
+    call Warning_Handler%WarningRaise('no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO')
   end if
   end if
   end if
@@ -164,9 +161,7 @@ function EffCouplingHFF(mu)
       EffCouplingHFF=EffCouplingHFF+alphaT**2*87.27777777777777d0
       
   if(orderH_global>=3) then
-      call Warning_Raise(&
-            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
-            messageCounter,messageTrigger,modulename)
+      call Warning_Handler%WarningRaise('no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO')
   end if
   end if
   end if
@@ -203,9 +198,7 @@ function HardCoefficientHIGGS(mu)
       (-23.720599432600856d0 -56.83020488600443d0*LQ -100.66666666666666d0*LQ**2&
     + 15.333333333333334d0*LQ**3 + 18d0*LQ**4)
     if(orderH_global>=3) then
-        call Warning_Raise(&
-            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
-            messageCounter,messageTrigger,modulename)
+        call Warning_Handler%WarningRaise('no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO')
     end if
     end if
     end if
@@ -224,9 +217,7 @@ function HardCoefficientHIGGS(mu)
       (2723.1832155557718d0 -510.83200733611494d0*LQ - 455.9724251058836d0*LQ**2&
     + 15.333333333333334d0*LQ**3 + 18d0*LQ**4)
     if(orderH_global>=3) then
-     call Warning_Raise(&
-            'no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO',&
-            messageCounter,messageTrigger,modulename)
+     call Warning_Handler%WarningRaise('no NNNLO implementation of Higgs coefficient function (so far). Continue NNLO')
     end if
     end if
     end if

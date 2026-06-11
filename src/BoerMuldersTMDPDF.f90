@@ -17,7 +17,8 @@ end module gridInKT_BMTMDPDF
 
 module BoerMuldersTMDPDF
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
+use aTMDe_Ogata
 use QCDinput
 use TMDR
 use BoerMuldersTMDPDF_OPE
@@ -44,16 +45,13 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WRNING mesagges. In order not to spam too much
-integer::messageTrigger=6
+type(Warning_OBJ)::Warning_Handler
 
 !!! the length and array of NP parameters
 integer::lambdaNPlength
 real(dp),dimension(:),allocatable::lambdaNP
 real(dp)::BMAX_ABS=100._dp !!! for large values of b returns 0
 real(dp)::toleranceGEN !!! tolerance general
-
-integer :: messageCounter
 
 !!!------------------------------ General parameters----------------------------------------------
 logical::includeGluon=.false.   !! gluons included/non-included
@@ -64,33 +62,13 @@ real(dp)::TMDmass=1._dp         !! mass parameter used as mass-scale
 
 integer,parameter::TMDtypeN=1 !!!!! this is the order of Bessel-transform (IT IS STRICT FOR TMD)
 
-!----Ogata Tables---
-integer,parameter::Nmax=1000
-INCLUDE 'Code/Tables/BesselZero1000.f90'
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
-!!!!! It helps to convergen integrals, since h(optimal) ~ qT
-integer,parameter::hSegmentationNumber=7
-real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.0001d0,0.001d0,0.01d0,1d0,2d0,5d0,10d0/)
-real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,10d0,50d0,100d0,200d0/)
-
+type(OgataIntegrator)::Hankel
 !!!------------------------------ Parameters of transform in KT space and KT-grid ------------------------------
 logical::makeGrid_inKT,gridIsReady_inKT
 integer::numKsubgrids,kGridSize
-
 !!!------------------------------ Parameters of transform to TMM -------------------------------------------
 
 real(dp)::muTMM_min=0.8_dp  !!!!! minimal mu
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! For TMM this split is the same as for inKT
-
-real(dp)::hOGATA_TMM,toleranceOGATA_TMM
-!!!weights of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww_TMM
-!!!nodes of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb_TMM
 
 !!-----------------------------------------------Public interface---------------------------------------------------
 
@@ -110,9 +88,6 @@ end interface
 
 contains
 
-!INCLUDE 'Code/KTspace/Fourier.f90'
-INCLUDE 'Code/KTspace/Moment.f90'
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 function BoerMuldersTMDPDF_IsInitialized()
@@ -126,7 +101,8 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
     character(len=*),optional::prefix
     character(len=300)::path
     logical::initRequired
-    integer::FILEver
+    integer::FILEver,messageTrigger
+    real(dp)::hOGATA_TMM,toleranceOGATA_TMM
 
     if(started) return
 
@@ -230,6 +206,7 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
     read(51,*) muTMM_min
 
     CLOSE (51, STATUS='KEEP') 
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
 
     if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
     if(outputLevel>2 .and. .not.includeGluon) write(*,'(A)') ' ... gluons are not included'
@@ -246,7 +223,8 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
 
     gridIsReady_inKT=.false.
 
-    call PrepareTablesTMM()
+    !!!!!! TODO: fix the minimal value of KT
+    Hankel=OgataIntegrator(moduleName,outputLevel,TMDtypeN, toleranceOGATA_TMM,hOGATA_TMM,TMDmass,0.0001_dp)
 
     if(.not.TMDR_IsInitialized()) then
         if(outputLevel>2) write(*,*) '.. initializing TMDR (from ',moduleName,')'
@@ -270,7 +248,6 @@ subroutine BoerMuldersTMDPDF_Initialize(file,prefix)
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.BoerMuldersTMDPDF_model : .... initialized',c_green)
 
     started=.true.
-    messageCounter=0
 
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.BoerMuldersTMDPDF '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
@@ -297,7 +274,7 @@ end subroutine BoerMuldersTMDPDF_SetScaleVariation_tw3
 subroutine BoerMuldersTMDPDF_SetLambdaNP(lambdaIN)
     real(dp),intent(in)::lambdaIN(:)
     integer::ll
-    messageCounter=0
+    call Warning_Handler%Reset()
 
     ll=size(lambdaIN)
     if(ll/=lambdaNPlength) then
@@ -396,7 +373,7 @@ function TMD_opt(x,bT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         TMD_opt=0._dp
         return
     else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -459,7 +436,7 @@ function TMD_opt_inKT(x,kT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         TMD_opt_inKT=0._dp
         return
      else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -559,7 +536,13 @@ function BoerMuldersTMDPDF_TMM_G(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    BoerMuldersTMDPDF_TMM_G=Moment_G(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    BoerMuldersTMDPDF_TMM_G=Hankel%Moment_G(F,mu)
+
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -570,6 +553,12 @@ function BoerMuldersTMDPDF_TMM_G(x,mu,hadron)
     BoerMuldersTMDPDF_TMM_G(4)=0_dp
     BoerMuldersTMDPDF_TMM_G(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function BoerMuldersTMDPDF_TMM_G
 
@@ -579,7 +568,12 @@ function BoerMuldersTMDPDF_TMM_X(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    BoerMuldersTMDPDF_TMM_X=Moment_X(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    BoerMuldersTMDPDF_TMM_X=Hankel%Moment_X(F,mu)
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -590,6 +584,12 @@ function BoerMuldersTMDPDF_TMM_X(x,mu,hadron)
     BoerMuldersTMDPDF_TMM_X(4)=0_dp
     BoerMuldersTMDPDF_TMM_X(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function BoerMuldersTMDPDF_TMM_X
 

@@ -113,6 +113,16 @@ GetTw3PDF_C=GetPDF(x1,x2,Q,f,outputT='C')
 
 end function GetTw3PDF_C
 
+!!!!!! Returns the convolution that is WGT function
+function GetTw3_WGT(x,Q)
+real*8,intent(in)::x                      !x-variables
+real*8,intent(in)::Q                          !Q
+real*8,dimension(-5:5)::GetTw3_WGT
+
+GetTw3_WGT=WGT_fList(x,Q)
+
+end function GetTw3_WGT
+
 
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -791,7 +801,7 @@ end function GetTw3PDF_C
   
   end function DY_xSec_Single
   
-  function DY_xSec_List(process,s,qT,Q,y,includeCuts,CutParameters,ListLength)
+  function DY_xSec_List(process,s,qT,Q,y,includeCuts,CutParameters,ListLength,doPartitioning)
     integer,intent(in)::ListLength
     integer,intent(in),dimension(:,:)::process			!the number of process
     real*8,intent(in),dimension(:)::s				!Mandelshtam s
@@ -800,10 +810,11 @@ end function GetTw3PDF_C
     real*8,intent(in),dimension(:,:)::y				!(ymin,ymax)
     logical,intent(in),dimension(:)::includeCuts		!include cuts
     real*8,intent(in),dimension(:,:)::CutParameters	!(p1,p2,eta1,eta2)
+    logical,intent(in)::doPartitioning   !!! specification to make the partitioning in pT-integrations
     real*8,dimension(1:ListLength)::DY_xSec_List
     
     call TMDF_ResetCounters()
-    call xSec_DY_List(DY_xSec_List,process,s,qT,Q,y,includeCuts,CutParameters)
+    call xSec_DY_List(DY_xSec_List,process,s,qT,Q,y,includeCuts,CutParameters,doPartitioning=doPartitioning)
   
   end function DY_xSec_List
 
@@ -877,7 +888,7 @@ end function GetTw3PDF_C
   
   end function SIDIS_xSec_Single_withMasses
   
-  function SIDIS_xSec_List(process,s,pT,z,x,Q,doCut,Cuts,masses,ListLength)
+  function SIDIS_xSec_List(process,s,pT,z,x,Q,doCut,Cuts,masses,ListLength,doPartitioning)
     integer,intent(in)::ListLength
     integer,intent(in),dimension(:,:)::process			!the number of process
     real*8,intent(in),dimension(:)::s				!Mandelshtam s
@@ -888,10 +899,11 @@ end function GetTw3PDF_C
     logical,intent(in),dimension(:)::doCut			!triger cuts
     real*8,intent(in),dimension(:,:)::Cuts			!(ymin,yMax,W2min,W2max)
     real*8,intent(in),dimension(:,:)::masses			!(mTARGET,mPRODUCT)
+    logical,intent(in)::doPartitioning   !!! specification to make the partitioning in pT-integrations
     real*8,dimension(1:ListLength)::SIDIS_xSec_List
     
     call TMDF_ResetCounters()
-    call xSec_SIDIS_List_forharpy(SIDIS_xSec_List,process,s,pT,z,x,Q,doCut,Cuts,masses)
+    call xSec_SIDIS_List(SIDIS_xSec_List,process,s,pT,z,x,Q,doCut,Cuts,masses=masses,doPartitioning=doPartitioning)
   
   end function SIDIS_xSec_List
   

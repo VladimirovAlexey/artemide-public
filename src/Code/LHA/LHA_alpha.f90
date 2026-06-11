@@ -9,12 +9,13 @@
 !           A.Vladimirov
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module LHA_alpha
-use IO_functions
+use aTMDe_numerics
+use aTMDe_IO
 implicit none
 
 private
 !Current version of module
-character (len=5),parameter :: version="v3.01"
+character (len=5),parameter :: version="v3.04"
 character (len=9),parameter :: moduleName="LHA_alpha"
 integer::outputLevel=2
 
@@ -182,11 +183,15 @@ subroutine ReadInfo(name,directory,outP)
     character(len=*),intent(in)::directory
     integer,intent(in)::outP
     character(len=300)::path
-    character(len=4096)::line !!!! Long line to guaranty the input
+    character(len=4096)::line,lineDUMMY !!!! Long line to guaranty the input
+    logical::lineNotFinished
     integer::ios,i,j
     
     outputLevel=outP
     AlphaStype_IsRecognized=.false.
+
+    lineNotFinished=.false.
+    lineDUMMY=''
     
     path=trim(adjustl(directory))//trim(adjustr(name))//"/"//trim(adjustr(name))//".info"
 
@@ -201,7 +206,24 @@ subroutine ReadInfo(name,directory,outP)
         if(ios /= 0) exit !!! end of file
         
         !!!! there could be empty lines.
-        if(len(trim(line))>0) call ParseInfoLine(line)
+        j=len_trim(line)
+        if(j>0) then
+            !!!! some ugly guys split lines by /n[NNPDF!]. In this case the line ends by ",". Try to detect it and collect lines
+            if(line(j:j)==',') then !!!! the line continues
+                lineNotFinished=.true.
+                lineDUMMY=trim(lineDUMMY)//trim(line)
+            else
+                if(lineNotFinished) then !!!!! case then the line is last line after a siquence of ... ,/n
+                    lineNotFinished=.false.
+                    lineDUMMY=trim(lineDUMMY)//trim(line)
+                    call ParseInfoLine(lineDUMMY)
+                    lineDUMMY=''
+                else
+                    call ParseInfoLine(line) !!!!! normal case
+                end if
+
+            end if
+        end if
     end do
     
     CLOSE (51, STATUS='KEEP')
@@ -284,7 +306,7 @@ subroutine ReadInfo(name,directory,outP)
     LambdaEFF=exp(-extrapolB2/extrapolB1)*AlphaS_Qs(0)
 
     if(LambdaEFF+0.1>Qmin) &
-    ERROR STOP ErrorString('Effective LambdaQCD computed as '//real8Tostr(LambdaEFF)//' It is too high...',moduleName)
+    ERROR STOP ErrorString('Effective LambdaQCD computed as '//numToStr(LambdaEFF)//' It is too high...',moduleName)
 
     if(outputLevel>1) write(*,'("AlphaS prepared with Effective LambdaQCD = ",F10.6)') LambdaEFF
     LambdaEFF=max(LambdaEFF+0.1d0,0.4d0)
@@ -297,14 +319,14 @@ end subroutine ReadInfo
 
 !!! returns the value of AlphaS interpolated from the table.
 !!! the interpolation is log-linear.
-function AlphaS(Q)
+pure function AlphaS(Q)
 real(dp),intent(in)::Q
 real(dp):: AlphaS
 
 real(dp)::logQ,deltas(1:4)
 integer::i,j
 if(Q<Qmin) then !!! logarith log-extrapolation
-    if(Q<LambdaEFF) ERROR STOP ErrorString('Q ='//real8Tostr(Q)//' is smaller than Effective LambdaQCD',moduleName)
+    if(Q<LambdaEFF) ERROR STOP ErrorString('Q ='//numToStr(Q)//' is smaller than Effective LambdaQCD',moduleName)
 
     AlphaS=extrapolA/(extrapolB1*Log(Q/AlphaS_Qs(0))+extrapolB2)
 else if(Q>Qmax) then !!! constant

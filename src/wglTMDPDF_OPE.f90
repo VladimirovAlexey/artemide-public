@@ -18,18 +18,14 @@
 ! * only global variables are kept here
 ! * the most part of the code is universal, and shared by many such modules
 
-module Grid_wglTMDPDF
-INCLUDE 'Code/Twist2/Twist2_ChGrid.f90'
-end module Grid_wglTMDPDF
-
 module wglTMDPDF_OPE
 use aTMDe_Numerics
-use IntegrationRoutines
-use IO_functions
+use aTMDe_Integration
+use aTMDe_IO
+use aTMDe_optGrid
 use QCDinput
 use TMD_AD, only : Dpert_atL
 use wglTMDPDF_model
-use Grid_wglTMDPDF
 implicit none
 
 !------------------------LOCALs -----------------------------------------------
@@ -49,9 +45,7 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WARNING mesagges. In order not to spam too much
-integer::messageTrigger=6
-integer::messageCounter=0 !!! actual counter
+type(Warning_OBJ)::Warning_Handler
 
 !!!------------------------- PARAMETERS DEFINED IN THE INI-file--------------
 
@@ -82,6 +76,8 @@ logical :: useGrid=.true.  !!!idicator that grid must be prepared
 logical :: withGluon=.false.   !!!indicator the gluon is needed in the grid
 logical :: runTest=.false.   !!!trigger to run the test
 
+type(optGrid)::mainGridTw2
+
 !!!! grid preparation for tw3 part
 logical :: useGridTW3=.false.  !!!idicator that grid must be prepared
 logical :: withGluonTW3=.false.   !!!indicator the gluon is needed in the grid
@@ -93,9 +89,6 @@ integer,parameter::parametrizationLength=4 !!![exact]
 
 !!!------------------------- DYNAMICAL-GLOBAL PARAMETERS -------------------
 real(dp) :: c4_global=1_dp  !!! scale variation parameter
-logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated from the grid
-
-
 
 !!--------------------------------------Public interface-----------------------------------------
 public::wglTMDPDF_OPE_IsInitialized,wglTMDPDF_OPE_Initialize,wglTMDPDF_OPE_convolution
@@ -130,7 +123,7 @@ subroutine wglTMDPDF_OPE_Initialize(file,prefix)
     character(len=300)::path
     logical::initRequired
     character(len=8)::order_global
-    integer::i,FILEver
+    integer::i,FILEver,messageTrigger
     real(dp),allocatable::subGridsX(:),subGridsB(:)
 
     if(started) return
@@ -313,6 +306,9 @@ subroutine wglTMDPDF_OPE_Initialize(file,prefix)
     read(51,*) runTestTW3
 
     CLOSE (51, STATUS='KEEP')
+
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
+
     c4_global=1d0
 
 
@@ -321,11 +317,10 @@ subroutine wglTMDPDF_OPE_Initialize(file,prefix)
     bMax=subGridsB(size(subGridsB)-1)
 
     if(abs(subGridsX(size(subGridsX)-1)-1)>toleranceGEN) then
-        write(*,*) ErrorString("The last subgrid in X must complete by x=1. Initialization terminated",moduleName)
-        stop
+        ERROR STOP ErrorString("The last subgrid in X must complete by x=1. Initialization terminated",moduleName)
     end if
 
-    call Twist2_ChGrid_Initialize(path,'*13  ','*E   ',numberOfHadrons,withGluon,moduleName,outputLevel)
+    mainGridTw2=optGrid(path,'*13  ','*E   ',numberOfHadrons,withGluon,moduleName,outputLevel)
     
     !!! Model initialisation is called from the wglTMDPDF-module
     
@@ -337,27 +332,31 @@ subroutine wglTMDPDF_OPE_Initialize(file,prefix)
     else
         if(outputLevel>2) write(*,*) trim(moduleName)//': mu OPE is independent on x'
     end if
-    gridReady=.false.
 
     if(useGrid) then
-        if(resumLargeX) then
-            call Twist2_ChGrid_MakeGrid(CxF_largeX_compute)
-            gridReady=.true.
-            if(runTest) call TestGrid(CxF_largeX_compute)
-        else
-            call Twist2_ChGrid_MakeGrid(CxF_compute)
-            gridReady=.true.
-            if(runTest) call TestGrid(CxF_compute)
-        end if
+        call mainGridTw2%MakeGrid(functionToGrid)
+        if(runTest) call mainGridTw2%Test(functionToGrid)
     end if
 
     started=.true.
-    messageCounter=0
 
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.wglTMDPDF_OPE '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
 
 end subroutine wglTMDPDF_OPE_Initialize
+
+!!!!!! this is just interface of function CxF_compute and CxF_largeX_compute to optTMD
+function functionToGrid(x,bT,hadron)
+    real(dp),dimension(-5:5)::functionToGrid
+    integer, intent(in)::hadron
+    real(dp),intent(in)::x,bT
+
+    if(resumLargeX) then
+        functionToGrid=CxF_largeX_compute(x,bT,hadron,withGluon)
+    else
+        functionToGrid=CxF_compute(x,bT,hadron,withGluon)
+    end if
+end function functionToGrid
 
 !!!!!!!--------------------------- DEFINING ROUTINES ------------------------------------------
 
@@ -406,13 +405,7 @@ function wglTMDPDF_OPE_convolution(x,b,h,addGluon)
 
     !!! computation
     if(useGrid) then
-        if(gridReady) then
-            wglTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)
-        else
-            call Warning_Raise('Called OPE_convolution while grid is not ready.',messageCounter,messageTrigger,moduleName)
-            call wglTMDPDF_OPE_resetGrid()
-            wglTMDPDF_OPE_convolution=ExtractFromGrid(x,b,h)
-        end if
+        wglTMDPDF_OPE_convolution=mainGridTw2%Extract(x,b,h)
     else
         if(resumLargeX) then
             wglTMDPDF_OPE_convolution=CxF_largeX_compute(x,b,h,gluon)
@@ -459,17 +452,9 @@ end function wglTMDPDF_OPE_tw3_convolution
 !!!!!!!!!! ------------------------ SUPPORINTG ROUTINES --------------------------------------
 !!! This subroutine force reconstruction of the grid (if griding is ON)
 subroutine wglTMDPDF_OPE_resetGrid()
-    gridReady=.false.
     if(useGrid) then
         if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-
-        if(resumLargeX) then
-            call Twist2_ChGrid_MakeGrid(CxF_largeX_compute)
-        else
-            call Twist2_ChGrid_MakeGrid(CxF_compute)
-        end if
-
-        gridReady=.true.
+        call mainGridTw2%MakeGrid(functionToGrid)!
     end if
 end subroutine wglTMDPDF_OPE_resetGrid
 
@@ -481,7 +466,6 @@ subroutine wglTMDPDF_OPE_SetPDFreplica(rep,hadron)
 
     call QCDinput_SethPDFreplica(rep,hadron,newPDF)
     if(newPDF) then
-        gridReady=.false.
         call wglTMDPDF_OPE_resetGrid()
     else
         if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of PDF (',I4,') is the same as the used one. Nothing is done!')") &
@@ -499,10 +483,10 @@ subroutine wglTMDPDF_OPE_SetScaleVariation(c4_in)
         c4_global=2d0
         call wglTMDPDF_OPE_resetGrid()
     else if(abs(c4_in-c4_global)<toleranceGEN) then
-        if(outputLevel>1) write(*,*) color('wglTMDPDF: c4-variation is ignored. c4='//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('wglTMDPDF: c4-variation is ignored. c4='//numToStr(c4_global),c_yellow)
     else
         c4_global=c4_in
-        if(outputLevel>1) write(*,*) color('wglTMDPDF: set scale variations c4 as:'//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('wglTMDPDF: set scale variations c4 as:'//numToStr(c4_global),c_yellow)
         call wglTMDPDF_OPE_resetGrid()
     end if
 end subroutine wglTMDPDF_OPE_SetScaleVariation

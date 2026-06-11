@@ -1,0 +1,212 @@
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!			arTeMiDe 2.02
+!
+!	The module that contains support functions for input-output used within artemide
+!
+!				A.Vladimirov (08.09.2019)
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+module aTMDe_IO
+use aTMDe_numerics
+use aTMDe_interfaces
+implicit none
+
+private
+
+!!!! colors for coloring of the ansi-output
+character(len=1), public, parameter :: c_esc = achar(27)
+character(len=2), public, parameter :: c_start = c_esc // '['
+character(len=1), public, parameter :: c_end = 'm'
+character(len=*), public, parameter :: c_black = '30'
+character(len=*), public, parameter :: c_black_bold = '30;1'
+character(len=*), public, parameter :: c_red = '31'
+character(len=*), public, parameter :: c_red_bold = '31;1'
+character(len=*), public, parameter :: c_green = '32'
+character(len=*), public, parameter :: c_green_bold = '32;1'
+character(len=*), public, parameter :: c_yellow = '33'
+character(len=*), public, parameter :: c_yellow_bold = '33;1'
+character(len=*), public, parameter :: c_blue = '34'
+character(len=*), public, parameter :: c_magenta = '35'
+character(len=*), public, parameter :: c_cyan = '36'
+character(len=*), public, parameter :: c_white = '37'
+character(len=*), public, parameter :: c_clear = c_start // '0' // c_end
+
+
+public::color, MoveTO, numToStr, int4ToStr
+public::writeShortIntegerList, writeFloatList, WarningString, ErrorString
+
+type, public :: Warning_OBJ
+  character(:), allocatable::moduleName
+  integer::messageCounter
+  integer::messageTrigger
+contains
+  procedure:: Reset =>Reset_def
+  procedure:: WarningRaise => WarningRaise_def
+end type
+
+
+interface numToStr
+  module procedure intToStr,realToStr,real8ToStr
+end interface numToStr
+  
+contains
+
+!!!!!!!!!!!! procedures that define the class Warning_OBJ
+!!!!! resets the counter of warning handler
+subroutine Reset_def(this)
+class(Warning_OBJ), intent(inout)::this
+
+this%messageCounter=0
+end subroutine Reset_def
+
+!!!!! writes the warning message and increase +1 the message counter
+!!!!! one the limit is hit, stops show Warnings
+subroutine WarningRaise_def(this,str)
+class(Warning_OBJ), intent(inout)::this
+character(len=*), intent(in) :: str
+
+if(this%messageCounter<=this%messageTrigger) then
+  write(*,*) WarningString(str,this%moduleName)
+  if(this%messageCounter==this%messageTrigger) then
+    write(*,*) WarningString('number of warning massages hits the limit. Further warnings are suppressed',this%moduleName)
+  end if
+  this%messageCounter=this%messageCounter+1
+end if
+
+end subroutine WarningRaise_def
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Other functions   !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+!!!the function that makes string-ansi-colored
+!!!initial code copied from http://fortranwiki.org/fortran/show/ansi_colors
+pure function color(str, code) result(out)
+  character(len=*), intent(in) :: str
+  character(len=*), intent(in) :: code
+  character(len=:), allocatable :: out
+  out = c_start // code // c_end // str // c_clear
+end function color
+
+!!! move the CURRET in streem to the next line that starts from pos (5 char)
+!!! this function is universally used in all reading of constants-files
+subroutine MoveTO(streem,pos)
+  integer,intent(in)::streem
+  character(len=5)::pos
+  character(len=300)::line
+  integer::IOstatus
+  do
+      read(streem,'(A)',IOSTAT=IOstatus) line
+      if(IOstatus>0) then
+          write(*,*) ErrorString("Error in attemt to read the line ("//pos//")", "aTMDe_IO_system")
+          stop
+      else if(IOstatus<0) then
+          write(*,*) ErrorString("EndOfFile during search of the line ("//pos//")", "aTMDe_IO_system")
+          stop
+      else
+          if(line(1:5)==pos) exit
+      end if
+  end do
+end subroutine MoveTO
+
+!!! write list of short integers (I5) to streem spliting by commas
+!!! used to fill constants-file
+subroutine writeShortIntegerList(streem, list)
+integer::streem,i
+integer,intent(in)::list(:)
+
+if(size(list)==0) then
+  write(*,*) ErrorString("Core-error: Passed 0-size array","IO")
+  stop
+end if
+if(size(list)>1) then
+  do i=1,size(list)-1
+    write(streem,"(I5,', ')",advance='no') list(i)
+  end do
+end if
+write(streem,"(I5)") list(size(list))
+end subroutine writeShortIntegerList
+
+!!! write list of Floats (F12.8) to streem spliting by commas
+!!! used to fill constants-file
+subroutine writeFloatList(streem, list)
+integer::streem,i
+real,intent(in)::list(:)
+
+if(size(list)==0) then
+  write(*,*) ErrorString("Core-error: Passed 0-size array","IO")
+  stop
+end if
+if(size(list)>1) then
+  do i=1,size(list)-1
+    write(streem,"(F12.8,', ')",advance='no') list(i)
+  end do
+end if
+write(streem,"(F12.8)") list(size(list))
+end subroutine writeFloatList
+
+!--------------------convertation
+!!! convert a real(dp) number to a string
+pure  function real8ToStr(num)
+real(dp),intent(in)::num
+character(len=16)::real8ToStr
+write(real8ToStr,"(F16.10)") num
+end function real8ToStr
+
+!!! convert a real number to a string
+pure function realToStr(num)
+real,intent(in)::num
+character(len=12)::realToStr
+write(realToStr,*) num
+end function realToStr
+
+!!! convert an integer number to a string
+pure function intToStr(num)
+integer,intent(in)::num
+character(len=8)::intToStr
+write(intToStr,"(I8)") num
+end function intToStr
+ 
+!! convert an short integer number to a string
+pure function int4ToStr(num)
+ integer,intent(in)::num
+ character(len=4)::int4ToStr
+ write(int4ToStr,"(I4)") num 
+end function int4ToStr
+ 
+!!!Common format of Warning line in artemide
+pure function WarningString(str, moduleName) result(out)
+  character(len=*), intent(in) :: str
+  character(len=*), intent(in) :: moduleName
+  character(len=:), allocatable :: out
+  out = color('WARNING: artemide.'//trim(moduleName)//': '//trim(str),c_red)
+end function WarningString
+
+!!!Common format of error line in artemide
+pure function ErrorString(str, moduleName) result(out)
+  character(len=*), intent(in) :: str
+  character(len=*), intent(in) :: moduleName
+  character(len=:), allocatable :: out
+  out = color('ERROR: artemide.'//trim(moduleName)//': '//trim(str),c_red_bold)
+end function ErrorString
+
+! !--------------------------- massage trigger counter functions
+! !!!! the routine shows a line of warning. and increase the counter
+! !!!! Use this one for WARNINGS
+! subroutine Warning_Raise(str,messageCounter,messageTrigger,moduleName)
+!   integer::messageCounter
+!   integer,intent(in)::messageTrigger
+!   character(len=*), intent(in) :: moduleName
+!   character(len=*), intent(in) :: str
+!
+!   if(messageCounter<=messageTrigger) then
+!   write(*,*) WarningString(str,moduleName)
+!   messageCounter=messageCounter+1
+!   if(messageCounter>messageTrigger) then
+!     write(*,*) color('artemide.'//trim(moduleName)//&
+!           ': number of warning massages hits the limit. Further warnings are suppressed',c_red)
+!   end if
+!   end if
+!
+! end subroutine Warning_Raise
+  
+end module aTMDe_IO

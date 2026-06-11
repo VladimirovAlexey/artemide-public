@@ -67,6 +67,11 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         integer intent(in) :: f
         real :: gettw3pdf_c
     end function gettw3pdf_c
+    function gettw3_wgt(x,q) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+        real*8 intent(in) :: x
+        real*8 intent(in) :: q
+        real*8 dimension(11) :: gettw3_wgt
+    end function gettw3_wgt
     subroutine initialize(file) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         character*(*) :: file
     end subroutine initialize
@@ -475,7 +480,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         real*8 dimension(4),intent(in) :: cutparameters
         real*8 :: dy_xsec_single
     end function dy_xsec_single
-    function dy_xsec_list(process,s,qt,q,y,includecuts,cutparameters,listlength) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    function dy_xsec_list(process,s,qt,q,y,includecuts,cutparameters,listlength,dopartitioning) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         integer dimension(:,:),intent(in) :: process
         real*8 dimension(:),intent(in) :: s
         real*8 dimension(:,:),intent(in) :: qt
@@ -484,6 +489,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         logical dimension(:),intent(in) :: includecuts
         real*8 dimension(:,:),intent(in) :: cutparameters
         integer intent(in) :: listlength
+        logical intent(in) :: dopartitioning
         real*8 dimension(listlength) :: dy_xsec_list
     end function dy_xsec_list
     function dy_xsec_list_approximate(process,s,qt,q,y,includecuts,cutparameters,listlength) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
@@ -531,7 +537,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         real*8 dimension(2),intent(in) :: masses
         real*8 :: sidis_xsec_single_withmasses
     end function sidis_xsec_single_withmasses
-    function sidis_xsec_list(process,s,pt,z,x,q,docut,cuts,masses,listlength) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
+    function sidis_xsec_list(process,s,pt,z,x,q,docut,cuts,masses,listlength,dopartitioning) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy
         integer dimension(:,:),intent(in) :: process
         real*8 dimension(:),intent(in) :: s
         real*8 dimension(:,:),intent(in) :: pt
@@ -542,6 +548,7 @@ module harpy ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90
         real*8 dimension(:,:),intent(in) :: cuts
         real*8 dimension(:,:),intent(in) :: masses
         integer intent(in) :: listlength
+        logical intent(in) :: dopartitioning
         real*8 dimension(listlength) :: sidis_xsec_list
     end function sidis_xsec_list
     function sidis_xsec_binless_list(process,s,pt,z,x,q,masses,listlength) ! in /data/arTeMiDe_Repository/artemide/harpy/harpy.f90:harpy

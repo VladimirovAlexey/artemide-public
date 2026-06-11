@@ -10,7 +10,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module aTMDe_control
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 use QCDinput
 use EWinput
 use uTMDPDF
@@ -19,6 +19,7 @@ use SiversTMDPDF
 use wgtTMDPDF
 use wglTMDPDF
 use BoerMuldersTMDPDF
+use CollinsTMDFF
 use eeTMDFF
 use uTMDFF
 use TMDR
@@ -31,9 +32,9 @@ implicit none
 
 private
 character (len=14),parameter :: moduleName="aTMDe-control"
-character (len=5),parameter :: version="v3.01"
+character (len=5),parameter :: version="v3.03"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=34
+integer,parameter::inputver=37
 character (len=15),parameter :: constNAME="aTMDe-temporary"
 
 integer::outputLevel=2
@@ -42,19 +43,20 @@ integer::messageTrigger=5
 !!!! indicator of the aTMDe_control intialization
 logical::isStarted=.false.
 !!!! indicators of modules usage  
-logical::include_EWinput,include_uTMDPDF,include_uTMDFF,include_TMDR,include_TMDF
-logical::include_lpTMDPDF,include_SiversTMDPDF,include_wgtTMDPDF,include_wglTMDPDF,include_BoerMuldersTMDPDF,include_eeTMDFF
+logical::include_EWinput,include_uTMDPDF,include_uTMDFF,include_TMDR,include_TMDF,include_lpTMDPDF
+logical::include_SiversTMDPDF,include_wgtTMDPDF,include_wglTMDPDF,include_BoerMuldersTMDPDF,include_eeTMDFF,include_CollinsTMDFF
 logical::include_TMDX_DY,include_TMDX_SIDIS
 logical::include_TMDF_KPC
 
 !!!! legths of non-perturbative arrays
 integer::NPlength_total
 integer::NPlength_TMDR,NPlength_uTMDPDF,NPlength_uTMDFF,NPlength_lpTMDPDF,&
-    NPlength_SiversTMDPDF,NPlength_wgtTMDPDF,NPlength_wglTMDPDF,NPlength_BoerMuldersTMDPDF,NPlength_eeTMDFF
+    NPlength_SiversTMDPDF,NPlength_wgtTMDPDF,NPlength_wglTMDPDF,NPlength_BoerMuldersTMDPDF,NPlength_eeTMDFF,NPlength_CollinsTMDFF
 
 !!!! non-pertrubative parameters for individual modules
 real(dp),allocatable::lambdaNP_TMDR(:),lambdaNP_uTMDPDF(:),lambdaNP_uTMDFF(:),lambdaNP_lpTMDPDF(:),&
-            lambdaNP_SiversTMDPDF(:),lambdaNP_wgtTMDPDF(:),lambdaNP_wglTMDPDF(:),lambdaNP_BoerMuldersTMDPDF(:),lambdaNP_eeTMDFF(:)
+            lambdaNP_SiversTMDPDF(:),lambdaNP_wgtTMDPDF(:),lambdaNP_wglTMDPDF(:),lambdaNP_BoerMuldersTMDPDF(:),lambdaNP_eeTMDFF(:),&
+            lambdaNP_CollinsTMDFF(:)
 
 !!!! Saved values of scale-variation parameters
 real(dp)::c1_saved,c2_saved,c3_saved,c4_saved
@@ -63,6 +65,7 @@ public::artemide_Initialize
 public::artemide_SetNPparameters,artemide_SetNPparameters_TMDR,artemide_SetNPparameters_uTMDFF,artemide_SetNPparameters_uTMDPDF
 public::artemide_SetNPparameters_lpTMDPDF,artemide_SetNPparameters_SiversTMDPDF,artemide_SetNPparameters_wgtTMDPDF
 public::artemide_SetNPparameters_wglTMDPDF,artemide_SetNPparameters_BoerMuldersTMDPDF,artemide_SetNPparameters_eeTMDFF
+public::artemide_SetNPparameters_CollinsTMDFF
 public::artemide_SetScaleVariations
 public::artemide_ShowStatistics
 public::artemide_GetReplicaFromFile,artemide_NumOfReplicasInFile
@@ -250,6 +253,18 @@ subroutine artemide_Initialize(file,prefix,order)
         NPlength_eeTMDFF=0
     end if
 
+    call MoveTO(51,'*18   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_CollinsTMDFF
+        if(include_CollinsTMDFF) then
+        call MoveTO(51,'*C   ')
+        call MoveTO(51,'*p1  ')
+        read(51,*) NPlength_CollinsTMDFF
+        allocate(lambdaNP_CollinsTMDFF(1:NPlength_CollinsTMDFF))
+    else
+        NPlength_CollinsTMDFF=0
+    end if
+
     CLOSE (51, STATUS='KEEP')
     !-----------------------------------------------------------
     if(outputLevel>2) write(*,*) 'artemide.control: initialization file is read. Initialization of modules ... '
@@ -332,6 +347,14 @@ subroutine artemide_Initialize(file,prefix,order)
         end if
     end if
 
+    if(include_CollinsTMDFF) then
+        if(present(prefix)) then
+            call CollinsTMDFF_Initialize(constNAME,prefix)
+        else
+            call CollinsTMDFF_Initialize(constNAME)
+        end if
+    end if
+
     if(include_TMDR) then
         if(present(prefix)) then
             call TMDR_Initialize(constNAME,prefix)
@@ -384,6 +407,7 @@ subroutine artemide_Initialize(file,prefix,order)
     if(include_wglTMDPDF) NPlength_total=NPlength_total+NPlength_wglTMDPDF
     if(include_BoerMuldersTMDPDF) NPlength_total=NPlength_total+NPlength_BoerMuldersTMDPDF
     if(include_eeTMDFF) NPlength_total=NPlength_total+NPlength_eeTMDFF
+    if(include_CollinsTMDFF) NPlength_total=NPlength_total+NPlength_CollinsTMDFF
 
     if(outputLevel>2) write(*,*) ' artemide.control: Total number of NP parameters:',NPlength_total
 
@@ -462,6 +486,10 @@ subroutine artemide_SetNPparameters(lambdaNP)
         lambdaNP_eeTMDFF=lambda_cur(num+1:num+NPlength_eeTMDFF)
         num=num+NPlength_eeTMDFF
     end if
+    if(include_CollinsTMDFF) then
+        lambdaNP_CollinsTMDFF=lambda_cur(num+1:num+NPlength_CollinsTMDFF)
+        num=num+NPlength_CollinsTMDFF
+    end if
 
     !!! sending NP arrays to packages
     if(include_TMDR) call TMDR_setNPparameters(lambdaNP_TMDR)
@@ -473,6 +501,7 @@ subroutine artemide_SetNPparameters(lambdaNP)
     if(include_wglTMDPDF) call wglTMDPDF_SetLambdaNP(lambdaNP_wglTMDPDF)
     if(include_BoerMuldersTMDPDF) call BoerMuldersTMDPDF_SetLambdaNP(lambdaNP_BoerMuldersTMDPDF)
     if(include_eeTMDFF) call eeTMDFF_SetLambdaNP(lambdaNP_eeTMDFF)
+    if(include_CollinsTMDFF) call CollinsTMDFF_SetLambdaNP(lambdaNP_CollinsTMDFF)
 
     !!! reseting other packages
     if(include_TMDF) call TMDF_ResetCounters()
@@ -871,6 +900,50 @@ subroutine artemide_SetNPparameters_eeTMDFF(lambdaNP)
     if(include_TMDX_SIDIS) call TMDX_SIDIS_ResetCounters()
 
 end subroutine artemide_SetNPparameters_eeTMDFF
+
+subroutine artemide_SetNPparameters_CollinsTMDFF(lambdaNP)
+    real(dp),intent(in)::lambdaNP(:)
+    integer::ll
+
+    if(.not.include_CollinsTMDFF) then
+        if(outputLevel>0) &
+            write(*,*) ErrorString(&
+        'attempt to set NP-parameters for CollinsTMDFF, while CollinsTMDFF module is not included in the current setup',&
+            moduleName)
+        if(outputLevel>0) write(*,*) color('NOTHING IS DONE',c_red)
+        return
+    end if
+
+    ll=size(lambdaNP)
+
+
+    if(ll<NPlength_CollinsTMDFF) then
+        if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
+            color('artemide.SetNPparameters-CollinsTMDFF: ERROR: the length of NP parameters array (',c_red),ll,&
+            color(') is smaller then the total number of NP parameters for CollinsTMDFF (',c_red),NPlength_CollinsTMDFF,&
+            color(')',c_red)
+        if(outputLevel>0) write(*,*) color('NOTHING IS DONE',c_red)
+        return
+    end if
+
+    if(ll>NPlength_CollinsTMDFF) then
+        if(outputLevel>0) write(*,"(A,I4,A,I4,A)")&
+            color('artemide.SetNPparameters: ERROR: the length of NP parameters array (',c_red),ll,&
+            color(') is larger then total the number of NP parameters for CollinsTMDFF (',c_red),NPlength_CollinsTMDFF,&
+            color(')',c_red)
+        if(outputLevel>0) write(*,*) color('The array is trucated',c_red)
+    end if
+
+    lambdaNP_CollinsTMDFF=lambdaNP(1:NPlength_CollinsTMDFF)
+
+    call CollinsTMDFF_SetLambdaNP(lambdaNP_CollinsTMDFF)
+
+    !!! reseting other packages
+    if(include_TMDF) call TMDF_ResetCounters()
+    if(include_TMDX_DY) call TMDX_DY_ResetCounters()
+    if(include_TMDX_SIDIS) call TMDX_SIDIS_ResetCounters()
+
+end subroutine artemide_SetNPparameters_CollinsTMDFF
   
 !------------------------------------------------------- Other routines ---------------------------------
 subroutine artemide_ShowStatistics()
@@ -940,6 +1013,13 @@ subroutine artemide_ShowStatistics()
         end do
         write(*,*) ' '
     end if
+    if(include_CollinsTMDFF) then
+        write(*,"('--- CollinsTMDFF : ',I3,' parameters')") NPlength_CollinsTMDFF
+        do i=1,NPlength_CollinsTMDFF
+            write(*,"(F10.4,' ')",advance='no') lambdaNP_CollinsTMDFF(i)
+        end do
+        write(*,*) ' '
+    end if
     
     !if(include_TMDF) call TMDF_ShowStatistic()
     if(include_TMDX_DY) call TMDX_DY_ShowStatistic()
@@ -962,6 +1042,7 @@ subroutine artemide_SetScaleVariations(c1,c2,c3,c4)
     if(include_wglTMDPDF) call wglTMDPDF_SetScaleVariation(c4)
     if(include_BoerMuldersTMDPDF) call BoerMuldersTMDPDF_SetScaleVariation_tw3(c4)
     if(include_eeTMDFF) call eeTMDFF_SetScaleVariation(c4)
+    if(include_CollinsTMDFF) call CollinsTMDFF_SetScaleVariation_tw3(c4)
     if(include_TMDR) call TMDR_SetScaleVariation(c1)
     if(include_TMDX_DY) call TMDX_DY_SetScaleVariation(c2)
     if(include_TMDX_SIDIS) call TMDX_SIDIS_SetScaleVariation(c2)
@@ -1043,6 +1124,14 @@ function BaseNPString()
         BaseNPString(j)=1d0
         j=j+1
         do i=1,NPlength_eeTMDFF
+            BaseNPString(j)=0d0
+            j=j+1
+        end do
+    end if
+    if(include_CollinsTMDFF) then
+        BaseNPString(j)=1d0
+        j=j+1
+        do i=1,NPlength_CollinsTMDFF
             BaseNPString(j)=0d0
             j=j+1
         end do

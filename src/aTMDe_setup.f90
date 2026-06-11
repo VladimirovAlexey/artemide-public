@@ -9,15 +9,15 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module aTMDe_Setup
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 implicit none
 
 private
 
-character (len=5),parameter :: version="v3.02"
+character (len=5),parameter :: version="v3.03"
 character (len=11),parameter :: moduleName="aTMDe-setup"
 !! actual version of input file
-integer,parameter::inputVer=35
+integer,parameter::inputVer=39
 
 !detalization of output: 0 = no output except critical, 1 = + WARNINGS, 2 = + states of initialization,sets,etc, 3 = + details
 integer::outputLevel
@@ -137,6 +137,9 @@ real(dp)::SiversTMDPDF_BMAX_ABS
 real(dp)::SiversTMDPDF_toleranceINT
 real(dp)::SiversTMDPDF_toleranceGEN
 integer::SiversTMDPDF_maxIteration
+integer::SiversTMDPDF_numSubGridsX,SiversTMDPDF_numSubGridsB
+real(dp),allocatable::SiversTMDPDF_subGridsX(:),SiversTMDPDF_subGridsB(:)
+integer::SiversTMDPDF_grid_SizeX,SiversTMDPDF_grid_SizeB
 real(dp)::SiversTMDPDF_hOGATA,SiversTMDPDF_toleranceOGATA,SiversTMDPDF_KT_FREEZE
 real(dp)::SiversTMDPDF_hOGATA_TMM,SiversTMDPDF_toleranceOGATA_TMM,SiversTMDPDF_muMIN_TMM
 
@@ -205,6 +208,24 @@ real(dp)::eeTMDFF_toleranceGEN,eeTMDFF_toleranceINT
 integer::eeTMDFF_maxIteration
 logical::eeTMDFF_makeGrid_inKT
 
+!-------------------- CollinsTMDFF parameters
+logical::include_CollinsTMDFF
+character*8::CollinsTMDFF_order
+logical::CollinsTMDFF_makeGrid,CollinsTMDFF_withGluon,CollinsTMDFF_runGridTest
+integer::CollinsTMDFF_lambdaLength
+integer::CollinsTMDFF_numHadron
+real(dp)::CollinsTMDFF_BMAX_ABS
+real(dp)::CollinsTMDFF_toleranceINT
+real(dp)::CollinsTMDFF_toleranceGEN
+integer::CollinsTMDFF_maxIteration
+logical::CollinsTMDFF_makeGrid_inKT,CollinsTMDFF_runGridTest_inKT
+integer::CollinsTMDFF_numSubGridsX_inKT,CollinsTMDFF_numSubGridsKT_inKT,CollinsTMDFF_numSubGridsB_inKT
+real(dp),allocatable::CollinsTMDFF_subGridsX_inKT(:),CollinsTMDFF_subGridsB_inKT(:),CollinsTMDFF_subGridsKT_inKT(:)
+integer::CollinsTMDFF_grid_SizeX_inKT,CollinsTMDFF_grid_SizeB_inKT,CollinsTMDFF_grid_SizeKT_inKT
+real(dp)::CollinsTMDFF_minQ_inKT,CollinsTMDFF_maxQ_inKT
+integer::CollinsTMDFF_grid_SizeQ_inKT
+real(dp)::CollinsTMDFF_hOGATA_TMM,CollinsTMDFF_toleranceOGATA_TMM,CollinsTMDFF_muMIN_TMM
+
 !-------------------- TMDF parameters
 logical::include_TMDF
 real(dp)::TMDF_OGATAh,TMDF_tolerance,TMDF_qTMIN,TMDF_hardScaleMIN
@@ -217,20 +238,22 @@ real(dp)::TMDF_KPC_toleranceGEN,TMDF_KPC_toleranceINT,TMDF_KPC_qTMIN
 !-------------------- TMDX-DY parameters
 logical::include_TMDX_DY
 character*8::TMDX_DY_order
-real(dp)::TMDX_DY_toleranceINT, TMDX_DY_toleranceGEN
+real(dp)::TMDX_DY_toleranceINT, TMDX_DY_toleranceGEN,TMDX_DY_maxQTrange
 integer::TMDX_DY_ptSECTION
 logical::TMDX_DY_exactX1X2,TMDX_DY_piResum,TMDX_DY_exactScale
 real::TMDX_DY_maxQbinSize,TMDX_DY_minqTabs
-logical::TMDX_DY_useKPC
+logical::TMDX_DY_useKPC,TMDX_DY_doPartition
+integer::TMDX_DY_ChNodes
 
 !-------------------- TMDX-SIDIS parameters
 logical::include_TMDX_SIDIS
 character*8::TMDX_SIDIS_order
-real(dp)::TMDX_SIDIS_toleranceINT, TMDX_SIDIS_toleranceGEN
+real(dp)::TMDX_SIDIS_toleranceINT, TMDX_SIDIS_toleranceGEN, TMDX_SIDIS_maxQTrange
 real(dp)::TMDX_SIDIS_minPT
 integer::TMDX_SIDIS_ptSECTION
 logical::TMDX_SIDIS_qTcorr,TMDX_SIDIS_M1corr,TMDX_SIDIS_M2corr,TMDX_SIDIS_exactX1Z1,TMDX_SIDIS_exactScale
-logical::TMDX_SIDIS_useKPC
+logical::TMDX_SIDIS_useKPC,TMDX_SIDIS_doPartition
+integer::TMDX_SIDIS_ChNodes
 
 !---------------------------------------------------
 public::artemide_Setup_fromFile,CreateConstantsFile,ReadConstantsFile,CheckConstantsFile
@@ -483,6 +506,14 @@ subroutine SetupDefault(order)
     SiversTMDPDF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
     SiversTMDPDF_toleranceGEN=1.d-6!general tolerance
     SiversTMDPDF_maxIteration=10000    !maxIteration for adaptive integration
+    SiversTMDPDF_numSubGridsX=2
+    allocate(SiversTMDPDF_subGridsX(0:SiversTMDPDF_numSubGridsX))
+    SiversTMDPDF_subGridsX=(/0.01d0,0.5d0,1.d0/)
+    SiversTMDPDF_grid_SizeX=8
+    SiversTMDPDF_numSubGridsB=5
+    allocate(SiversTMDPDF_subGridsB(0:SiversTMDPDF_numSubGridsB))
+    SiversTMDPDF_subGridsB=(/0.00001d0,0.01d0,0.2d0,2.d0,8.d0,25.d0/)
+    SiversTMDPDF_grid_SizeB=8
     SiversTMDPDF_toleranceOGATA=1.d-4    !!! OGATA tolerance
     SiversTMDPDF_hOGATA=1.d-3            !!! OGATA integration step
     SiversTMDPDF_KT_FREEZE=1.d-4         !!! min value of kT
@@ -601,6 +632,39 @@ subroutine SetupDefault(order)
     eeTMDFF_maxIteration=10000    !maxIteration for adaptive integration
     eeTMDFF_makeGrid_inKT=.false.
 
+    !-------------------- parameters for CollinsTMDFF
+    include_CollinsTMDFF=.false. !!! we do not initialize CollinsTMDFF by definition
+    CollinsTMDFF_order=trim('NA') !!! by definition BoerMulders is tree-order
+    CollinsTMDFF_makeGrid=.false.   !!! no need to make grid
+    CollinsTMDFF_withGluon=.false.
+    CollinsTMDFF_numHadron=1
+    CollinsTMDFF_runGridTest=.false.
+    CollinsTMDFF_lambdaLength=1
+    CollinsTMDFF_BMAX_ABS=100.d0
+    CollinsTMDFF_toleranceINT=1.d-6!tolerance (i.e. relative integration tolerance)
+    CollinsTMDFF_toleranceGEN=1.d-6!general tolerance
+    CollinsTMDFF_maxIteration=10000    !maxIteration for adaptive integration
+    CollinsTMDFF_makeGrid_inKT=.false.
+    CollinsTMDFF_runGridTest_inKT=.false.
+    CollinsTMDFF_numSubGridsX_inKT=4
+    allocate(CollinsTMDFF_subGridsX_inKT(0:CollinsTMDFF_numSubGridsX_inKT))
+    CollinsTMDFF_subGridsX_inKT=(/0.00001d0,0.001d0,0.1d0,0.7d0,1.d0/)
+    CollinsTMDFF_grid_SizeX_inKT=16
+    CollinsTMDFF_numSubGridsKT_inKT=5
+    allocate(CollinsTMDFF_subGridsKT_inKT(0:CollinsTMDFF_numSubGridsKT_inKT))
+    CollinsTMDFF_subGridsKT_inKT=(/0.01d0,1.d0,5.d0,15.d0,50.d0,200.d0/)
+    CollinsTMDFF_grid_SizeKT_inKT=16
+    CollinsTMDFF_minQ_inKT=1.d0
+    CollinsTMDFF_maxQ_inKT=200.d0
+    CollinsTMDFF_grid_SizeQ_inKT=40
+    CollinsTMDFF_numSubGridsB_inKT=5
+    allocate(CollinsTMDFF_subGridsB_inKT(0:CollinsTMDFF_numSubGridsB_inKT))
+    CollinsTMDFF_subGridsB_inKT=(/0.00001d0,0.01d0,0.2d0,2.d0,8.d0,25.d0/)
+    CollinsTMDFF_grid_SizeB_inKT=16
+    CollinsTMDFF_toleranceOGATA_TMM=1.d-4    !!! OGATA tolerance (for TMM)
+    CollinsTMDFF_hOGATA_TMM=1.d-3            !!! OGATA integration step(for TMM)
+    CollinsTMDFF_muMIN_TMM=0.8d0
+
     !------------------ parameters for TMDF
     include_TMDF=.true.
     TMDF_tolerance=0.0001d0    !tolerance (i.e. relative integration tolerance)
@@ -616,6 +680,9 @@ subroutine SetupDefault(order)
     TMDX_DY_ptSECTION=4        !default number of sections for pt-bin integration
     TMDX_DY_maxQbinSize=30. !default maximum size of the Q-bin integration
     TMDX_DY_minqTabs=0.0001 !default minimum value of qT
+    TMDX_DY_doPartition=.false. !default partitioning of qT-ranges
+    TMDX_DY_ChNodes=10   !!!! order of qT interpolation
+    TMDX_DY_maxQTrange=18.d0 !!!! maximum range for qT-integral simplification
     TMDX_DY_order=trim(order)
     TMDX_DY_exactX1X2=.true.
     TMDX_DY_piResum=.false.
@@ -628,6 +695,9 @@ subroutine SetupDefault(order)
     TMDX_SIDIS_toleranceGEN=0.000001d0
     TMDX_SIDIS_minPT=0.0001d0
     TMDX_SIDIS_ptSECTION=4        !default number of sections for pt-bin integration
+    TMDX_SIDIS_doPartition=.false. !default partitioning of pT-ranges
+    TMDX_SIDIS_ChNodes=10  !!!! order of pT interpolation
+    TMDX_SIDIS_maxQTrange = 18.d0 !!!! maximum range for qT-integral simplification
     TMDX_SIDIS_order=trim(order)
     TMDX_SIDIS_qTcorr=.true.
     TMDX_SIDIS_M1corr=.false.
@@ -671,7 +741,7 @@ function CheckConstantsFile(file,prefix)
     if(FILEversion<31) then
         write(*,*) color('aTMDe_setup: present version of setup-file is for artemide v2.'&
         , c_red_bold)
-        write(*,*) color('..           It is incompatible with the preent version.'&
+        write(*,*) color('..           It is incompatible with the present version.'&
         , c_red)
         write(*,*) color('..           Please, use actual file or update it manually.'&
         ,c_red)
@@ -760,7 +830,7 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) mTOP
     write(51,"(' ')")
     write(51,"('*B   : ---- uPDF sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 3)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_uPDFs
     write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uPDFs
@@ -769,7 +839,7 @@ subroutine CreateConstantsFile(file,prefix)
 
     write(51,"(' ')")
     write(51,"('*C   : ---- uFF sets----')")
-    write(51,"('*p1  : total number of FFs to initialize (0= initialization is skipped; maximum 3)')")
+    write(51,"('*p1  : total number of FFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_uFFs
     write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_uFFs
@@ -778,7 +848,7 @@ subroutine CreateConstantsFile(file,prefix)
 
     write(51,"(' ')")
     write(51,"('*D   : ----lpPDF sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 1)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_lpPDFs
     write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_lpPDFs
@@ -787,7 +857,7 @@ subroutine CreateConstantsFile(file,prefix)
     
     write(51,"(' ')")
     write(51,"('*E   : ----gPDF (helicity) sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_gPDFs
     write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_gPDFs
@@ -796,7 +866,7 @@ subroutine CreateConstantsFile(file,prefix)
 
     write(51,"(' ')")
     write(51,"('*F   : ----hPDF (transversity) sets----')")
-    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped; maximum 2)')")
+    write(51,"('*p1  : total number of PDFs to initialize (0= initialization is skipped)')")
     write(51,*) number_of_hPDFs
     write(51,"('*p2  : LHAPDF set names for hadrons (line-by-line corresponding to reference number')")
     do i=1,number_of_hPDFs
@@ -1126,6 +1196,12 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_DY_maxQbinSize
     write(51,"('*p5  : Minimal value of qT (lower values are fixed to this number)')")
     write(51,*) TMDX_DY_minqTabs
+    write(51,"('*p6  : Attempt to evaluate sequences of qT-bins in a single run by default')")
+    write(51,*) TMDX_DY_doPartition
+    write(51,"('*p7  : Order of qT-interpolation in the partitioning')")
+    write(51,*) TMDX_DY_ChNodes
+    write(51,"('*p8  : Maximum range of qT to evaluate in a single sequence (in GeV)')")
+    write(51,*) TMDX_DY_maxQTrange
     write(51,"(' ')")
     write(51,"('*C   : ---- Definition of LP TMD factorization ----')")
     write(51,"('*p1  : Use the exact values of x1 and x2 (include qT/Q correction)')")
@@ -1162,6 +1238,13 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) TMDX_SIDIS_ptSECTION
     write(51,"('*p4  : Minimal value of pT (lower values are fixed to this number)')")
     write(51,*) TMDX_SIDIS_minPT
+    write(51,"('*p5  : Attempt to evaluate sequences of pT-bins in a single run by default')")
+    write(51,*) TMDX_SIDIS_doPartition
+    write(51,"('*p6  : Order of pT-interpolation in the partitioning')")
+    write(51,*) TMDX_SIDIS_ChNodes
+    write(51,"('*p7  : Maximum range of QT=(pT/z) to evaluate in a single sequence (in GeV)')")
+    write(51,*) TMDX_SIDIS_maxQTrange
+    write(51,"(' ')")
     write(51,"(' ')")
     write(51,"('*C   : ---- Definition of LP TMD factorization ----')")
     write(51,"('*p1  : Account induced transverse momentum corrections')")
@@ -1282,6 +1365,18 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,*) SiversTMDPDF_maxIteration
     write(51,"(' ')")
     write(51,"('*E   : ---- (OPE) Parameters of grid ----')")
+    write(51,"('*p1  : Number of subgrids in X (required to read the next line)')")
+    write(51,*) SiversTMDPDF_numSubGridsX
+    write(51,"('*p2  : Intervals for subgrids in X (must include 1., as the last point)')")
+    write(51,*) SiversTMDPDF_subGridsX
+    write(51,"('*p3  : Number of nodes in the X-subgrid')")
+    write(51,*) SiversTMDPDF_grid_SizeX
+    write(51,"('*p4  : Number of subgrids in B (required to read the next line)')")
+    write(51,*) SiversTMDPDF_numSubGridsB
+    write(51,"('*p5  : Intervals for subgrids in B (below and above ultimate points the value is frozen)')")
+    write(51,*) SiversTMDPDF_subGridsB
+    write(51,"('*p6  : Number of nodes in the B-subgrid ')")
+    write(51,*) SiversTMDPDF_grid_SizeB
     write(51,"(' ')")
     write(51,"('*F   : ---- Transformation to KT-space ----')")
     write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
@@ -1594,6 +1689,83 @@ subroutine CreateConstantsFile(file,prefix)
     write(51,"('*p1  : Prepare grid')")
     write(51,*) eeTMDFF_makeGrid_inKT
 
+    write(51,"(' ')")
+    write(51,"(' ')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('# ----                  PARAMETERS OF CollinsTMDFF                      -----')")
+    write(51,"('# ---------------------------------------------------------------------------')")
+    write(51,"('*18  :')")
+    write(51,"('*p1  : initialize CollinsTMDFF module')")
+    write(51,*) include_CollinsTMDFF
+    write(51,"(' ')")
+    write(51,"('*A   : ---- Main definitions ----')")
+    write(51,"('*p1  : Include gluon TMDPDFs')")
+    write(51,*) CollinsTMDFF_withGluon
+    write(51,"('*p2  : Number of hadrons (in order starting with 1)')")
+    write(51,*) CollinsTMDFF_numHadron
+    write(51,"(' ')")
+    write(51,"('*B   : ---- OPE[tw3] main definitions ----')")
+    write(51,"('*p1  : Order of coefficient function')")
+    write(51,*) trim(CollinsTMDFF_order)
+    write(51,"('*p2  : Prepare grid')")
+    write(51,*) CollinsTMDFF_makeGrid
+    write(51,"('*p3  : run the test of the grid (takes some time)')")
+    write(51,*) CollinsTMDFF_runGridTest
+    write(51,"(' ')")
+    write(51,"('*C   : ---- Parameters of NP model ----')")
+    write(51,"('*p1  : Length of lambdaNP')")
+    write(51,*) CollinsTMDFF_lambdaLength
+    write(51,"('*p2  : Absolute maximum b (for larger b, TMD=0)')")
+    write(51,*) CollinsTMDFF_BMAX_ABS
+    write(51,"(' ')")
+    write(51,"('*D   : ---- Numerical evaluation parameters ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of convolution integral)')")
+    write(51,*) CollinsTMDFF_toleranceINT
+    write(51,"('*p2  : Tolerance general (used for various comparisons)')")
+    write(51,*) CollinsTMDFF_toleranceGEN
+    write(51,"('*p3  : Maximum number of iterations (for adaptive integration)')")
+    write(51,*) CollinsTMDFF_maxIteration
+    write(51,"(' ')")
+    write(51,"('*E   : ---- (OPE) Parameters of grid ----')")
+    write(51,"(' ')")
+    write(51,"('*F   : ---- Transform and grid in KT-space ----')")
+    write(51,"('*p1  : Prepare grid')")
+    write(51,*) CollinsTMDFF_makeGrid_inKT
+    write(51,"('*p2  : run the test of the grid (takes some time)')")
+    write(51,*) CollinsTMDFF_runGridTest_inKT
+    write(51,"('*p3  : Number of subgrids in X (required to read the next line)')")
+    write(51,*) CollinsTMDFF_numSubGridsX_inKT
+    write(51,"('*p4  : Intervals for subgrids in X (must include 1., as the last point)')")
+    write(51,*) CollinsTMDFF_subGridsX_inKT
+    write(51,"('*p5  : Number of nodes in the X-subgrid')")
+    write(51,*) CollinsTMDFF_grid_SizeX_inKT
+    write(51,"('*p6  : Number of subgrids in K (required to read the next line)')")
+    write(51,*) CollinsTMDFF_numSubGridsKT_inKT
+    write(51,"('*p7  : Intervals for subgrids in KT (below and above ultimate points the value is frozen)')")
+    write(51,*) CollinsTMDFF_subGridsKT_inKT
+    write(51,"('*p8  : Number of nodes in the KT-subgrid')")
+    write(51,*) CollinsTMDFF_grid_SizeKT_inKT
+    write(51,"('*p9  : Minimal Q in the grid')")
+    write(51,*) CollinsTMDFF_minQ_inKT
+    write(51,"('*p10 : Maximal Q in the grid')")
+    write(51,*) CollinsTMDFF_maxQ_inKT
+    write(51,"('*p11 : Number of nodes in the Q-grid')")
+    write(51,*) CollinsTMDFF_grid_SizeQ_inKT
+    write(51,"('*p12  : Number of subgrids in B (required to read the next line)')")
+    write(51,*) CollinsTMDFF_numSubGridsB_inKT
+    write(51,"('*p13  : Intervals for subgrids in B (below and above ultimate points the value is frozen)')")
+    write(51,*) CollinsTMDFF_subGridsB_inKT
+    write(51,"('*p14  : Number of nodes in the B-subgrid')")
+    write(51,*) CollinsTMDFF_grid_SizeB_inKT
+    write(51,"(' ')")
+    write(51,"('*G   : ---- Computation of Transverse Momentum Moments (TMM) ----')")
+    write(51,"('*p1  : Tolerance (relative tolerance of summation in OGATA quadrature)')")
+    write(51,*) CollinsTMDFF_toleranceOGATA_TMM
+    write(51,"('*p2  : Ogata quadrature integration step')")
+    write(51,*) CollinsTMDFF_hOGATA_TMM
+    write(51,"('*p3  : Minimum value of mu [GeV] (below that value the computation is terminated)')")
+    write(51,*) CollinsTMDFF_muMIN_TMM
+
     CLOSE (51, STATUS='KEEP')
     if(outputLevel>1) write(*,*) 'aTMDe_setup: Constans file is made.'
 
@@ -1648,7 +1820,7 @@ subroutine ReadConstantsFile(file,prefix)
         CLOSE (51, STATUS='KEEP')
         write(*,*) color('aTMDe_setup: suggested setup-file is for artemide v2.'&
         , c_red_bold)
-        write(*,*) color('..           It is incompatible with the preent version.'&
+        write(*,*) color('..           It is incompatible with the present version.'&
         , c_red)
         write(*,*) color('..           Please, use actual file or update it manually.'&
         ,c_red)
@@ -2085,6 +2257,14 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) TMDX_DY_maxQbinSize
     call MoveTO(51,'*p5  ')
     read(51,*) TMDX_DY_minqTabs
+    if(FILEversion>37) then
+        call MoveTO(51,'*p6  ')
+        read(51,*) TMDX_DY_doPartition
+        call MoveTO(51,'*p7  ')
+        read(51,*) TMDX_DY_ChNodes
+        call MoveTO(51,'*p8  ')
+        read(51,*) TMDX_DY_maxQTrange
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_DY_exactX1X2
@@ -2109,6 +2289,16 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) TMDX_SIDIS_toleranceINT
     call MoveTO(51,'*p3  ')
     read(51,*) TMDX_SIDIS_ptSECTION
+    call MoveTO(51,'*p4  ')
+    read(51,*) TMDX_SIDIS_minPT
+    if(FILEversion>38) then
+        call MoveTO(51,'*p5  ')
+        read(51,*) TMDX_SIDIS_doPartition
+        call MoveTO(51,'*p6  ')
+        read(51,*) TMDX_SIDIS_ChNodes
+        call MoveTO(51,'*p7  ')
+        read(51,*) TMDX_SIDIS_maxQTrange
+    end if
     call MoveTO(51,'*C   ')
     call MoveTO(51,'*p1  ')
     read(51,*) TMDX_SIDIS_qTcorr
@@ -2213,6 +2403,24 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) SiversTMDPDF_toleranceGEN
     call MoveTO(51,'*p3  ')
     read(51,*) SiversTMDPDF_maxIteration
+    if(FILEversion>35) then
+        call MoveTO(51,'*p1  ')
+        read(51,*) SiversTMDPDF_numSubGridsX
+        deallocate(SiversTMDPDF_subGridsX)
+        allocate(SiversTMDPDF_subGridsX(0:SiversTMDPDF_numSubGridsX))
+        call MoveTO(51,'*p2  ')
+        read(51,*) SiversTMDPDF_subGridsX
+        call MoveTO(51,'*p3  ')
+        read(51,*) SiversTMDPDF_grid_SizeX
+        call MoveTO(51,'*p4  ')
+        read(51,*) SiversTMDPDF_numSubGridsB
+        deallocate(SiversTMDPDF_subGridsB)
+        allocate(SiversTMDPDF_subGridsB(0:SiversTMDPDF_numSubGridsB))
+        call MoveTO(51,'*p5  ')
+        read(51,*) SiversTMDPDF_subGridsB
+        call MoveTO(51,'*p6  ')
+        read(51,*) SiversTMDPDF_grid_SizeB
+    end if
     call MoveTO(51,'*G   ')
     call MoveTO(51,'*p1  ')
     read(51,*) SiversTMDPDF_toleranceOGATA_TMM
@@ -2486,6 +2694,81 @@ subroutine ReadConstantsFile(file,prefix)
     read(51,*) eeTMDFF_makeGrid_inKT
     else
     if(outputLevel>0) write(*,*) 'aTMDe_setup: eeTMDFF is loaded by default parameters...'
+    end if
+
+    !# ----                           PARAMETERS OF CollinsTMDFF                  -----
+    if(FILEversion>36) then !!!!! CollinsTMDFF was introduced in the 37.
+    call MoveTO(51,'*18  ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) include_CollinsTMDFF
+    call MoveTO(51,'*A   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_withGluon
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_numHadron
+    call MoveTO(51,'*B   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_order
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_makeGrid
+    call MoveTO(51,'*p3  ')
+    read(51,*) CollinsTMDFF_runGridTest
+    call MoveTO(51,'*C   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_lambdaLength
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_BMAX_ABS
+    call MoveTO(51,'*D   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_toleranceINT
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_toleranceGEN
+    call MoveTO(51,'*p3  ')
+    read(51,*) CollinsTMDFF_maxIteration
+    call MoveTO(51,'*F   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_makeGrid_inKT
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_runGridTest_inKT
+    call MoveTO(51,'*p3  ')
+    read(51,*) CollinsTMDFF_numSubGridsX_inKT
+    deallocate(CollinsTMDFF_subGridsX_inKT)
+    allocate(CollinsTMDFF_subGridsX_inKT(0:CollinsTMDFF_numSubGridsX_inKT))
+    call MoveTO(51,'*p4  ')
+    read(51,*) CollinsTMDFF_subGridsX_inKT
+    call MoveTO(51,'*p5  ')
+    read(51,*) CollinsTMDFF_grid_SizeX_inKT
+    call MoveTO(51,'*p6  ')
+    read(51,*) CollinsTMDFF_numSubGridsKT_inKT
+    deallocate(CollinsTMDFF_subGridsKT_inKT)
+    allocate(CollinsTMDFF_subGridsKT_inKT(0:CollinsTMDFF_numSubGridsKT_inKT))
+    call MoveTO(51,'*p7  ')
+    read(51,*) CollinsTMDFF_subGridsKT_inKT
+    call MoveTO(51,'*p8  ')
+    read(51,*) CollinsTMDFF_grid_SizeKT_inKT
+    call MoveTO(51,'*p9  ')
+    read(51,*) CollinsTMDFF_minQ_inKT
+    call MoveTO(51,'*p10 ')
+    read(51,*) CollinsTMDFF_maxQ_inKT
+    call MoveTO(51,'*p11 ')
+    read(51,*) CollinsTMDFF_grid_SizeQ_inKT
+    call MoveTO(51,'*p12 ')
+    read(51,*) CollinsTMDFF_numSubGridsB_inKT
+    deallocate(CollinsTMDFF_subGridsB_inKT)
+    allocate(CollinsTMDFF_subGridsB_inKT(0:CollinsTMDFF_numSubGridsB_inKT))
+    call MoveTO(51,'*p13 ')
+    read(51,*) CollinsTMDFF_subGridsB_inKT
+    call MoveTO(51,'*p14 ')
+    read(51,*) CollinsTMDFF_grid_SizeB_inKT
+    call MoveTO(51,'*G   ')
+    call MoveTO(51,'*p1  ')
+    read(51,*) CollinsTMDFF_toleranceOGATA_TMM
+    call MoveTO(51,'*p2  ')
+    read(51,*) CollinsTMDFF_hOGATA_TMM
+    call MoveTO(51,'*p3  ')
+    read(51,*) CollinsTMDFF_muMIN_TMM
+    else
+    if(outputLevel>0) write(*,*) 'aTMDe_setup: CollinsTMDFF is loaded by default parameters...'
     end if
     CLOSE (51, STATUS='KEEP') 
 

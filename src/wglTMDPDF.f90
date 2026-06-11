@@ -11,7 +11,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module wglTMDPDF
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
+use aTMDe_Ogata
 use QCDinput
 use TMDR
 use wglTMDPDF_OPE
@@ -36,16 +37,13 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WRNING mesagges. In order not to spam too much
-integer::messageTrigger=6
+type(Warning_OBJ)::Warning_Handler
 
 !!! the length and array of NP parameters
 integer::lambdaNPlength
 real(dp),dimension(:),allocatable::lambdaNP
 real(dp)::BMAX_ABS=100._dp !!! for large values of b returns 0
 real(dp)::toleranceGEN !!! tolerance general
-
-integer ::messageCounter
 
 !!!------------------------------ General parameters----------------------------------------------
 logical::includeGluon=.false.   !! gluons included/non-included
@@ -55,38 +53,12 @@ real(dp)::TMDmass=1._dp         !! mass parameter used as mass-scale
 !!!------------------------------ Parameters of transform to KT-space -------------------------------------------
 
 integer,parameter::TMDtypeN=1 !!!!! this is the order of Bessel-transform (IT IS STRICT FOR TMD)
-real(dp)::kT_FREEZE=0.0001_dp  !!!!! parameter of freezing the low-kT-value
 
-!----Ogata Tables---
-integer,parameter::Nmax=1000
-INCLUDE 'Code/Tables/BesselZero1000.f90'
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! In each segment I have the ogata quadrature with h=hOGATA*hSegmentationWeight
-!!!!! It helps to convergen integrals, since h(optimal) ~ qT
-integer,parameter::hSegmentationNumber=7
-real(dp),dimension(1:hSegmentationNumber),parameter::hSegmentationWeight=(/0.0001d0,0.001d0,0.01d0,1d0,2d0,5d0,10d0/)
-real(dp),dimension(1:hSegmentationNumber),parameter::qTSegmentationBoundary=(/0.001d0,0.01d0,0.1d0,10d0,50d0,100d0,200d0/)
-
-real(dp)::hOGATA,toleranceOGATA
-!!!weights of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,1:Nmax)::ww
-!!!nodes of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,1:Nmax)::bb
+type(OgataIntegrator)::Hankel
 
 !!!------------------------------ Parameters of transform to TMM -------------------------------------------
 
 real(dp)::muTMM_min=0.8_dp  !!!!! minimal mu
-
-!!!!! I split the qT over runs qT<qTSegmentationBoundary
-!!!!! For TMM this split is the same as for inKT
-
-real(dp)::hOGATA_TMM,toleranceOGATA_TMM
-!!!weights of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::ww_TMM
-!!!nodes of ogata quadrature
-real(dp),dimension(1:hSegmentationNumber,0:3,1:Nmax)::bb_TMM
-
 !!-----------------------------------------------Public interface---------------------------------------------------
 
 public::wglTMDPDF_Initialize,wglTMDPDF_IsInitialized
@@ -105,9 +77,6 @@ end interface
 
 contains
 
-INCLUDE 'Code/KTspace/Fourier.f90'
-INCLUDE 'Code/KTspace/Moment.f90'
-
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!Interface subroutines!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
 function wglTMDPDF_IsInitialized()
@@ -117,153 +86,154 @@ end function wglTMDPDF_IsInitialized
 
 !! Initialization of the package
 subroutine wglTMDPDF_Initialize(file,prefix)
-    character(len=*)::file
-    character(len=*),optional::prefix
-    character(len=300)::path
-    logical::initRequired
-    integer::FILEver
+character(len=*)::file
+character(len=*),optional::prefix
+character(len=300)::path
+logical::initRequired
+integer::FILEver,messageTrigger
+real(dp)::hOGATA,toleranceOGATA
+real(dp)::hOGATA_TMM,toleranceOGATA_TMM,kT_FREEZE
 
-    if(started) return
+if(started) return
 
-    if(present(prefix)) then
-        path=trim(adjustl(prefix))//trim(adjustr(file))
-    else
-        path=trim(adjustr(file))
-    end if
+if(present(prefix)) then
+    path=trim(adjustl(prefix))//trim(adjustr(file))
+else
+    path=trim(adjustr(file))
+end if
 
-    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
-    !!! Search for output level
-    call MoveTO(51,'*0   ')
-    call MoveTO(51,'*A   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) FILEver
-    if(FILEver<inputver) then
-        write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
-        write(*,*) '		     Update the const-file with artemide.setup'
-        write(*,*) '  '
-        CLOSE (51, STATUS='KEEP')
-        ERROR STOP
-    end if
+OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+!!! Search for output level
+call MoveTO(51,'*0   ')
+call MoveTO(51,'*A   ')
+call MoveTO(51,'*p1  ')
+read(51,*) FILEver
+if(FILEver<inputver) then
+    write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+    write(*,*) '		     Update the const-file with artemide.setup'
+    write(*,*) '  '
+    CLOSE (51, STATUS='KEEP')
+    ERROR STOP
+end if
 
-    call MoveTO(51,'*p2  ')
-    read(51,*) outputLevel    
-    if(outputLevel>1) write(*,*) '--------------------------------------------- '
-    if(outputLevel>1) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+call MoveTO(51,'*p2  ')
+read(51,*) outputLevel
+if(outputLevel>1) write(*,*) '--------------------------------------------- '
+if(outputLevel>1) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
 
-    call MoveTO(51,'*p3  ')
-    read(51,*) messageTrigger
+call MoveTO(51,'*p3  ')
+read(51,*) messageTrigger
 
-    call MoveTO(51,'*B   ')
-    call MoveTO(51,'*p2  ')
-    read(51,*) TMDmass
+call MoveTO(51,'*B   ')
+call MoveTO(51,'*p2  ')
+read(51,*) TMDmass
 
-        !! TMDR
-    call MoveTO(51,'*3   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) initRequired
-    if(.not.initRequired) then
-        write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
-        write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
-        CLOSE (51, STATUS='KEEP')
-        ERROR STOP
-    end if
+    !! TMDR
+call MoveTO(51,'*3   ')
+call MoveTO(51,'*p1  ')
+read(51,*) initRequired
+if(.not.initRequired) then
+    write(*,*) ErrorString('TMDR module MUST be included.',moduleName)
+    write(*,*) ErrorString('Check initialization-file. Evaluation stop.',moduleName)
+    CLOSE (51, STATUS='KEEP')
+    ERROR STOP
+end if
 
-    call MoveTO(51,'*16   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) initRequired
-    if(.not.initRequired) then
-        if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not required. '
-        started=.false.
-        CLOSE (51, STATUS='KEEP')
-        return
-    end if
+call MoveTO(51,'*16   ')
+call MoveTO(51,'*p1  ')
+read(51,*) initRequired
+if(.not.initRequired) then
+    if(outputLevel>1) write(*,*)'artemide.',moduleName,': initialization is not required. '
+    started=.false.
+    CLOSE (51, STATUS='KEEP')
+    return
+end if
 
-    !-------------general parameters
-    call MoveTO(51,'*A   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) includeGluon
+!-------------general parameters
+call MoveTO(51,'*A   ')
+call MoveTO(51,'*p1  ')
+read(51,*) includeGluon
 
-    call MoveTO(51,'*p2  ')
-    read(51,*) numOfHadrons
+call MoveTO(51,'*p2  ')
+read(51,*) numOfHadrons
 
-    !-------------parameters of NP model
-    call MoveTO(51,'*C   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) lambdaNPlength
+!-------------parameters of NP model
+call MoveTO(51,'*C   ')
+call MoveTO(51,'*p1  ')
+read(51,*) lambdaNPlength
 
-    call MoveTO(51,'*p2  ')
-    read(51,*) BMAX_ABS
+call MoveTO(51,'*p2  ')
+read(51,*) BMAX_ABS
 
 
-    if(lambdaNPlength<=0) then
+if(lambdaNPlength<=0) then
     write(*,*) ErrorString(&
     'Initialize: number of non-perturbative parameters should be >=1. Check the constants-file. Evaluation STOP',moduleName)
             CLOSE (51, STATUS='KEEP')
     ERROR STOP
+end if
+
+!!!!! ---- parameters of numerical evaluation
+call MoveTO(51,'*D   ')
+call MoveTO(51,'*p2  ')
+read(51,*) toleranceGEN
+
+    !!!!! ---- parameters of KT-transformation
+call MoveTO(51,'*H   ')
+call MoveTO(51,'*p1  ')
+read(51,*) toleranceOGATA
+call MoveTO(51,'*p2  ')
+read(51,*) hOGATA
+call MoveTO(51,'*p3  ')
+read(51,*) kT_FREEZE
+
+!!!!! ---- parameters of TMM-transformation
+call MoveTO(51,'*I   ')
+call MoveTO(51,'*p1  ')
+read(51,*) toleranceOGATA_TMM
+call MoveTO(51,'*p2  ')
+read(51,*) hOGATA_TMM
+call MoveTO(51,'*p3  ')
+read(51,*) muTMM_min
+
+CLOSE (51, STATUS='KEEP')
+Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
+
+if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
+if(outputLevel>2 .and. .not.includeGluon) write(*,'(A)') ' ... gluons are not included'
+if(outputLevel>2) write(*,'(A,I3)') ' Number of hadrons to be considered =',numOfHadrons
+if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
+if(outputLevel>2) write(*,'(A,F12.2)') ' Absolute maximum b      =',BMAX_ABS
+
+allocate(lambdaNP(1:lambdaNPlength))
+
+Hankel=OgataIntegrator(moduleName,outputLevel,TMDtypeN, toleranceOGATA,hOGATA,TMDmass,kT_FREEZE)
+
+if(.not.TMDR_IsInitialized()) then
+    if(outputLevel>2) write(*,*) '.. initializing TMDR (from ',moduleName,')'
+    if(present(prefix)) then
+        call TMDR_Initialize(file,prefix)
+    else
+        call TMDR_Initialize(file)
     end if
+end if
 
-    !!!!! ---- parameters of numerical evaluation
-    call MoveTO(51,'*D   ')
-    call MoveTO(51,'*p2  ')
-    read(51,*) toleranceGEN
-
-        !!!!! ---- parameters of KT-transformation
-    call MoveTO(51,'*H   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) toleranceOGATA
-    call MoveTO(51,'*p2  ')
-    read(51,*) hOGATA
-    call MoveTO(51,'*p3  ')
-    read(51,*) kT_FREEZE
-
-    !!!!! ---- parameters of TMM-transformation
-    call MoveTO(51,'*I   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) toleranceOGATA_TMM
-    call MoveTO(51,'*p2  ')
-    read(51,*) hOGATA_TMM
-    call MoveTO(51,'*p3  ')
-    read(51,*) muTMM_min
-
-    CLOSE (51, STATUS='KEEP') 
-
-    if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
-    if(outputLevel>2 .and. .not.includeGluon) write(*,'(A)') ' ... gluons are not included'
-    if(outputLevel>2) write(*,'(A,I3)') ' Number of hadrons to be considered =',numOfHadrons
-    if(outputLevel>2) write(*,'(A,I3)') ' Number of NP parameters =',lambdaNPlength
-    if(outputLevel>2) write(*,'(A,F12.2)') ' Absolute maximum b      =',BMAX_ABS
-
-    allocate(lambdaNP(1:lambdaNPlength))
-
-    call PrepareTables()
-    call PrepareTablesTMM()
-
-    if(.not.TMDR_IsInitialized()) then
-        if(outputLevel>2) write(*,*) '.. initializing TMDR (from ',moduleName,')'
-        if(present(prefix)) then
-            call TMDR_Initialize(file,prefix)
-        else
-            call TMDR_Initialize(file)
-        end if
+if(.not.wglTMDPDF_OPE_IsInitialized()) then
+    if(outputLevel>2) write(*,*) '.. initializing wglTMDPDF_OPE (from ',moduleName,')'
+    if(present(prefix)) then
+        call wglTMDPDF_OPE_Initialize(file,prefix)
+    else
+        call wglTMDPDF_OPE_Initialize(file)
     end if
+end if
 
-    if(.not.wglTMDPDF_OPE_IsInitialized()) then
-        if(outputLevel>2) write(*,*) '.. initializing wglTMDPDF_OPE (from ',moduleName,')'
-        if(present(prefix)) then
-            call wglTMDPDF_OPE_Initialize(file,prefix)
-        else
-            call wglTMDPDF_OPE_Initialize(file)
-        end if
-    end if
+call ModelInitialization(lambdaNPlength)
+if(outputLevel>0) write(*,*) color('----- arTeMiDe.wglTMDPDF_model : .... initialized',c_green)
 
-    call ModelInitialization(lambdaNPlength)
-    if(outputLevel>0) write(*,*) color('----- arTeMiDe.wglTMDPDF_model : .... initialized',c_green)
+started=.true.
 
-    started=.true.
-    messageCounter=0
-
-    if(outputLevel>0) write(*,*) color('----- arTeMiDe.wglTMDPDF '//trim(version)//': .... initialized',c_green)
-    if(outputLevel>1) write(*,*) ' '
+if(outputLevel>0) write(*,*) color('----- arTeMiDe.wglTMDPDF '//trim(version)//': .... initialized',c_green)
+if(outputLevel>1) write(*,*) ' '
 end subroutine wglTMDPDF_Initialize
 
 !!!!!!!!!! ------------------------ SUPPORINTG ROUTINES --------------------------------------
@@ -299,7 +269,8 @@ end subroutine wglTMDPDF_SetScaleVariation_tw3
 subroutine wglTMDPDF_SetLambdaNP(lambdaIN)
     real(dp),intent(in)::lambdaIN(:)
     integer::ll
-    messageCounter=0
+
+    call Warning_Handler%Reset()
 
     ll=size(lambdaIN)
     if(ll/=lambdaNPlength) then
@@ -335,7 +306,7 @@ function TMD_opt(x,bT,hadron)
 
   !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         TMD_opt=0._dp
         return
     else if(x==1.d0) then !!! funny but sometimes FORTRAN can compare real numbers exactly
@@ -395,7 +366,12 @@ function wglTMDPDF_TMM_G(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    wglTMDPDF_TMM_G=Moment_G(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    wglTMDPDF_TMM_G=Hankel%Moment_G(F,mu)
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -406,6 +382,12 @@ function wglTMDPDF_TMM_G(x,mu,hadron)
     wglTMDPDF_TMM_G(4)=0_dp
     wglTMDPDF_TMM_G(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function wglTMDPDF_TMM_G
 
@@ -415,7 +397,12 @@ function wglTMDPDF_TMM_X(x,mu,hadron)
     real(dp),intent(in):: x,mu
     integer,intent(in)::hadron
 
-    wglTMDPDF_TMM_X=Moment_X(x,mu,hadron)
+    if(mu<muTMM_min) then
+        write(*,*) ErrorString("ERROR in KT-moment computation. mu<mu_min:",moduleName),muTMM_min
+        error stop
+    end if
+
+    wglTMDPDF_TMM_X=Hankel%Moment_X(F,mu)
 
     !!! forcefully set =0 below threshold
     if(mu<mBOTTOM) then
@@ -426,7 +413,54 @@ function wglTMDPDF_TMM_X(x,mu,hadron)
     wglTMDPDF_TMM_X(4)=0_dp
     wglTMDPDF_TMM_X(-4)=0_dp
     end if
+contains
+    function F(b)
+    real(dp),dimension(-5:5)::F
+    real(dp),intent(in)::b
+    F=TMD_opt(x,b,hadron)
+    end function F
 
 end function wglTMDPDF_TMM_X
+
+!!!--------------------------------------------------------------------------------------
+!!!------------------------------------------FOURIER-------------------------------------
+!!!--------------------------------------------------------------------------------------
+!!! It evaluates the integral for the transformation to the kT-space
+!!! int_0^infty   b db/2pi  J_num(b qT) F1  (b/qT)^num M^{2num}/num!
+!!! the integration is made by the class aTMDe_Ogata
+function Fourier_ev(x,qT,mu,zeta,hadron)
+real(dp),intent(in)::x,mu,zeta,qT
+integer,intent(in)::hadron
+real(dp)::Fourier_ev(-5:5)
+
+Fourier_ev=Hankel%TransformTMD(F,qT)
+
+contains
+function F(b)
+real(dp),dimension(-5:5)::F
+real(dp),intent(in)::b
+F=TMD_ev(x,b,mu,zeta,hadron)
+end function F
+
+end function Fourier_ev
+
+!!! It evaluates the integral for the transformation to the kT-space
+!!! int_0^infty   b db/2pi  J_num(b qT) F1  (b/qT)^num M^{2num}/num!
+!!! the integration is made by the class aTMDe_Ogata
+function Fourier_opt(x,qT,hadron)
+real(dp),intent(in)::x,qT
+integer,intent(in)::hadron
+real(dp)::Fourier_opt(-5:5)
+
+Fourier_opt=Hankel%TransformTMD(F,qT)
+
+contains
+function F(b)
+real(dp),dimension(-5:5)::F
+real(dp),intent(in)::b
+F=TMD_opt(x,b,hadron)
+end function F
+
+end function Fourier_opt
 
 end module wglTMDPDF

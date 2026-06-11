@@ -1535,7 +1535,7 @@ SELECT CASE(f)
         functionD1=(Uplus(t_low,:)+Cplus(t_low,:)+Dplus(t_low,:)+Splus(t_low,:)+Bplus(t_low,:))*5/18
         functionD2=(Uplus(t_low2,:)+Cplus(t_low2,:)+Dplus(t_low2,:)+Splus(t_low2,:)+Bplus(t_low2,:))*5/18
     CASE DEFAULT
-        write(*,*) ErrorString("D2 routine: unknown flavor"," ")
+        write(*,*) ErrorString("G2 routine: unknown flavor"," ")
         write(*,*) "f=",f
         error stop
 END SELECT

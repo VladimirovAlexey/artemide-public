@@ -8,19 +8,15 @@
 !    ver 1.31: release (AV, 30.05.2018)
 !    ver 1.41: fixed potential bug in the initialisation order (AV, 28.02.2019)
 !    ver 3.00: removal of TMDs-module (AV, 12.02.2024)
+!    ver 3.03: updated using Ogata-class (AV, 14.10.2025)
 !
 !                A.Vladimirov (30.05.2018)
 !
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-
-module TMDF_ogata
-INCLUDE 'Code/TMDF/Fourier_byOgata.f90'
-end module TMDF_ogata
-
 module TMDF
 use aTMDe_Numerics
-use IO_functions
-use TMDF_ogata
+use aTMDe_IO
+use aTMDe_Ogata
 use TMDR
 use EWinput
 use uTMDPDF
@@ -28,7 +24,9 @@ use uTMDFF
 use lpTMDPDF
 use SiversTMDPDF
 use wgtTMDPDF
+use wglTMDPDF
 use BoerMuldersTMDPDF
+use CollinsTMDFF
 
 implicit none
 
@@ -36,14 +34,14 @@ private
 !   public
 
 character (len=7),parameter :: moduleName="TMDF"
-character (len=5),parameter :: version="v3.01"
+character (len=5),parameter :: version="v3.03"
 !Last appropriate verion of constants-file
-integer,parameter::inputver=31
+integer,parameter::inputver=37
 
 !------------------------------------------Working variables------------------------------------------------------------
 integer::outputLevel=2
-!! variable that count number of WRNING mesagges. In order not to spam too much
-integer::messageTrigger=6
+type(Warning_OBJ)::Warning_Handler
+
 logical::started=.false.
 
 logical:: convergenceLost=.false.
@@ -53,13 +51,17 @@ logical::include_uTMDFF
 logical::include_lpTMDPDF
 logical::include_SiversTMDPDF
 logical::include_wgtTMDPDF
+logical::include_wglTMDPDF
 logical::include_BoerMuldersTMDPDF
+logical::include_CollinsTMDFF
 
 real(dp):: global_mass_scale=0.938_dp
 real(dp):: qtMIN=0.0001d0
 real(dp):: HardScaleMIN=0.8d0
 
-integer::messageCounter
+!!!!! objects for Hankel tranforms of appropriate type
+type(OgataIntegrator)::Hankel
+
 !-----------------------------------------Public interface--------------------------------------------------------------
 public::TMDF_Initialize,TMDF_ResetCounters
 public:: TMDF_F
@@ -76,175 +78,204 @@ end function TMDF_IsInitialized
 
    !! Initialization of the package
 subroutine TMDF_Initialize(file,prefix)
-    character(len=*)::file
-    character(len=*),optional::prefix
-    character(len=300)::path
-    logical::initRequired
-    integer::FILEver
-    real(dp)::hOGATA,tolerance
+character(len=*)::file
+character(len=*),optional::prefix
+character(len=300)::path
+logical::initRequired
+integer::FILEver,messageTrigger
+real(dp)::hOGATA,tolerance
 
-    if(started) return
+if(started) return
 
+if(present(prefix)) then
+    path=trim(adjustl(prefix))//trim(adjustr(file))
+else
+    path=trim(adjustr(file))
+end if
+
+OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+!!! Search for output level
+call MoveTO(51,'*0   ')
+call MoveTO(51,'*A   ')
+call MoveTO(51,'*p1  ')
+read(51,*) FILEver
+if(FILEver<inputver) then
+    write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
+    write(*,*) '             Update the const-file with artemide.setup'
+    write(*,*) '  '
+    stop
+end if
+call MoveTO(51,'*p2  ')
+read(51,*) outputLevel
+if(outputLevel>2) write(*,*) '--------------------------------------------- '
+if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
+call MoveTO(51,'*p3  ')
+read(51,*) messageTrigger
+
+call MoveTO(51,'*7   ')
+call MoveTO(51,'*p1  ')
+read(51,*) initRequired
+if(.not.initRequired) then
+    if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not required. '
+    started=.false.
+    return
+end if
+call MoveTO(51,'*A   ')
+call MoveTO(51,'*p1  ')
+read(51,*) tolerance
+call MoveTO(51,'*p2  ')
+read(51,*) hOGATA
+call MoveTO(51,'*p3  ')
+read(51,*) qtMIN
+call MoveTO(51,'*p4  ')
+read(51,*) HardScaleMIN
+
+call MoveTO(51,'*B   ')
+call MoveTO(51,'*p1  ')
+read(51,*) global_mass_scale
+
+if(outputLevel>2) write(*,'(A,ES8.2)') ' | h for Ogata quadrature    : ',hOGATA
+if(outputLevel>2) write(*,'(A,ES8.2)') ' | tolerance            : ',tolerance
+
+CLOSE (51, STATUS='KEEP')
+
+!!! then we read it again from the beginning to fill parameters of other modules
+OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
+
+!! uTMDPDF
+call MoveTO(51,'*4   ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_uTMDPDF
+
+!! uTMDFF
+call MoveTO(51,'*5   ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_uTMDFF
+
+!! lpTMDPDF
+call MoveTO(51,'*11  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_lpTMDPDF
+
+!! SiversTMDPDF
+call MoveTO(51,'*12  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_SiversTMDPDF
+
+!! wgtTMDPDF
+call MoveTO(51,'*13  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_wgtTMDPDF
+
+!! BoerMuldersTMDPDF
+call MoveTO(51,'*14  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_BoerMuldersTMDPDF
+
+!! BoerMuldersTMDPDF
+call MoveTO(51,'*16  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_wglTMDPDF
+
+!! CollinsTMDFF
+call MoveTO(51,'*18  ')
+call MoveTO(51,'*p1  ')
+read(51,*) include_CollinsTMDFF
+
+CLOSE (51, STATUS='KEEP')
+
+Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
+
+!!!!!!! prepare the object for Ogata integration
+Hankel=OgataIntegrator(moduleName,outputLevel,0, tolerance,hOGATA,global_mass_scale,qtMIN)
+
+convergenceLost=.false.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!! Initialization of submodules !!!!!!!!!!!!!!!!!!!!!!
+if(.not.EWinput_IsInitialized()) then
+    if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
     if(present(prefix)) then
-        path=trim(adjustl(prefix))//trim(adjustr(file))
+        call EWinput_Initialize(file,prefix)
     else
-        path=trim(adjustr(file))
+        call EWinput_Initialize(file)
     end if
+end if
 
-    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
-    !!! Search for output level
-    call MoveTO(51,'*0   ')
-    call MoveTO(51,'*A   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) FILEver
-    if(FILEver<inputver) then
-        write(*,*) 'artemide.'//trim(moduleName)//': const-file version is too old.'
-        write(*,*) '             Update the const-file with artemide.setup'
-        write(*,*) '  '
-        stop
+if(include_uTMDPDF .and. (.not.uTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing uTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call uTMDPDF_Initialize(file,prefix)
+    else
+        call uTMDPDF_Initialize(file)
     end if
-    call MoveTO(51,'*p2  ')
-    read(51,*) outputLevel    
-    if(outputLevel>2) write(*,*) '--------------------------------------------- '
-    if(outputLevel>2) write(*,*) 'artemide.',moduleName,version,': initialization started ... '
-    call MoveTO(51,'*p3  ')
-    read(51,*) messageTrigger
+end if
 
-    call MoveTO(51,'*7   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) initRequired
-    if(.not.initRequired) then
-        if(outputLevel>2) write(*,*)'artemide.',moduleName,': initialization is not required. '
-        started=.false.
-        return
+if(include_uTMDFF .and. (.not.uTMDFF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing uTMDFF (from ',moduleName,')'
+    if(present(prefix)) then
+        call uTMDFF_Initialize(file,prefix)
+    else
+        call uTMDFF_Initialize(file)
     end if
-    call MoveTO(51,'*A   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) tolerance
-    call MoveTO(51,'*p2  ')
-    read(51,*) hOGATA
-    call MoveTO(51,'*p3  ')
-    read(51,*) qtMIN
-    call MoveTO(51,'*p4  ')
-    read(51,*) HardScaleMIN
-    
-    call MoveTO(51,'*B   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) global_mass_scale
+end if
 
-    if(outputLevel>2) write(*,'(A,ES8.2)') ' | h for Ogata quadrature    : ',hOGATA
-    if(outputLevel>2) write(*,'(A,ES8.2)') ' | tolerance            : ',tolerance
-
-    CLOSE (51, STATUS='KEEP') 
-
-    !!! then we read it again from the beginning to fill parameters of other modules
-    OPEN(UNIT=51, FILE=path, ACTION="read", STATUS="old")
-
-    !! uTMDPDF
-    call MoveTO(51,'*4   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_uTMDPDF
-
-    !! uTMDFF
-    call MoveTO(51,'*5   ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_uTMDFF
-
-    !! lpTMDPDF
-    call MoveTO(51,'*11  ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_lpTMDPDF
-
-    !! SiversTMDPDF
-    call MoveTO(51,'*12  ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_SiversTMDPDF
-
-    !! wgtTMDPDF
-    call MoveTO(51,'*13  ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_wgtTMDPDF
-
-    !! BoerMuldersTMDPDF
-    call MoveTO(51,'*14  ')
-    call MoveTO(51,'*p1  ')
-    read(51,*) include_BoerMuldersTMDPDF
-
-    CLOSE (51, STATUS='KEEP')
-
-    call PrepareTables(tolerance,hOGATA)
-
-    convergenceLost=.false.
-    messageCounter=0
-
-    !!!!!!!!!!!!!!!!!!!!!!!!!!!!! Initialization of submodules !!!!!!!!!!!!!!!!!!!!!!
-    if(.not.EWinput_IsInitialized()) then
-        if(outputLevel>1) write(*,*) '.. initializing EWinput (from ',moduleName,')'
-        if(present(prefix)) then
-            call EWinput_Initialize(file,prefix)
-        else
-            call EWinput_Initialize(file)
-        end if
+if(include_lpTMDPDF .and. (.not.lpTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing lpTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call lpTMDPDF_Initialize(file,prefix)
+    else
+        call lpTMDPDF_Initialize(file)
     end if
+end if
 
-    if(include_uTMDPDF .and. (.not.uTMDPDF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing uTMDPDF (from ',moduleName,')'
-        if(present(prefix)) then
-            call uTMDPDF_Initialize(file,prefix)
-        else
-            call uTMDPDF_Initialize(file)
-        end if
+if(include_SiversTMDPDF .and. (.not.SiversTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing SiversTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call SiversTMDPDF_Initialize(file,prefix)
+    else
+        call SiversTMDPDF_Initialize(file)
     end if
+end if
 
-    if(include_uTMDFF .and. (.not.uTMDFF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing uTMDFF (from ',moduleName,')'
-        if(present(prefix)) then
-            call uTMDFF_Initialize(file,prefix)
-        else
-            call uTMDFF_Initialize(file)
-        end if
+if(include_wgtTMDPDF .and. (.not.wgtTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing wgtTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call wgtTMDPDF_Initialize(file,prefix)
+    else
+        call wgtTMDPDF_Initialize(file)
     end if
+end if
 
-    if(include_lpTMDPDF .and. (.not.lpTMDPDF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing lpTMDPDF (from ',moduleName,')'
-        if(present(prefix)) then
-            call lpTMDPDF_Initialize(file,prefix)
-        else
-            call lpTMDPDF_Initialize(file)
-        end if
+if(include_BoerMuldersTMDPDF .and. (.not.BoerMuldersTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing BoerMuldersTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call BoerMuldersTMDPDF_Initialize(file,prefix)
+    else
+        call BoerMuldersTMDPDF_Initialize(file)
     end if
+end if
 
-    if(include_SiversTMDPDF .and. (.not.SiversTMDPDF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing SiversTMDPDF (from ',moduleName,')'
-        if(present(prefix)) then
-            call SiversTMDPDF_Initialize(file,prefix)
-        else
-            call SiversTMDPDF_Initialize(file)
-        end if
+if(include_wglTMDPDF .and. (.not.wglTMDPDF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing wglTMDPDF (from ',moduleName,')'
+    if(present(prefix)) then
+        call wglTMDPDF_Initialize(file,prefix)
+    else
+        call wglTMDPDF_Initialize(file)
     end if
+end if
 
-    if(include_wgtTMDPDF .and. (.not.wgtTMDPDF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing wgtTMDPDF (from ',moduleName,')'
-        if(present(prefix)) then
-            call wgtTMDPDF_Initialize(file,prefix)
-        else
-            call wgtTMDPDF_Initialize(file)
-        end if
+if(include_CollinsTMDFF .and. (.not.CollinsTMDFF_IsInitialized())) then
+    if(outputLevel>1) write(*,*) '.. initializing CollinsTMDFF (from ',moduleName,')'
+    if(present(prefix)) then
+        call CollinsTMDFF_Initialize(file,prefix)
+    else
+        call CollinsTMDFF_Initialize(file)
     end if
+end if
 
-    if(include_BoerMuldersTMDPDF .and. (.not.BoerMuldersTMDPDF_IsInitialized())) then
-        if(outputLevel>1) write(*,*) '.. initializing SiversTMDPDF (from ',moduleName,')'
-        if(present(prefix)) then
-            call BoerMuldersTMDPDF_Initialize(file,prefix)
-        else
-            call BoerMuldersTMDPDF_Initialize(file)
-        end if
-    end if
-
-
-    started=.true.
-    if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDF '//trim(version)//': .... initialized',c_green)
-    if(outputLevel>1) write(*,*) ' '
+started=.true.
+if(outputLevel>0) write(*,*) color('----- arTeMiDe.TMDF '//trim(version)//': .... initialized',c_green)
+if(outputLevel>1) write(*,*) ' '
 
 end subroutine TMDF_Initialize
 
@@ -263,7 +294,7 @@ end subroutine TMDF_convergenceISlost
 !passes the NP parameters to TMDs
 subroutine TMDF_ResetCounters()
     convergenceLost=.false.
-    messageCounter=0
+    call Warning_Handler%Reset()
 end subroutine TMDF_ResetCounters
 
 !!!This is the defining module function
@@ -277,10 +308,11 @@ integer,dimension(1:3),intent(in)::process
 
 integer::n
 logical::ISconvergent
+
 if(x1>=1d0 .or. x2>=1d0) then
   integral_result=0d0
 else if(Q2<HardScaleMIN .or. mu<HardScaleMIN .or. zeta1<HardScaleMIN .or. zeta2<HardScaleMIN) then
-    write(*,*) ErrorString("Some hard scale is too low (< "//trim(real8ToStr(HardScaleMIN))//")",moduleName)
+    write(*,*) ErrorString("Some hard scale is too low (< "//trim(numToStr(HardScaleMIN))//")",moduleName)
     write(*,*) "(Q2 ,mu, zeta1,zeta2) = ",Q2 ,mu, zeta1,zeta2
     error stop ErrorString("Evaluation stop",moduleName)
 else if(TMDF_IsconvergenceLost()) then
@@ -288,28 +320,28 @@ else if(TMDF_IsconvergenceLost()) then
     integral_result=1d10
 else
 
-!!Here we set the order of Bessel
+!!The integrator is selected by the order of the number of the process
 if(process(3)<10000) then
-n=0
+    !!!n=0
+    call Hankel%Transform(F_toInt,qT,0,integral_result,ISconvergent)
 else if(process(3)<20000) then
-n=1
+    !n=1
+    call Hankel%Transform(F_toInt,qT,1,integral_result,ISconvergent)
 else if(process(3)<30000) then
-n=2
+    !n=2
+    call Hankel%Transform(F_toInt,qT,2,integral_result,ISconvergent)
 else
-n=3
+    !n=3
+    call Hankel%Transform(F_toInt,qT,3,integral_result,ISconvergent)
 end if
 
-if(qT<=qtMIN) then
-    call Fourier_byOgata(n,F_toInt,qtMIN,integral_result,ISconvergent)
-else
-    call Fourier_byOgata(n,F_toInt,qT,integral_result,ISconvergent)
-end if
 
 if(.not.ISconvergent) call TMDF_convergenceISlost
 end if
 
 contains
 
+!!!!!! this is interface to func_1D
 function F_toInt(b)
 real(dp)::F_toInt
 real(dp),intent(in)::b
@@ -513,7 +545,7 @@ function Integrand(Q2,b,x1,x2,mu,zeta1,zeta2,process_array)
 
      FAB=FA*FB
     end if
-    Integrand=-2*XTMD_pairZmZm_A(FAB,Q2)
+    Integrand=2*XTMD_pairZmZm_A(FAB,Q2)
 
 !--------------------------------------------------------------------------------  
   CASE (101) !h1+Cu->gamma* !!this is for E288

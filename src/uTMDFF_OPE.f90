@@ -18,18 +18,14 @@
 ! * only global variables are kept here
 ! * the most part of the code is universal, and shared by many such modules
 
-module Grid_uTMDFF
-INCLUDE 'Code/Twist2/Twist2_ChGrid.f90'
-end module Grid_uTMDFF
-
 module uTMDFF_OPE
 use aTMDe_Numerics
-use IntegrationRoutines
-use IO_functions
+use aTMDe_Integration
+use aTMDe_IO
+use aTMDe_optGrid
 use QCDinput
 use TMD_AD, only : Dpert_atL
 use uTMDFF_model
-use Grid_uTMDFF
 implicit none
 
 !------------------------LOCALs -----------------------------------------------
@@ -49,9 +45,7 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WARNING mesagges. In order not to spam too much
-integer::messageTrigger=6
-integer::messageCounter=0 !!! actual counter
+type(Warning_OBJ)::Warning_Handler
 
 !!!------------------------- PARAMETERS DEFINED IN THE INI-file--------------
 
@@ -81,13 +75,14 @@ logical :: useGrid=.true.  !!!idicator that grid must be prepared
 logical :: withGluon=.false.   !!!indicator the gluon is needed in the grid
 logical :: runTest=.false.   !!!trigger to run the test
 
+type(optGrid)::mainGrid
+
 !!!------------------------- HARD-CODED PARAMETERS ----------------------
 !!! Coefficient lists
 integer,parameter::parametrizationLength=36
 
 !!!------------------------- DYNAMICAL-GLOBAL PARAMETERS -------------------
 real(dp) :: c4_global=1_dp  !!! scale variation parameter
-logical :: gridReady!!!!indicator that grid is ready to use. If it is .true., the TMD calculated from the grid
 
 !!--------------------------------------Public interface-----------------------------------------
 public::uTMDFF_OPE_IsInitialized,uTMDFF_OPE_Initialize,uTMDFF_OPE_convolution
@@ -123,7 +118,7 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
     character(len=300)::path
     logical::initRequired
     character(len=8)::order_global
-    integer::i,FILEver
+    integer::i,FILEver,messageTrigger
     real(dp),allocatable::subGridsX(:),subGridsB(:)
 
     if(started) return
@@ -292,6 +287,9 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
     read(51,*) subGridsB
 
     CLOSE (51, STATUS='KEEP')
+
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
+
     c4_global=1d0
 
     xMin=subGridsX(0)
@@ -303,7 +301,7 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
         stop
     end if
 
-    call Twist2_ChGrid_Initialize(path,'*5   ','*E   ',numberOfHadrons,withGluon,moduleName,outputLevel)
+    mainGrid=optGrid(path,'*5   ','*E   ',numberOfHadrons,withGluon,moduleName,outputLevel)
     
     !!! Model initialisation is called from the uTMDFF-module
     
@@ -315,27 +313,31 @@ subroutine uTMDFF_OPE_Initialize(file,prefix)
     else
         if(outputLevel>2) write(*,*) trim(moduleName)//': mu OPE is independent on x'
     end if
-    gridReady=.false.
 
     if(useGrid) then
-        if(resumLargeX) then
-            call Twist2_ChGrid_MakeGrid(CxF_LargeX_compute)
-            gridReady=.true.
-            if(runTest) call TestGrid(CxF_LargeX_compute)
-        else
-            call Twist2_ChGrid_MakeGrid(CxF_compute)
-            gridReady=.true.
-            if(runTest) call TestGrid(CxF_compute)
-        end if
+        call mainGrid%MakeGrid(functionToGrid)
+        if(runTest) call mainGrid%Test(functionToGrid)
     end if
 
     started=.true.
-    messageCounter=0
 
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.uTMDFF_OPE '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
 
 end subroutine uTMDFF_OPE_Initialize
+
+!!!!!! this is just interface of function CxF_compute and CxF_largeX_compute to optTMD
+function functionToGrid(x,bT,hadron)
+    real(dp),dimension(-5:5)::functionToGrid
+    integer, intent(in)::hadron
+    real(dp),intent(in)::x,bT
+
+    if(resumLargeX) then
+        functionToGrid=CxF_largeX_compute(x,bT,hadron,withGluon)
+    else
+        functionToGrid=CxF_compute(x,bT,hadron,withGluon)
+    end if
+end function functionToGrid
 
 !!!!!!!--------------------------- DEFINING ROUTINES ------------------------------------------
 
@@ -395,13 +397,7 @@ function uTMDFF_OPE_convolution(x,b,h,addGluon)
 
     !!! computation
     if(useGrid) then
-        if(gridReady) then
-            uTMDFF_OPE_convolution=ExtractFromGrid(x,b,h)/x**3
-        else
-            call Warning_Raise('Called OPE_convolution while grid is not ready.',messageCounter,messageTrigger,moduleName)
-            call uTMDFF_OPE_resetGrid()
-            uTMDFF_OPE_convolution=ExtractFromGrid(x,b,h)/x**3
-        end if
+        uTMDFF_OPE_convolution=mainGrid%Extract(x,b,h)/x**3
     else
         if(resumLargeX) then
             uTMDFF_OPE_convolution=CxF_LargeX_compute(x,b,h,gluon)/x**3
@@ -429,7 +425,7 @@ function uTMDFF_X0_AS(x,mu,mu0,h,addGluon)
 
       !!! test boundaries
     if(x>1d0) then
-        call Warning_Raise('Called x>1 (return 0). x='//numToStr(x),messageCounter,messageTrigger,moduleName)
+        call Warning_Handler%WarningRaise('Called x>1 (return 0). x='//numToStr(x))
         uTMDFF_X0_AS=0._dp
         return
     else if(x==1.d0) then
@@ -454,16 +450,9 @@ end function uTMDFF_X0_AS
 !!!!!!!!!! ------------------------ SUPPORINTG ROUTINES --------------------------------------
 !!! This subroutine force reconstruction of the grid (if griding is ON)
 subroutine uTMDFF_OPE_resetGrid()
-    gridReady=.false.
     if(useGrid) then
         if(outputLevel>1) write(*,*) 'arTeMiDe ',moduleName,':  Grid Reset. with c4=',c4_global
-        if(resumLargeX) then
-            call Twist2_ChGrid_MakeGrid(CxF_LargeX_compute)
-        else
-            call Twist2_ChGrid_MakeGrid(CxF_compute)
-        end if
-
-        gridReady=.true.
+        call mainGrid%MakeGrid(functionToGrid)!
     end if
 end subroutine uTMDFF_OPE_resetGrid
 
@@ -475,7 +464,6 @@ subroutine uTMDFF_OPE_SetPDFreplica(rep,hadron)
 
     call QCDinput_SetFFreplica(rep,hadron,newPDF)
     if(newPDF) then
-        gridReady=.false.
         call uTMDFF_OPE_resetGrid()
     else
         if(outputLevel>1) write(*,"('arTeMiDe ',A,':  replica of FF (',I4,') is the same as the used one. Nothing is done!')") &
@@ -493,10 +481,10 @@ subroutine uTMDFF_OPE_SetScaleVariation(c4_in)
         c4_global=2d0
         call uTMDFF_OPE_resetGrid()
     else if(abs(c4_in-c4_global)<toleranceGEN) then
-        if(outputLevel>1) write(*,*) color('uTMDFF: c4-variation is ignored. c4='//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('uTMDFF: c4-variation is ignored. c4='//numToStr(c4_global),c_yellow)
     else
         c4_global=c4_in
-        if(outputLevel>1) write(*,*) color('uTMDFF: set scale variations c4 as:'//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('uTMDFF: set scale variations c4 as:'//numToStr(c4_global),c_yellow)
         call uTMDFF_OPE_resetGrid()
     end if
 end subroutine uTMDFF_OPE_SetScaleVariation

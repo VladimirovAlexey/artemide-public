@@ -7,10 +7,10 @@
 !---------------------------------------------------------------------------------------
 
 !!!!
-!!!! This module performes the Fourier tranfomation to kT-space.
+!!!! This module performs the Fourier tranformation to kT-space.
 !!!! It does it by the Levin method, and transform the Chebyshev grid to the Chebyshev grid.
 !!!! It precomputes the variable bValues (which is a list of b's)
-!!!! And the TranformationArray. Applying trnaformation array to the f(bValues), one get a grid in kT-space
+!!!! And the TranformationArray. Applying tranformation array to the f(bValues), one gets a grid in kT-space
 
 !     In the file that uses it add
 !module NAME
@@ -21,8 +21,8 @@
 !module Fourier_Levin
 
 use aTMDe_Numerics
-use IO_functions
-use InverseMatrix, only: Inverse
+use aTMDe_IO
+use aTMDe_invMatrix, only: Inverse
 
 implicit none
 
@@ -257,7 +257,7 @@ SELECT CASE(TMDtypeN)
         end do
         end do
     CASE DEFAULT
-        write(*,*) ErrorString("Fourier_Levin: Unknown TMDtype. Presently impleneted only types 0,1",parentModuleName)
+        write(*,*) ErrorString("Fourier_Levin: Unknown TMDtype. Presently implemeted only types 0,1",parentModuleName)
         stop
 
 END SELECT

@@ -20,7 +20,7 @@
 !module grid_inKT
 
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 
 implicit none
 
@@ -434,8 +434,12 @@ end if
 nQ=int((log(Q)-lnQMIN)/Qstep)
 if(nQ==0) then
     nQ=1
-else if(nQ==QGridSize) then
-    nQ=QGridSize-1
+else if(nQ==QGridSize-1) then
+    nQ=QGridSize-2
+else if(nQ>=QGridSize) then
+    write(*,*) ErrorString('The TMD called outside of the grid',parentModuleName//"."//moduleName)
+    write(*,*) 'arTeMiDe: evaluation STOP'
+    stop
 end if
 !tQ=((log(Q)-log(QMIN))/Qstep)
 
@@ -519,21 +523,20 @@ ExtractFromGrid_inKT=matmul(deltaTQ,interQ)/sum(deltaTQ)
 end if
 
 ExtractFromGrid_inKT=ExtractFromGrid_inKT/x/kT**2
-
-
-!
 !
 !   do i=-5,5
 !     if(ISNAN(ExtractFromGrid_inKT(i))) then
 !      write(*,'(" Extracted value (x,kT,Q,f,h) =(",F6.5,", ",F6.2,", ",F6.2,", ",I2,", ",I2,") is computed to NaN")') &
 !             x,kT,Q,h,i
 !       write(*,*) "==>",ExtractFromGrid_inKT
+!       write(*,*) "Element of grid-->",nQ,QGridSize
 !       stop
 !     end if
 !     if(abs(ExtractFromGrid_inKT(i))>1.d12) then
 !      write(*,'(" Extracted value (x,kT,Q,f,h) =(",F6.5,", ",F12.8,", ",F6.2,", ",I2,", ",I2,") is computed >10^12")') &
 !             x,kT,Q,h,i
 !       write(*,*) "==>",ExtractFromGrid_inKT
+!       write(*,*) "Element of grid-->",nQ,QGridSize
 !       stop
 !     end if
 !   end do

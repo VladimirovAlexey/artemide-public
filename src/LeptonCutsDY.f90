@@ -13,8 +13,8 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module LeptonCutsDY
 use aTMDe_Numerics
-use IO_functions
-use IntegrationRoutines
+use aTMDe_IO
+use aTMDe_Integration
 implicit none
 private
 

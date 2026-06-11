@@ -8,157 +8,16 @@
 !    ver.2.01: 14.06.2019 AV (+lpPDF)
 !    ver.2.07: 09.11.2021 AV (+g1T)
 !    ver.3.01: 22.08.2024 AV (introduction of LHA)
+!    ver.3.03: 16.10.2025 AV (LHA_PDF replaced by a class)
 !                A.Vladimirov
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
-!!!!!! insertion of LHA-modules for reading PDF-grids
-
-!!!------------------------------uPDF-------------------
-module uLHAPDF_1
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="uPDF_1"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAPDF_1
-
-module uLHAPDF_2
-use IO_functions
-implicit none
-
-character (len=6),parameter :: moduleName="uPDF_2"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAPDF_2
-
-module uLHAPDF_3
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="uPDF_3"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAPDF_3
-
-!!!------------------------------uFF-------------------
-module uLHAFF_1
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_1"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_1
-
-module uLHAFF_2
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_2"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_2
-
-module uLHAFF_3
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_3"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_3
-
-module uLHAFF_4
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_4"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_4
-
-
-module uLHAFF_5
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_5"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_5
-
-module uLHAFF_6
-use IO_functions
-implicit none
-character (len=5),parameter :: moduleName="uFF_6"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module uLHAFF_6
-
-!!!------------------------------lpPDF-------------------
-module lpLHAPDF_1
-use IO_functions
-implicit none
-character (len=7),parameter :: moduleName="lpPDF_1"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module lpLHAPDF_1
-
-!!!------------------------------gPDF (helicity)-------------------
-module gLHAPDF_1
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="gPDF_1"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module gLHAPDF_1
-
-module gLHAPDF_2
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="gPDF_2"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module gLHAPDF_2
-
-!!!------------------------------hPDF (transversity)-------------------
-module hLHAPDF_1
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="hPDF_1"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module hLHAPDF_1
-
-module hLHAPDF_2
-use IO_functions
-implicit none
-character (len=6),parameter :: moduleName="hPDF_2"
-#include "Code/LHA/LHA_PDF.f90"
-!INCLUDE 'Code/LHA/LHA_PDF.f90'
-end module hLHAPDF_2
-
-!!!----------------------------------------------------------------------
-!!!----------------------------------------------------------------------
-!!!----------------------------------------------------------------------
-
 module QCDinput
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 use LHA_alpha, only : ReadInfo_alpha => ReadInfo, AlphaS_fromLHA => AlphaS
+use LHA_PDF
 !!
-use uLHAPDF_1, only : ReadInfo_uPDF1 => ReadInfo, SetReplica_uPDF1 => SetReplica, xPDF_uPDF1 => xPDF
-use uLHAPDF_2, only : ReadInfo_uPDF2 => ReadInfo, SetReplica_uPDF2 => SetReplica, xPDF_uPDF2 => xPDF
-use uLHAPDF_3, only : ReadInfo_uPDF3 => ReadInfo, SetReplica_uPDF3 => SetReplica, xPDF_uPDF3 => xPDF
-!!
-use uLHAFF_1, only : ReadInfo_uFF1 => ReadInfo, SetReplica_uFF1 => SetReplica, xPDF_uFF1 => xPDF
-use uLHAFF_2, only : ReadInfo_uFF2 => ReadInfo, SetReplica_uFF2 => SetReplica, xPDF_uFF2 => xPDF
-use uLHAFF_3, only : ReadInfo_uFF3 => ReadInfo, SetReplica_uFF3 => SetReplica, xPDF_uFF3 => xPDF
-use uLHAFF_4, only : ReadInfo_uFF4 => ReadInfo, SetReplica_uFF4 => SetReplica, xPDF_uFF4 => xPDF
-use uLHAFF_5, only : ReadInfo_uFF5 => ReadInfo, SetReplica_uFF5 => SetReplica, xPDF_uFF5 => xPDF
-use uLHAFF_6, only : ReadInfo_uFF6 => ReadInfo, SetReplica_uFF6 => SetReplica, xPDF_uFF6 => xPDF
-!!
-use lpLHAPDF_1, only : ReadInfo_lpPDF1 => ReadInfo, SetReplica_lpPDF1 => SetReplica, xPDF_lpPDF1 => xPDF
-!!
-use gLHAPDF_1, only : ReadInfo_gPDF1 => ReadInfo, SetReplica_gPDF1 => SetReplica, xPDF_gPDF1 => xPDF
-use gLHAPDF_2, only : ReadInfo_gPDF2 => ReadInfo, SetReplica_gPDF2 => SetReplica, xPDF_gPDF2 => xPDF
-!!
-use hLHAPDF_1, only : ReadInfo_hPDF1 => ReadInfo, SetReplica_hPDF1 => SetReplica, xPDF_hPDF1 => xPDF
-use hLHAPDF_2, only : ReadInfo_hPDF2 => ReadInfo, SetReplica_hPDF2 => SetReplica, xPDF_hPDF2 => xPDF
 implicit none
 
 private
@@ -172,7 +31,7 @@ public:: QCDinput_SetPDFreplica, QCDinput_SetFFreplica, QCDinput_SetlpPDFreplica
 
 character (len=8),parameter :: moduleName="QCDinput"
 !Current version of module
-character (len=5),parameter :: version="v3.01"
+character (len=5),parameter :: version="v3.03"
 !Last appropriate verion of constants-file
 integer,parameter::inputver=35
 !--- general
@@ -184,22 +43,27 @@ real(dp),public::mCHARM,mBOTTOM,mTOP
 !---uPDFs
 integer::num_of_uPDFs
 integer,allocatable::current_replica_uPDFs(:)
+type(LHAPDFgridReader),allocatable::uLHAPDF(:)
 
 !---uFFs
 integer::num_of_uFFs
 integer,allocatable::current_replica_uFFs(:)
+type(LHAPDFgridReader),allocatable::uLHAFF(:)
 
 !---lpPDFs
 integer::num_of_lpPDFs
 integer,allocatable::current_replica_lpPDFs(:)
+type(LHAPDFgridReader),allocatable::lpLHAPDF(:)
 
 !---gPDFs
 integer::num_of_gPDFs
 integer,allocatable::current_replica_gPDFs(:)
+type(LHAPDFgridReader),allocatable::gLHAPDF(:)
 
 !---hPDFs
 integer::num_of_hPDFs
 integer,allocatable::current_replica_hPDFs(:)
+type(LHAPDFgridReader),allocatable::hLHAPDF(:)
 
 contains
  
@@ -222,7 +86,7 @@ end function QCDinput_IsInitialized
   character(len=:),allocatable::pathToLHA
   character(len=:),allocatable::alphaNAME
   character(len=64),allocatable::names_uPDF(:),names_uFF(:),names_lpPDF(:),names_gPDF(:),names_hPDF(:)
-  integer::i,FILEver
+  integer::i,FILEver,j
   integer,allocatable::replicas(:)
 
   if(started) return
@@ -282,7 +146,7 @@ end function QCDinput_IsInitialized
 
     if(num_of_uPDFs>3) then
       CLOSE (51, STATUS='KEEP')
-      ERROR STOP ErrorString('Maximum allowed number of uPDFs is 3. Requested '//trim(inttostr(num_of_uPDFs)),moduleName)
+      ERROR STOP ErrorString('Maximum allowed number of uPDFs is 3. Requested '//trim(numToStr(num_of_uPDFs)),moduleName)
     else if(num_of_uPDFs>0) then
 
       allocate(names_uPDF(1:num_of_uPDFs))
@@ -304,7 +168,7 @@ end function QCDinput_IsInitialized
 
     if(num_of_uFFs>6) then
       CLOSE (51, STATUS='KEEP')
-      ERROR STOP ErrorString('Maximum allowed number of uFFs is 6. Requested '//trim(inttostr(num_of_uFFs)),moduleName)
+      ERROR STOP ErrorString('Maximum allowed number of uFFs is 6. Requested '//trim(numToStr(num_of_uFFs)),moduleName)
     else if(num_of_uFFs>0) then
 
       allocate(names_uFF(1:num_of_uFFs))
@@ -325,7 +189,7 @@ end function QCDinput_IsInitialized
     read(51,*) num_of_lpPDFs
     if(num_of_lpPDFs>1) then
       CLOSE (51, STATUS='KEEP')
-      ERROR STOP ErrorString('Maximum allowed number of lpPDFs is 1. Requested '//trim(inttostr(num_of_uPDFs)),moduleName)
+      ERROR STOP ErrorString('Maximum allowed number of lpPDFs is 1. Requested '//trim(numToStr(num_of_uPDFs)),moduleName)
     else if(num_of_lpPDFs>0) then
 
       allocate(names_lpPDF(1:num_of_lpPDFs))
@@ -347,7 +211,7 @@ end function QCDinput_IsInitialized
     read(51,*) num_of_gPDFs
     if(num_of_gPDFs>2) then
       CLOSE (51, STATUS='KEEP')
-      ERROR STOP ErrorString('Maximum allowed number of gPDFs is 2. Requested '//trim(inttostr(num_of_uPDFs)),moduleName)
+      ERROR STOP ErrorString('Maximum allowed number of gPDFs is 2. Requested '//trim(numToStr(num_of_uPDFs)),moduleName)
     else if(num_of_gPDFs>0) then
       allocate(names_gPDF(1:num_of_gPDFs))
       call MoveTO(51,'*p2  ')
@@ -367,7 +231,7 @@ end function QCDinput_IsInitialized
     read(51,*) num_of_hPDFs
     if(num_of_hPDFs>2) then
       CLOSE (51, STATUS='KEEP')
-      ERROR STOP ErrorString('Maximum allowed number of hPDFs is 2. Requested '//trim(inttostr(num_of_uPDFs)),moduleName)
+      ERROR STOP ErrorString('Maximum allowed number of hPDFs is 2. Requested '//trim(numToStr(num_of_uPDFs)),moduleName)
     else if(num_of_hPDFs>0) then
       allocate(names_hPDF(1:num_of_hPDFs))
       call MoveTO(51,'*p2  ')
@@ -395,74 +259,38 @@ end function QCDinput_IsInitialized
 
   !!!! initialization of uPDFs (only 5 maximum PDFs allowed)
   allocate(current_replica_uPDFs(1:num_of_uPDFs))
-  if(num_of_uPDFs>0) then
-    current_replica_uPDFs(1)=0
-    call ReadInfo_uPDF1(trim(names_uPDF(1)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uPDFs>1) then
-    current_replica_uPDFs(2)=0
-    call ReadInfo_uPDF2(trim(names_uPDF(2)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uPDFs>2) then
-    current_replica_uPDFs(3)=0
-    call ReadInfo_uPDF3(trim(names_uPDF(3)),pathToLHA,outputLevel)
-  end if
+  allocate(uLHAPDF(1:num_of_uPDFs))
+  do j=1,num_of_uPDFs
+   uLHAPDF(j)=LHAPDFgridReader(trim(names_uPDF(j)),pathToLHA,outputLevel)
+  end do
 
   !!!! initialization of uFFs (only 5 maximum PDFs allowed)
   allocate(current_replica_uFFs(1:num_of_uFFs))
-  if(num_of_uFFs>0) then
-    current_replica_uFFs(1)=0
-    call ReadInfo_uFF1(trim(names_uFF(1)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uFFs>1) then
-    current_replica_uFFs(2)=0
-    call ReadInfo_uFF2(trim(names_uFF(2)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uFFs>2) then
-    current_replica_uFFs(3)=0
-    call ReadInfo_uFF3(trim(names_uFF(3)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uFFs>3) then
-    current_replica_uFFs(4)=0
-    call ReadInfo_uFF4(trim(names_uFF(4)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uFFs>4) then
-    current_replica_uFFs(5)=0
-    call ReadInfo_uFF5(trim(names_uFF(5)),pathToLHA,outputLevel)
-  end if
-  if(num_of_uFFs>5) then
-    current_replica_uFFs(6)=0
-    call ReadInfo_uFF6(trim(names_uFF(6)),pathToLHA,outputLevel)
-  end if
+  allocate(uLHAFF(1:num_of_uFFs))
+  do j=1,num_of_uFFs
+   uLHAFF(j)=LHAPDFgridReader(trim(names_uFF(j)),pathToLHA,outputLevel)
+  end do
 
   !!!! initialization of lpPDFs (only 1 maximum PDFs allowed)
   allocate(current_replica_lpPDFs(1:num_of_lpPDFs))
-  if(num_of_lpPDFs>0) then
-    current_replica_lpPDFs(1)=0
-    call ReadInfo_lpPDF1(trim(names_lpPDF(1)),pathToLHA,outputLevel)
-  end if
+  allocate(lpLHAPDF(1:num_of_lpPDFs))
+  do j=1,num_of_lpPDFs
+   lpLHAPDF(j)=LHAPDFgridReader(trim(names_lpPDF(j)),pathToLHA,outputLevel)
+  end do
 
   !!!! initialization of gPDFs (only 2 maximum PDFs allowed)
   allocate(current_replica_gPDFs(1:num_of_gPDFs))
-  if(num_of_gPDFs>0) then
-    current_replica_gPDFs(1)=0
-    call ReadInfo_gPDF1(trim(names_gPDF(1)),pathToLHA,outputLevel)
-  end if
-  if(num_of_gPDFs>1) then
-    current_replica_gPDFs(2)=0
-    call ReadInfo_gPDF2(trim(names_gPDF(2)),pathToLHA,outputLevel)
-  end if
+  allocate(gLHAPDF(1:num_of_gPDFs))
+  do j=1,num_of_gPDFs
+   gLHAPDF(j)=LHAPDFgridReader(trim(names_gPDF(j)),pathToLHA,outputLevel)
+  end do
 
   !!!! initialization of hPDFs (only 2 maximum PDFs allowed)
   allocate(current_replica_hPDFs(1:num_of_hPDFs))
-  if(num_of_hPDFs>0) then
-    current_replica_hPDFs(1)=0
-    call ReadInfo_hPDF1(trim(names_hPDF(1)),pathToLHA,outputLevel)
-  end if
-  if(num_of_hPDFs>1) then
-    current_replica_hPDFs(2)=0
-    call ReadInfo_hPDF2(trim(names_hPDF(2)),pathToLHA,outputLevel)
-  end if
+  allocate(hLHAPDF(1:num_of_hPDFs))
+  do j=1,num_of_hPDFs
+   hLHAPDF(j)=LHAPDFgridReader(trim(names_hPDF(j)),pathToLHA,outputLevel)
+  end do
      
    if(outputLevel>0) write(*,*) color('----- arTeMiDe.QCDinput '//trim(version)//': .... initialized',c_green)
    if(outputLevel>1) write(*,*) ' '
@@ -478,21 +306,13 @@ subroutine QCDinput_SetPDFreplica(rep,hadron,newPDF)
     logical,intent(out)::newPDF
 
     if(hadron<1 .or. hadron>num_of_uPDFs) &
-      ERROR STOP ErrorString('SetPDFreplica. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
+      ERROR STOP ErrorString('SetPDFreplica. Called unexisting hadron. h= '//trim(numToStr(hadron)),moduleName)
     !!! if the number of replica to change coincides with the already used. Do not change it
     if(current_replica_uPDFs(hadron)==rep) then
       newPDF=.false.
     else
       current_replica_uPDFs(hadron)=rep
-
-      SELECT CASE(hadron)
-        CASE (1)
-          call SetReplica_uPDF1(rep)
-        CASE (2)
-          call SetReplica_uPDF2(rep)
-        CASE (3)
-          call SetReplica_uPDF3(rep)
-        END SELECT
+      call uLHAPDF(hadron)%SetReplica(rep)
 
       newPDF=.true.
     end if
@@ -507,27 +327,13 @@ subroutine QCDinput_SetFFreplica(rep,hadron,newPDF)
     logical,intent(out)::newPDF
 
     if(hadron<1 .or. hadron>num_of_uFFs) &
-      ERROR STOP ErrorString('SetFFreplica. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
+      ERROR STOP ErrorString('SetFFreplica. Called unexisting hadron. h= '//trim(numToStr(hadron)),moduleName)
     !!! if the number of replica to change coincides with the already used. Do not change it
     if(current_replica_uFFs(hadron)==rep) then
       newPDF=.false.
     else
       current_replica_uFFs(hadron)=rep
-
-      SELECT CASE(hadron)
-        CASE (1)
-          call SetReplica_uFF1(rep)
-        CASE (2)
-          call SetReplica_uFF2(rep)
-        CASE (3)
-          call SetReplica_uFF3(rep)
-        CASE (4)
-          call SetReplica_uFF4(rep)
-        CASE (5)
-          call SetReplica_uFF5(rep)
-        CASE (6)
-          call SetReplica_uFF6(rep)
-        END SELECT
+      call uLHAFF(hadron)%SetReplica(rep)
 
       newPDF=.true.
     end if
@@ -542,17 +348,13 @@ subroutine QCDinput_SetlpPDFreplica(rep,hadron,newPDF)
     logical,intent(out)::newPDF
 
     if(hadron<1 .or. hadron>num_of_lpPDFs) &
-      ERROR STOP ErrorString('SetlpPDFreplica. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
+      ERROR STOP ErrorString('SetlpPDFreplica. Called unexisting hadron. h= '//trim(numToStr(hadron)),moduleName)
     !!! if the number of replica to change coincides with the already used. Do not change it
     if(current_replica_lpPDFs(hadron)==rep) then
       newPDF=.false.
     else
       current_replica_lpPDFs(hadron)=rep
-
-      SELECT CASE(hadron)
-        CASE (1)
-          call SetReplica_lpPDF1(rep)
-        END SELECT
+      call lpLHAPDF(hadron)%SetReplica(rep)
 
       newPDF=.true.
     end if
@@ -567,19 +369,13 @@ subroutine QCDinput_SetgPDFreplica(rep,hadron,newPDF)
     logical,intent(out)::newPDF
 
     if(hadron<1 .or. hadron>num_of_gPDFs) &
-      ERROR STOP ErrorString('SetgPDFreplica. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
+      ERROR STOP ErrorString('SetgPDFreplica. Called unexisting hadron. h= '//trim(numToStr(hadron)),moduleName)
     !!! if the number of replica to change coincides with the already used. Do not change it
     if(current_replica_gPDFs(hadron)==rep) then
       newPDF=.false.
     else
       current_replica_gPDFs(hadron)=rep
-
-      SELECT CASE(hadron)
-        CASE (1)
-          call SetReplica_gPDF1(rep)
-        CASE (2)
-          call SetReplica_gPDF2(rep)
-        END SELECT
+      call gLHAPDF(hadron)%SetReplica(rep)
 
       newPDF=.true.
     end if
@@ -594,20 +390,13 @@ subroutine QCDinput_SethPDFreplica(rep,hadron,newPDF)
     logical,intent(out)::newPDF
 
     if(hadron<1 .or. hadron>num_of_hPDFs) &
-      ERROR STOP ErrorString('SethPDFreplica. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
+      ERROR STOP ErrorString('SethPDFreplica. Called unexisting hadron. h= '//trim(numToStr(hadron)),moduleName)
     !!! if the number of replica to change coincides with the already used. Do not change it
     if(current_replica_hPDFs(hadron)==rep) then
       newPDF=.false.
     else
       current_replica_hPDFs(hadron)=rep
-
-      SELECT CASE(hadron)
-        CASE (1)
-          call SetReplica_hPDF1(rep)
-        CASE (2)
-          call SetReplica_hPDF2(rep)
-        END SELECT
-
+      call hLHAPDF(hadron)%SetReplica(rep)
       newPDF=.true.
     end if
 end subroutine QCDinput_SethPDFreplica
@@ -661,17 +450,7 @@ function xPDF(x,Q,hadron)
 !     xPDF=inputPDF(-5:5)
 !     !======LHAPDF========
 !     !-------------------------
-
-    SELECT CASE(hadron)
-      CASE(1)
-        xPDF=xPDF_uPDF1(x,Q)
-      CASE(2)
-        xPDF=xPDF_uPDF2(x,Q)
-      CASE(3)
-        xPDF=xPDF_uPDF3(x,Q)
-      CASE DEFAULT
-        ERROR STOP ErrorString('xPDF. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
-    END SELECT
+    xPDF=uLHAPDF(hadron)%xPDF(x,Q)
 
 end function xPDF
   
@@ -686,22 +465,7 @@ function xFF(x,Q,hadron)
     real(dp),intent(in) :: x,Q
     real(dp),dimension(-5:5):: xFF
 
-    SELECT CASE(hadron)
-      CASE(1)
-        xFF=xPDF_uFF1(x,Q)
-      CASE(2)
-        xFF=xPDF_uFF2(x,Q)
-      CASE(3)
-        xFF=xPDF_uFF3(x,Q)
-      CASE(4)
-        xFF=xPDF_uFF4(x,Q)
-      CASE(5)
-        xFF=xPDF_uFF5(x,Q)
-      CASE(6)
-        xFF=xPDF_uFF6(x,Q)
-      CASE DEFAULT
-        ERROR STOP ErrorString('xFF. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
-    END SELECT
+    xFF=uLHAFF(hadron)%xPDF(x,Q)
 
 end function xFF
  
@@ -713,12 +477,7 @@ function x_lp_PDF(x,Q,hadron)
     integer,intent(in):: hadron
     real(dp), dimension(-5:5):: x_lp_PDF
 
-    SELECT CASE(hadron)
-    CASE(1)
-      x_lp_PDF=xPDF_lpPDF1(x,Q)
-    CASE DEFAULT
-      ERROR STOP ErrorString('x_lp_PDF. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
-  END SELECT
+    x_lp_PDF=lpLHAPDF(hadron)%xPDF(x,Q)
 
 end function x_lp_PDF
 
@@ -730,14 +489,7 @@ function x_gPDF(x,Q,hadron)
     integer,intent(in):: hadron
     real(dp), dimension(-5:5):: x_gPDF
 
-    SELECT CASE(hadron)
-    CASE(1)
-      x_gPDF=xPDF_gPDF1(x,Q)
-    CASE(2)
-      x_gPDF=xPDF_gPDF2(x,Q)
-    CASE DEFAULT
-      ERROR STOP ErrorString('xgPDF. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
-  END SELECT
+    x_gPDF=gLHAPDF(hadron)%xPDF(x,Q)
 
 end function x_gPDF
 
@@ -749,14 +501,7 @@ function x_hPDF(x,Q,hadron)
     integer,intent(in):: hadron
     real(dp), dimension(-5:5):: x_hPDF
 
-    SELECT CASE(hadron)
-    CASE(1)
-      x_hPDF=xPDF_hPDF1(x,Q)
-    CASE(2)
-      x_hPDF=xPDF_hPDF2(x,Q)
-    CASE DEFAULT
-      ERROR STOP ErrorString('xhPDF. Called unexisting hadron. h= '//trim(inttostr(hadron)),moduleName)
-  END SELECT
+    x_hPDF=hLHAPDF(hadron)%xPDF(x,Q)
 
 end function x_hPDF
  

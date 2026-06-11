@@ -90,6 +90,9 @@ def D2List(Q,f):
     return artemide.harpy.snowflake_d2_list(numpy.asfortranarray(Q),\
                                        numpy.asfortranarray(f),
                                        len(Q))
+        
+def get_WGT(x,Q):
+    return artemide.harpy.gettw3_wgt(x,Q)
 
 def get_PDF_tw3(x1,x2,Q,f,output="T"):
     """
@@ -1729,7 +1732,7 @@ class DY:
                     
             
         @staticmethod
-        def xSecList(process,s,qT,Q,y,includeCuts,CutParameters):
+        def xSecList(process,s,qT,Q,y,includeCuts,CutParameters,doParts):
             return artemide.harpy.dy_xsec_list(numpy.asfortranarray(process),\
                                                numpy.asfortranarray(s),\
                                                numpy.asfortranarray(qT),\
@@ -1737,7 +1740,7 @@ class DY:
                                                numpy.asfortranarray(y),\
                                                numpy.asfortranarray(includeCuts),\
                                                numpy.asfortranarray(CutParameters),\
-                                               len(s))
+                                               len(s),doParts)
         
         @staticmethod
         def xSecListAPROX(process,s,qT,Q,y,includeCuts,CutParameters):
@@ -1804,7 +1807,7 @@ class SIDIS:
                     
             
         @staticmethod
-        def xSecList(process,s,pT,z,x,Q,includeCuts,CutParameters,masses):  
+        def xSecList(process,s,pT,z,x,Q,includeCuts,CutParameters,masses,doParts):  
             return artemide.harpy.sidis_xsec_list(numpy.asfortranarray(process),\
                                                numpy.asfortranarray(s),\
                                                numpy.asfortranarray(pT),\
@@ -1814,7 +1817,7 @@ class SIDIS:
                                                numpy.asfortranarray(includeCuts),\
                                                numpy.asfortranarray(CutParameters),\
                                                numpy.asfortranarray(masses),\
-                                               len(s))
+                                               len(s),doParts)
             
         @staticmethod
         def xSecListBINLESS(process,s,pT,z,x,Q,masses):  

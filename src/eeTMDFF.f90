@@ -11,7 +11,7 @@
 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 module eeTMDFF
 use aTMDe_Numerics
-use IO_functions
+use aTMDe_IO
 use QCDinput
 use TMDR
 use eeTMDFF_model
@@ -35,8 +35,8 @@ logical:: started=.false.
 !! 1=initialization details
 !! 2=WARNINGS
 integer::outputLevel=2
-!! variable that count number of WRNING mesagges. In order not to spam too much
-integer::messageTrigger=6
+type(Warning_OBJ)::Warning_Handler
+
 
 !!! the length and array of NP parameters
 integer::lambdaNPlength
@@ -47,7 +47,6 @@ real(dp) :: toleranceINT=1d-6  !!! tolerance for numerical integration
 real(dp) :: toleranceGEN=1d-6  !!! tolerance for other purposes
 integer :: maxIteration=4000   !!! maximum iteration in the integrals (not used at the moment)
 
-integer :: messageCounter
 
 !!! ---------------------------- Perturbative variables
 !!! Perturbative order
@@ -95,7 +94,7 @@ subroutine eeTMDFF_Initialize(file,prefix)
     character(len=300)::path
     character(len=8)::order_global
     logical::initRequired
-    integer::FILEver
+    integer::FILEver,messageTrigger
 
     if(started) return
 
@@ -227,6 +226,7 @@ subroutine eeTMDFF_Initialize(file,prefix)
 
     CLOSE (51, STATUS='KEEP') 
 
+    Warning_Handler=Warning_OBJ(moduleName=moduleName,messageCounter=0,messageTrigger=messageTrigger)
     c4_global=1d0
 
     if(outputLevel>2 .and. includeGluon) write(*,'(A)') ' ... gluons are included'
@@ -251,7 +251,6 @@ subroutine eeTMDFF_Initialize(file,prefix)
     end if
 
     started=.true.
-    messageCounter=0
 
     if(outputLevel>0) write(*,*) color('----- arTeMiDe.eeTMDFF '//trim(version)//': .... initialized',c_green)
     if(outputLevel>1) write(*,*) ' '
@@ -267,10 +266,10 @@ subroutine eeTMDFF_SetScaleVariation(c4_in)
         if(outputLevel>0) write(*,*) WarningString('variation in c4 is enourmous. c4 is set to 2',moduleName)
         c4_global=2d0
     else if(abs(c4_in-c4_global)<toleranceGEN) then
-        if(outputLevel>1) write(*,*) color('uTMDFF: c4-variation is ignored. c4='//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('uTMDFF: c4-variation is ignored. c4='//numToStr(c4_global),c_yellow)
     else
         c4_global=c4_in
-        if(outputLevel>1) write(*,*) color('uTMDFF: set scale variations c4 as:'//real8ToStr(c4_global),c_yellow)
+        if(outputLevel>1) write(*,*) color('uTMDFF: set scale variations c4 as:'//numToStr(c4_global),c_yellow)
     end if
 end subroutine eeTMDFF_SetScaleVariation
 
@@ -280,7 +279,7 @@ end subroutine eeTMDFF_SetScaleVariation
 subroutine eeTMDFF_SetLambdaNP(lambdaIN)
     real(dp),intent(in)::lambdaIN(:)
     integer::ll
-    messageCounter=0
+    call Warning_Handler%Reset()
 
     ll=size(lambdaIN)
     if(ll/=lambdaNPlength) then
@@ -390,8 +389,7 @@ function TMD_opt_inKT(kT,hadron)
   real(dp),intent(in) :: kT
   integer,intent(in)::hadron
 
-    write(*,*) ErrorString('KT-space of Jet is not implemented . Evaluation STOP',moduleName)
-    ERROR STOP
+    ERROR STOP ErrorString('KT-space of Jet is not implemented . Evaluation STOP',moduleName)
 
 end function TMD_opt_inKT
 !
@@ -402,8 +400,7 @@ function TMD_ev_inKT(kT,muf,zetaf,hadron)
     integer,intent(in)::hadron
     real(dp):: Rkernel,RkernelG
 
-    write(*,*) ErrorString('KT-space of Jet is not implemented . Evaluation STOP',moduleName)
-    ERROR STOP
+    ERROR STOP ErrorString('KT-space of Jet is not implemented . Evaluation STOP',moduleName)
 end function TMD_ev_inKT
 
 end module eeTMDFF

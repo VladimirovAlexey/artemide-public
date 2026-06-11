@@ -198,6 +198,18 @@ NAME:		SnowART25
 TMDs:		uTMDPDF (proton, h=1), uTMDFF (pion h=1,kaon h=2) like in ART25
 TW3:		Chiral even (proton, h=1)
 Date:		18.09.2025
-Reference: 	[25??.????]
+Reference: 	[2511.04294]
 Num.of replicas:300
 Comments: 	Extraction of twist-3 collinear PDF from the fit of g2, d2, AUT, ALT, at LO. 
+		IMPORTANT NOTE: to use the model one should manually enter the directory for alpha-s LHA table in Snowflake_model.f90 (lines 25-27)
+
+------------------------------------------------------------------------
+---------------------------------18-------------------------------------
+NAME:		SnowART26
+TMDs:		uTMDPDF (proton, h=1), uTMDFF (pion h=1,kaon h=2) like in ART25;
+		SiversTMDPDF (proton, h=1), wgtTMDPDF (proton h=1)
+TW3:		Chiral even (proton, h=1)
+Date:		11.06.2026
+Reference: 	[2606.?????]
+Num.of replicas:300
+Comments: 	Extraction of twist-3 collinear PDF from the fit of g2, d2, AUT, ALT, at LO. Update of SnowART26 with better parametrization and more data. IMPORTANT NOTE: to use the model one should manually enter the directory for alpha-s LHA table in Snowflake_model.f90 (lines 25-27)
